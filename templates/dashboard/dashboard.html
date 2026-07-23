@@ -1,0 +1,827 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --wf-accent: #2563eb;
+        --wf-accent-light: #eff6ff;
+        --wf-green: #22c55e;
+        --wf-green-light: #dcfce7;
+        --wf-orange: #f97316;
+        --wf-orange-light: #ffedd5;
+        --wf-red: #ef4444;
+        --wf-red-light: #fee2e2;
+        --wf-yellow: #eab308;
+        --wf-yellow-light: #fef9c3;
+        --wf-bg: #f1f5f9;
+        --wf-card: #ffffff;
+        --wf-text: #1e293b;
+        --wf-text-muted: #64748b;
+        --wf-border: #e2e8f0;
+    }
+
+    .dash-page { padding: 0 4px 32px; }
+
+    /* ── Header ── */
+    .dash-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .dash-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--wf-text);
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+    }
+    .dash-subtitle {
+        font-size: 0.875rem;
+        color: var(--wf-text-muted);
+        margin: 0;
+    }
+    .dash-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .dash-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        min-width: 260px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .dash-search input {
+        border: none;
+        outline: none;
+        font-size: 0.85rem;
+        width: 100%;
+        background: transparent;
+        color: var(--wf-text);
+    }
+    .dash-search i { color: var(--wf-text-muted); font-size: 0.85rem; }
+    .dash-date-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--wf-text);
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        white-space: nowrap;
+    }
+    .dash-notif-btn {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid var(--wf-border);
+        background: var(--wf-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--wf-text-muted);
+        text-decoration: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        transition: background .15s;
+    }
+    .dash-notif-btn:hover { background: var(--wf-bg); color: var(--wf-accent); }
+    .dash-notif-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: var(--wf-red);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .kpi-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .kpi-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+    .kpi-icon.blue { background: var(--wf-accent-light); color: var(--wf-accent); }
+    .kpi-icon.green { background: var(--wf-green-light); color: var(--wf-green); }
+    .kpi-icon.orange { background: var(--wf-orange-light); color: var(--wf-orange); }
+    .kpi-icon.purple { background: #f3e8ff; color: #9333ea; }
+    .kpi-icon.red { background: var(--wf-red-light); color: var(--wf-red); }
+    .kpi-label { font-size: 0.78rem; color: var(--wf-text-muted); font-weight: 500; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--wf-text); line-height: 1; margin-bottom: 2px; }
+    .kpi-sub { font-size: 0.72rem; color: var(--wf-text-muted); }
+
+    /* ── Charts row ── */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .wf-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 20px 22px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .wf-card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0 0 16px;
+    }
+    .chart-wrap {
+        position: relative;
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .chart-wrap canvas { max-height: 180px; }
+    .chart-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 12px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--wf-text-muted);
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+    .legend-left { display: flex; align-items: center; }
+    .wf-card-footer {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--wf-border);
+        text-align: center;
+    }
+    .wf-card-footer a {
+        font-size: 0.82rem;
+        color: var(--wf-accent);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .wf-card-footer a:hover { text-decoration: underline; }
+
+    /* Productivity card */
+    .prod-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    .prod-select {
+        font-size: 0.75rem;
+        color: var(--wf-text-muted);
+        border: 1px solid var(--wf-border);
+        border-radius: 6px;
+        padding: 3px 8px;
+        background: var(--wf-bg);
+    }
+    .prod-rate {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--wf-text);
+        line-height: 1;
+    }
+    .prod-rate-label { font-size: 0.75rem; color: var(--wf-text-muted); margin-bottom: 8px; }
+    .prod-trend {
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    .prod-trend.up { color: var(--wf-green); }
+    .prod-trend.down { color: var(--wf-red); }
+    .prod-chart-wrap { height: 120px; }
+
+    /* ── Lists row ── */
+    .lists-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 992px) { .lists-grid { grid-template-columns: 1fr; } }
+
+    .list-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--wf-border);
+    }
+    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .list-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: var(--wf-accent-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--wf-accent);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .list-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .list-info { flex: 1; min-width: 0; }
+    .list-name { font-size: 0.85rem; font-weight: 600; color: var(--wf-text); margin: 0; }
+    .list-meta { font-size: 0.75rem; color: var(--wf-text-muted); margin: 0; }
+    .status-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .status-badge.pending { background: var(--wf-yellow-light); color: #a16207; }
+    .status-badge.received { background: var(--wf-green-light); color: #15803d; }
+    .status-badge.overdue { background: var(--wf-red-light); color: var(--wf-red); }
+    .empty-list {
+        text-align: center;
+        padding: 24px 0;
+        color: var(--wf-text-muted);
+        font-size: 0.85rem;
+    }
+
+    /* ── AI Section ── */
+    .ai-section {
+        background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+        border-radius: 14px;
+        padding: 22px 24px;
+        color: white;
+    }
+    .ai-section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .ai-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 280px;
+        gap: 14px;
+        align-items: start;
+    }
+    @media (max-width: 1100px) { .ai-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 768px) { .ai-grid { grid-template-columns: 1fr; } }
+    .ai-insight {
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 10px;
+        padding: 14px 16px;
+    }
+    .ai-insight p {
+        font-size: 0.82rem;
+        line-height: 1.5;
+        margin: 0 0 8px;
+        color: rgba(255,255,255,.92);
+    }
+    .ai-insight a {
+        font-size: 0.78rem;
+        color: rgba(255,255,255,.85);
+        text-decoration: underline;
+    }
+    .ai-chat-box {
+        background: white;
+        border-radius: 10px;
+        padding: 14px;
+    }
+    .ai-chat-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin-bottom: 8px;
+    }
+    .ai-chat-input-wrap {
+        display: flex;
+        gap: 8px;
+    }
+    .ai-chat-input-wrap input {
+        flex: 1;
+        border: 1px solid var(--wf-border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        outline: none;
+    }
+    .ai-chat-input-wrap input:focus { border-color: var(--wf-accent); }
+    .ai-chat-send {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: var(--wf-accent);
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background .15s;
+    }
+    .ai-chat-send:hover { background: #1d4ed8; }
+    #ai-response {
+        margin-top: 8px;
+        font-size: 0.78rem;
+        color: var(--wf-text-muted);
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-page">
+
+    <!-- Header -->
+    <div class="dash-header">
+        <div>
+            <h1 class="dash-title">Tableau de bord</h1>
+            <p class="dash-subtitle">Bienvenue {{ user.first_name }}, voici la situation de votre équipe aujourd'hui.</p>
+        </div>
+        <div class="dash-header-actions">
+            <div class="dash-search">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Rechercher (employé, projet, tâche…)" id="dash-search-input">
+            </div>
+            <div class="dash-date-picker">
+                <i class="fas fa-calendar-alt"></i>
+                {{ today_formatted }}
+            </div>
+            <a href="{% url 'notifications:list' %}" class="dash-notif-btn">
+                <i class="fas fa-bell"></i>
+                {% if unread_notifications %}
+                <span class="dash-notif-badge">{{ unread_notifications }}</span>
+                {% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Employés</span>
+                <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="kpi-value">{{ total_employees }}</div>
+            <div class="kpi-sub">Total</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Présents</span>
+                <div class="kpi-icon green"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="kpi-value">{{ present_count }}</div>
+            <div class="kpi-sub">Aujourd'hui</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Absents</span>
+                <div class="kpi-icon orange"><i class="fas fa-user-times"></i></div>
+            </div>
+            <div class="kpi-value">{{ absent_count }}</div>
+            <div class="kpi-sub">Aujourd'hui</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Projets en cours</span>
+                <div class="kpi-icon blue"><i class="fas fa-folder-open"></i></div>
+            </div>
+            <div class="kpi-value">{{ active_projects }}</div>
+            <div class="kpi-sub">Actifs</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Tâches terminées</span>
+                <div class="kpi-icon purple"><i class="fas fa-check-circle"></i></div>
+            </div>
+            <div class="kpi-value">{{ completed_tasks_today }}</div>
+            <div class="kpi-sub">Aujourd'hui</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-top">
+                <span class="kpi-label">Tâches en retard</span>
+                <div class="kpi-icon red"><i class="fas fa-exclamation-circle"></i></div>
+            </div>
+            <div class="kpi-value">{{ overdue_tasks_count }}</div>
+            <div class="kpi-sub">À traiter</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+        <!-- Projets -->
+        <div class="wf-card">
+            <h3 class="wf-card-title">Avancement des projets</h3>
+            <div class="chart-wrap">
+                <canvas id="projectChart"></canvas>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#22c55e"></span>Terminés</span>
+                    <span>{{ project_status_data.completed }}{% if total_projects_chart %} · {% widthratio project_status_data.completed total_projects_chart 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#2563eb"></span>En cours</span>
+                    <span>{{ project_status_data.in_progress }}{% if total_projects_chart %} · {% widthratio project_status_data.in_progress total_projects_chart 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#eab308"></span>En pause</span>
+                    <span>{{ project_status_data.on_hold }}{% if total_projects_chart %} · {% widthratio project_status_data.on_hold total_projects_chart 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#ef4444"></span>Annulés</span>
+                    <span>{{ project_status_data.cancelled }}{% if total_projects_chart %} · {% widthratio project_status_data.cancelled total_projects_chart 100 %}%{% endif %}</span>
+                </div>
+            </div>
+            <div class="wf-card-footer">
+                <a href="{% url 'projects:list' %}">Voir tous les projets</a>
+            </div>
+        </div>
+
+        <!-- Tâches -->
+        <div class="wf-card">
+            <h3 class="wf-card-title">Tâches par statut</h3>
+            <div class="chart-wrap">
+                <canvas id="taskChart"></canvas>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#22c55e"></span>Terminées</span>
+                    <span>{{ task_status_data.completed }}{% if total_tasks %} · {% widthratio task_status_data.completed total_tasks 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#2563eb"></span>En cours</span>
+                    <span>{{ task_status_data.in_progress }}{% if total_tasks %} · {% widthratio task_status_data.in_progress total_tasks 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#eab308"></span>En attente</span>
+                    <span>{{ task_status_data.pending }}{% if total_tasks %} · {% widthratio task_status_data.pending total_tasks 100 %}%{% endif %}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-left"><span class="legend-dot" style="background:#ef4444"></span>En retard</span>
+                    <span>{{ task_status_data.overdue }}{% if total_tasks %} · {% widthratio task_status_data.overdue total_tasks 100 %}%{% endif %}</span>
+                </div>
+            </div>
+            <div class="wf-card-footer">
+                <a href="{% url 'tasks:list' %}">Voir toutes les tâches</a>
+            </div>
+        </div>
+
+        <!-- Productivité -->
+        <div class="wf-card">
+            <div class="prod-header">
+                <h3 class="wf-card-title" style="margin:0">Productivité de l'équipe</h3>
+                <span class="prod-select">Cette semaine</span>
+            </div>
+            <div class="prod-rate">{{ productivity.rate }}%</div>
+            <div class="prod-rate-label">Taux moyen de réalisation</div>
+            <div class="prod-trend {% if productivity.trend >= 0 %}up{% else %}down{% endif %}">
+                {% if productivity.trend >= 0 %}↑{% else %}↓{% endif %}
+                {{ productivity.trend|floatformat:0 }}% vs semaine précédente
+            </div>
+            <div class="prod-chart-wrap">
+                <canvas id="productivityChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lists -->
+    <div class="lists-grid">
+        <!-- Permissions en attente -->
+        <div class="wf-card">
+            <h3 class="wf-card-title">Demandes de permissions en attente</h3>
+            {% if pending_permissions_list %}
+                {% for perm in pending_permissions_list %}
+                <div class="list-item">
+                    <div class="list-avatar">
+                        {% if perm.employee.user.photo %}
+                            <img src="{{ perm.employee.user.photo.url }}" alt="">
+                        {% else %}
+                            {{ perm.employee.user.first_name|first }}{{ perm.employee.user.last_name|first }}
+                        {% endif %}
+                    </div>
+                    <div class="list-info">
+                        <p class="list-name">{{ perm.employee.full_name }}</p>
+                        <p class="list-meta">{{ perm.employee.get_position_display }} · {{ perm.get_type_display }} · {{ perm.start_date|date:"d/m/Y" }} – {{ perm.end_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <span class="status-badge pending">En attente</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-list">Aucune demande en attente</div>
+            {% endif %}
+            <div class="wf-card-footer">
+                <a href="{% url 'permissions:list' %}">Voir toutes les permissions</a>
+            </div>
+        </div>
+
+        <!-- Derniers rapports -->
+        <div class="wf-card">
+            <h3 class="wf-card-title">Derniers rapports reçus</h3>
+            {% if recent_reports %}
+                {% for report in recent_reports %}
+                <div class="list-item">
+                    <div class="list-avatar">
+                        {% if report.employee.photo %}
+                            <img src="{{ report.employee.photo.url }}" alt="">
+                        {% else %}
+                            {{ report.employee.first_name|first }}{{ report.employee.last_name|first }}
+                        {% endif %}
+                    </div>
+                    <div class="list-info">
+                        <p class="list-name">{{ report.employee.first_name }} {{ report.employee.last_name }}</p>
+                        <p class="list-meta">{{ report.created_at|date:"d/m/Y" }} à {{ report.created_at|date:"H:i" }}</p>
+                    </div>
+                    <span class="status-badge received">Reçu</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-list">Aucun rapport reçu</div>
+            {% endif %}
+            <div class="wf-card-footer">
+                <a href="{% url 'reports:list' %}">Voir tous les rapports</a>
+            </div>
+        </div>
+
+        <!-- Tâches en retard -->
+        <div class="wf-card">
+            <h3 class="wf-card-title">Tâches en retard</h3>
+            {% if overdue_tasks_list %}
+                {% for item in overdue_tasks_list %}
+                <div class="list-item">
+                    <div class="list-info" style="padding-left:0">
+                        <p class="list-name">{{ item.task.title }}</p>
+                        <p class="list-meta">Projet : {% if item.task.project %}{{ item.task.project.name }}{% else %}—{% endif %}</p>
+                    </div>
+                    <span class="status-badge overdue">
+                        {{ item.days_late }} jour{{ item.days_late|pluralize }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-list">Aucune tâche en retard</div>
+            {% endif %}
+            <div class="wf-card-footer">
+                <a href="{% url 'tasks:list' %}">Voir toutes les tâches</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant -->
+    <div class="ai-section">
+        <h3 class="ai-section-title">
+            <i class="fas fa-robot"></i>
+            Assistant IA — Analyse intelligente de la situation actuelle
+        </h3>
+        <div class="ai-grid">
+            <div class="ai-insight">
+                <p>
+                    {% if at_risk_count %}
+                    ⚠️ {{ at_risk_count }} projet{{ at_risk_count|pluralize }} {% if at_risk_count > 1 %}ont{% else %}a{% endif %} un risque de retard
+                    {% if at_risk_projects %}({% for p in at_risk_projects %}{{ p.project.name }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}.
+                    {% else %}
+                    ✅ Aucun projet à risque de retard détecté.
+                    {% endif %}
+                </p>
+                <a href="{% url 'decision_ai:delay_detection' %}">Voir les projets</a>
+            </div>
+            <div class="ai-insight">
+                <p>
+                    {% if overdue_tasks_count %}
+                    📋 {{ overdue_tasks_count }} tâche{{ overdue_tasks_count|pluralize }} en retard à traiter en priorité.
+                    {% else %}
+                    ✅ Toutes les tâches sont à jour.
+                    {% endif %}
+                </p>
+                <a href="{% url 'tasks:list' %}">Voir les tâches</a>
+            </div>
+            <div class="ai-insight">
+                <p>
+                    {% if overloaded_departments %}
+                    ⚡ Charge de travail élevée pour : {{ overloaded_departments|join:", " }}.
+                    {% else %}
+                    ✅ La charge de travail de l'équipe est équilibrée.
+                    {% endif %}
+                </p>
+                <a href="{% url 'decision_ai:workload_analysis' %}">Voir la répartition</a>
+            </div>
+            <div class="ai-chat-box">
+                <div class="ai-chat-label">Posez une question à l'IA</div>
+                <div class="ai-chat-input-wrap">
+                    <input type="text" id="ai-question" placeholder="Ex : Qui est absent aujourd'hui ?">
+                    <button class="ai-chat-send" onclick="askAI()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+                <div id="ai-response"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    cutout: '72%',
+};
+
+// Projets donut
+new Chart(document.getElementById('projectChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Terminés', 'En cours', 'En pause', 'Annulés'],
+        datasets: [{
+            data: [
+                {{ project_status_data.completed }},
+                {{ project_status_data.in_progress }},
+                {{ project_status_data.on_hold }},
+                {{ project_status_data.cancelled }}
+            ],
+            backgroundColor: ['#22c55e', '#2563eb', '#eab308', '#ef4444'],
+            borderWidth: 0,
+        }]
+    },
+    options: {
+        ...chartDefaults,
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true },
+        },
+    },
+    plugins: [{
+        id: 'centerText',
+        beforeDraw(chart) {
+            const { ctx, chartArea: { width, height, top, left } } = chart;
+            ctx.save();
+            ctx.font = 'bold 1.1rem Inter, sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.fillText('{{ total_projects_chart }}', left + width / 2, top + height / 2 - 4);
+            ctx.font = '0.75rem Inter, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('Projets', left + width / 2, top + height / 2 + 14);
+            ctx.restore();
+        }
+    }]
+});
+
+// Tâches donut
+new Chart(document.getElementById('taskChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Terminées', 'En cours', 'En attente', 'En retard'],
+        datasets: [{
+            data: [
+                {{ task_status_data.completed }},
+                {{ task_status_data.in_progress }},
+                {{ task_status_data.pending }},
+                {{ task_status_data.overdue }}
+            ],
+            backgroundColor: ['#22c55e', '#2563eb', '#eab308', '#ef4444'],
+            borderWidth: 0,
+        }]
+    },
+    options: {
+        ...chartDefaults,
+        plugins: { legend: { display: false } },
+    },
+    plugins: [{
+        id: 'centerText',
+        beforeDraw(chart) {
+            const { ctx, chartArea: { width, height, top, left } } = chart;
+            ctx.save();
+            ctx.font = 'bold 1.1rem Inter, sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.fillText('{{ total_tasks }}', left + width / 2, top + height / 2 - 4);
+            ctx.font = '0.75rem Inter, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('Tâches', left + width / 2, top + height / 2 + 14);
+            ctx.restore();
+        }
+    }]
+});
+
+// Productivité line chart
+new Chart(document.getElementById('productivityChart'), {
+    type: 'line',
+    data: {
+        labels: {{ productivity_labels_json|safe }},
+        datasets: [{
+            data: {{ productivity_data_json|safe }},
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: '#2563eb',
+            borderWidth: 2,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { display: false, beginAtZero: true },
+        },
+    }
+});
+
+// AI chat
+function askAI() {
+    const input = document.getElementById('ai-question');
+    const response = document.getElementById('ai-response');
+    const question = input.value.trim();
+    if (!question) return;
+
+    response.style.display = 'block';
+    response.textContent = 'Analyse en cours…';
+
+    const formData = new FormData();
+    formData.append('question', question);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "decision_ai:chat" %}', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            response.textContent = data.answer || data.error || 'Erreur inconnue';
+            input.value = '';
+        })
+        .catch(() => { response.textContent = 'Erreur de connexion.'; });
+}
+
+document.getElementById('ai-question').addEventListener('keydown', e => {
+    if (e.key === 'Enter') askAI();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Employés - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Gestion des Employés</h2>
+    <a href="{% url 'employees:create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Ajouter un employé
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                {{ form.search }}
+            </div>
+            <div class="col-md-3">
+                {{ form.position }}
+            </div>
+            <div class="col-md-3">
+                {{ form.status }}
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>Filtrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if employees %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>Nom complet</th>
+                        <th>Email</th>
+                        <th>Poste</th>
+                        <th>Département</th>
+                        <th>Statut</th>
+                        <th>Date d'embauche</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td>
+                            {% if employee.user.photo %}
+                                <img src="{{ employee.user.photo.url }}" alt="{{ employee.full_name }}" class="rounded-circle" width="40" height="40">
+                            {% else %}
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ employee.full_name }}</strong>
+                            <br>
+                            <small class="text-muted">@{{ employee.user.username }}</small>
+                        </td>
+                        <td>{{ employee.email }}</td>
+                        <td>{{ employee.get_position_display }}</td>
+                        <td>{{ employee.department|default:"-" }}</td>
+                        <td>
+                            {% if employee.status == 'active' %}
+                                <span class="badge bg-success">Actif</span>
+                            {% elif employee.status == 'inactive' %}
+                                <span class="badge bg-danger">Inactif</span>
+                            {% else %}
+                                <span class="badge bg-warning">En congé</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ employee.hire_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'employees:detail' employee.pk %}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'employees:update' employee.pk %}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'employees:delete' employee.pk %}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Aucun employé trouvé.</p>
+            <a href="{% url 'employees:create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Ajouter le premier employé
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

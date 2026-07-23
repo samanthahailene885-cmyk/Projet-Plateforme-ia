@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+
+{% block title %}Projets - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --wf-accent: #2563eb;
+        --wf-accent-light: #eff6ff;
+        --wf-green: #22c55e;
+        --wf-green-light: #dcfce7;
+        --wf-orange: #f97316;
+        --wf-orange-light: #ffedd5;
+        --wf-red: #ef4444;
+        --wf-red-light: #fee2e2;
+        --wf-yellow: #eab308;
+        --wf-yellow-light: #fef9c3;
+        --wf-bg: #f1f5f9;
+        --wf-card: #ffffff;
+        --wf-text: #1e293b;
+        --wf-text-muted: #64748b;
+        --wf-border: #e2e8f0;
+    }
+
+    .projects-page { padding: 0 4px 32px; }
+
+    /* Header */
+    .projects-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .projects-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--wf-text);
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+    }
+    .projects-subtitle {
+        font-size: 0.875rem;
+        color: var(--wf-text-muted);
+        margin: 0;
+    }
+    .projects-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .btn-add-project {
+        background: var(--wf-accent);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .btn-add-project:hover { background: #1d4ed8; }
+
+    /* Filters */
+    .filters-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .filters-form {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+    .filter-group label {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--wf-text-muted);
+        margin-bottom: 6px;
+        display: block;
+    }
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        border: 1px solid var(--wf-border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        background: white;
+        color: var(--wf-text);
+        outline: none;
+    }
+    .filter-group select:focus,
+    .filter-group input:focus {
+        border-color: var(--wf-accent);
+    }
+    .btn-filter {
+        background: var(--wf-accent);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background .15s;
+    }
+    .btn-filter:hover { background: #1d4ed8; }
+
+    /* Projects Grid */
+    .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+    }
+    @media (max-width: 768px) { .projects-grid { grid-template-columns: 1fr; } }
+
+    .project-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+        transition: box-shadow .15s, transform .15s;
+    }
+    .project-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        transform: translateY(-2px);
+    }
+    .project-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .project-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0;
+        line-height: 1.4;
+    }
+    .project-client {
+        font-size: 0.82rem;
+        color: var(--wf-text-muted);
+        margin: 4px 0 0;
+    }
+    .project-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .project-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .project-badge.planning { background: var(--wf-yellow-light); color: #a16207; }
+    .project-badge.in_progress { background: var(--wf-accent-light); color: var(--wf-accent); }
+    .project-badge.on_hold { background: var(--wf-orange-light); color: #c2410c; }
+    .project-badge.completed { background: var(--wf-green-light); color: #15803d; }
+    .project-badge.cancelled { background: var(--wf-red-light); color: var(--wf-red); }
+    .project-badge.overdue { background: var(--wf-red-light); color: var(--wf-red); }
+    .project-badge.low { background: #e0f2fe; color: #0369a1; }
+    .project-badge.medium { background: var(--wf-accent-light); color: var(--wf-accent); }
+    .project-badge.high { background: var(--wf-orange-light); color: #c2410c; }
+    .project-badge.urgent { background: var(--wf-red-light); color: var(--wf-red); }
+
+    .project-progress {
+        margin: 16px 0;
+    }
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 6px;
+    }
+    .progress-bar-container {
+        height: 8px;
+        background: var(--wf-bg);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: var(--wf-accent);
+        border-radius: 4px;
+        transition: width .3s;
+    }
+    .progress-bar-fill.completed { background: var(--wf-green); }
+    .progress-bar-fill.high { background: var(--wf-orange); }
+
+    .project-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 16px;
+    }
+    .project-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .project-meta-item i { font-size: 0.85rem; }
+
+    .project-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--wf-border);
+    }
+    .project-action-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        text-align: center;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .project-action-btn.view {
+        background: var(--wf-accent-light);
+        color: var(--wf-accent);
+    }
+    .project-action-btn.view:hover { background: #dbeafe; }
+    .project-action-btn.edit {
+        background: var(--wf-yellow-light);
+        color: #a16207;
+    }
+    .project-action-btn.edit:hover { background: #fef9c3; }
+    .project-action-btn.delete {
+        background: var(--wf-red-light);
+        color: var(--wf-red);
+    }
+    .project-action-btn.delete:hover { background: #fee2e2; }
+
+    /* Empty state */
+    .empty-projects {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+    }
+    .empty-projects i {
+        font-size: 3rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 16px;
+    }
+    .empty-projects h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0 0 8px;
+    }
+    .empty-projects p {
+        font-size: 0.9rem;
+        color: var(--wf-text-muted);
+        margin: 0 0 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="projects-page">
+
+    <!-- Header -->
+    <div class="projects-header">
+        <div>
+            <h1 class="projects-title">Projets</h1>
+            <p class="projects-subtitle">Gérez tous vos projets et suivez leur progression</p>
+        </div>
+        <div class="projects-header-actions">
+            <a href="{% url 'projects:create' %}" class="btn-add-project">
+                <i class="fas fa-plus"></i>
+                Nouveau projet
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-card">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label>Rechercher</label>
+                <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Nom, client...">
+            </div>
+            <div class="filter-group">
+                <label>Statut</label>
+                <select name="status">
+                    <option value="">Tous</option>
+                    <option value="planning" {% if request.GET.status == 'planning' %}selected{% endif %}>Planification</option>
+                    <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>En cours</option>
+                    <option value="on_hold" {% if request.GET.status == 'on_hold' %}selected{% endif %}>En pause</option>
+                    <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Terminé</option>
+                    <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Annulé</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Priorité</label>
+                <select name="priority">
+                    <option value="">Toutes</option>
+                    <option value="low" {% if request.GET.priority == 'low' %}selected{% endif %}>Faible</option>
+                    <option value="medium" {% if request.GET.priority == 'medium' %}selected{% endif %}>Moyen</option>
+                    <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>Haute</option>
+                    <option value="urgent" {% if request.GET.priority == 'urgent' %}selected{% endif %}>Urgent</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-search"></i> Filtrer
+            </button>
+        </form>
+    </div>
+
+    <!-- Projects Grid -->
+    {% if projects %}
+    <div class="projects-grid">
+        {% for project in projects %}
+        <div class="project-card">
+            <div class="project-card-header">
+                <div>
+                    <h3 class="project-name">{{ project.name }}</h3>
+                    <p class="project-client">{{ project.client|default:"—" }}</p>
+                </div>
+                <div class="project-badges">
+                    {% if project.is_overdue %}
+                        <span class="project-badge overdue">En retard</span>
+                    {% endif %}
+                    <span class="project-badge {{ project.status }}">{{ project.get_status_display }}</span>
+                </div>
+            </div>
+
+            <div class="project-badges" style="margin-bottom: 12px;">
+                <span class="project-badge {{ project.priority }}">{{ project.get_priority_display }}</span>
+            </div>
+
+            <div class="project-progress">
+                <div class="progress-label">
+                    <span>Progression</span>
+                    <span>{{ project.progress }}%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill {% if project.progress >= 80 %}completed{% elif project.progress >= 50 %}high{% endif %}" style="width: {{ project.progress }}%"></div>
+                </div>
+            </div>
+
+            <div class="project-meta">
+                <div class="project-meta-item">
+                    <i class="fas fa-calendar"></i>
+                    <span>{{ project.end_date|date:"d/m/Y" }}</span>
+                </div>
+                <div class="project-meta-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>{{ project.task_set.count }} tâches</span>
+                </div>
+            </div>
+
+            <div class="project-actions">
+                <a href="{% url 'projects:detail' project.pk %}" class="project-action-btn view">
+                    <i class="fas fa-eye"></i> Voir
+                </a>
+                <a href="{% url 'projects:update' project.pk %}" class="project-action-btn edit">
+                    <i class="fas fa-edit"></i> Modifier
+                </a>
+                <a href="{% url 'projects:delete' project.pk %}" class="project-action-btn delete">
+                    <i class="fas fa-trash"></i> Supprimer
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-projects">
+        <i class="fas fa-project-diagram"></i>
+        <h3>Aucun projet trouvé</h3>
+        <p>Commencez par créer votre premier projet</p>
+        <a href="{% url 'projects:create' %}" class="btn-add-project">
+            <i class="fas fa-plus"></i>
+            Nouveau projet
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

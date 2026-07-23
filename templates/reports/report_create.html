@@ -1,0 +1,571 @@
+{% extends 'base.html' %}
+
+{% block title %}Mon rapport - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --wf-sidebar: #0f172a;
+        --wf-sidebar-hover: #1e293b;
+        --wf-accent: #2563eb;
+        --wf-accent-light: #eff6ff;
+        --wf-green: #22c55e;
+        --wf-green-light: #dcfce7;
+        --wf-orange: #f97316;
+        --wf-orange-light: #ffedd5;
+        --wf-blue-action: #0ea5e9;
+        --wf-blue-action-light: #e0f2fe;
+        --wf-bg: #f8fafc;
+        --wf-card: #ffffff;
+        --wf-text: #1e293b;
+        --wf-text-muted: #64748b;
+        --wf-border: #e2e8f0;
+    }
+
+    body { background: var(--wf-bg) !important; }
+
+    /* ── Page wrapper ── */
+    .report-page {
+        padding: 0 8px 40px;
+        max-width: 1200px;
+    }
+
+    /* ── Header ── */
+    .report-page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .report-page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--wf-text);
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+    }
+    .report-page-subtitle {
+        font-size: 0.9rem;
+        color: var(--wf-text-muted);
+        margin: 0;
+    }
+    .date-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .date-picker-btn {
+        background: none;
+        border: none;
+        color: var(--wf-text-muted);
+        cursor: pointer;
+        padding: 4px 6px;
+        border-radius: 6px;
+        transition: background .15s;
+        font-size: 0.85rem;
+    }
+    .date-picker-btn:hover { background: var(--wf-bg); color: var(--wf-accent); }
+    .date-picker-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--wf-text);
+        white-space: nowrap;
+    }
+
+    /* ── Grid layout ── */
+    .report-grid {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 20px;
+        align-items: start;
+    }
+    .report-main { display: flex; flex-direction: column; gap: 20px; }
+    .report-sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── Cards ── */
+    .wf-card {
+        background: var(--wf-card);
+        border-radius: 12px;
+        border: 1px solid var(--wf-border);
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+        padding: 22px 24px;
+    }
+    .wf-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .wf-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+    .wf-card-title .icon-wrap {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+    .icon-ai { background: var(--wf-accent-light); color: var(--wf-accent); }
+    .icon-activities { background: #f0fdf4; color: var(--wf-green); }
+    .icon-stats { background: #fef3c7; color: #d97706; }
+
+    /* ── AI Summary ── */
+    .ai-badge {
+        background: var(--wf-green-light);
+        color: #15803d;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+    }
+    .ai-summary-text {
+        font-size: 0.9rem;
+        line-height: 1.7;
+        color: #334155;
+        background: var(--wf-bg);
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid var(--wf-border);
+        min-height: 120px;
+        resize: vertical;
+        width: 100%;
+        font-family: inherit;
+        transition: border-color .15s;
+    }
+    .ai-summary-text:focus {
+        outline: none;
+        border-color: var(--wf-accent);
+        box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    .ai-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+    .btn-wf-outline {
+        background: white;
+        border: 1px solid var(--wf-border);
+        color: var(--wf-text-muted);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all .15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-wf-outline:hover { border-color: var(--wf-accent); color: var(--wf-accent); background: var(--wf-accent-light); }
+    .btn-wf-primary {
+        background: var(--wf-accent);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all .15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-wf-primary:hover { background: #1d4ed8; }
+
+    /* ── Activities ── */
+    .activity-list { display: flex; flex-direction: column; gap: 0; }
+    .activity-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--wf-border);
+    }
+    .activity-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .activity-icon.done { background: var(--wf-green-light); color: var(--wf-green); }
+    .activity-icon.progress { background: var(--wf-orange-light); color: var(--wf-orange); }
+    .activity-icon.todo { background: var(--wf-blue-action-light); color: var(--wf-blue-action); }
+    .activity-body { flex: 1; min-width: 0; }
+    .activity-title { font-size: 0.9rem; font-weight: 600; color: var(--wf-text); margin-bottom: 2px; }
+    .activity-desc { font-size: 0.8rem; color: var(--wf-text-muted); line-height: 1.4; }
+    .activity-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .status-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .status-badge.done { background: var(--wf-green-light); color: #15803d; }
+    .status-badge.progress { background: var(--wf-orange-light); color: #c2410c; }
+    .status-badge.todo { background: var(--wf-blue-action-light); color: #0369a1; }
+    .activity-time { font-size: 0.75rem; color: var(--wf-text-muted); }
+
+    /* ── Stats sidebar ── */
+    .stat-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--wf-border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-icon-sm {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    .stat-icon-sm.blue { background: var(--wf-accent-light); color: var(--wf-accent); }
+    .stat-icon-sm.green { background: var(--wf-green-light); color: var(--wf-green); }
+    .stat-icon-sm.orange { background: var(--wf-orange-light); color: var(--wf-orange); }
+    .stat-icon-sm.purple { background: #f3e8ff; color: #7c3aed; }
+    .stat-icon-sm.teal { background: #ccfbf1; color: #0d9488; }
+    .stat-label-sm { font-size: 0.82rem; color: var(--wf-text-muted); flex: 1; }
+    .stat-value-sm { font-size: 0.9rem; font-weight: 700; color: var(--wf-text); }
+
+    /* ── Remarks ── */
+    .remarks-textarea {
+        width: 100%;
+        min-height: 90px;
+        border: 1px solid var(--wf-border);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.875rem;
+        color: var(--wf-text);
+        resize: vertical;
+        font-family: inherit;
+        background: var(--wf-bg);
+        transition: border-color .15s;
+    }
+    .remarks-textarea:focus {
+        outline: none;
+        border-color: var(--wf-accent);
+        box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+        background: white;
+    }
+    .char-counter { font-size: 0.75rem; color: var(--wf-text-muted); text-align: right; margin-top: 6px; }
+
+    /* ── Submit card ── */
+    .submit-card {
+        text-align: center;
+        padding: 24px 20px;
+    }
+    .submit-illustration {
+        margin: 0 auto 16px;
+        width: 80px;
+        height: 80px;
+        position: relative;
+    }
+    .submit-illustration svg { width: 100%; height: 100%; }
+    .submit-card h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0 0 16px;
+    }
+    .btn-submit-report {
+        width: 100%;
+        background: var(--wf-green);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background .15s, transform .1s;
+        box-shadow: 0 2px 8px rgba(34,197,94,.3);
+    }
+    .btn-submit-report:hover { background: #16a34a; transform: translateY(-1px); }
+    .btn-submit-report:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .submitted-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--wf-green-light);
+        color: #15803d;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+    .last-sent {
+        font-size: 0.75rem;
+        color: var(--wf-text-muted);
+        margin-top: 12px;
+    }
+
+    /* ── Empty state ── */
+    .empty-activities {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--wf-text-muted);
+    }
+    .empty-activities i { font-size: 2rem; margin-bottom: 10px; opacity: .4; }
+
+    /* ── Responsive ── */
+    @media (max-width: 992px) {
+        .report-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 576px) {
+        .report-page-header { flex-direction: column; }
+        .activity-meta { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-page">
+
+    <!-- Header -->
+    <div class="report-page-header">
+        <div>
+            <h1 class="report-page-title">Mon rapport</h1>
+            <p class="report-page-subtitle">Gérez et envoyez votre rapport quotidien</p>
+        </div>
+        <div class="date-picker">
+            <button class="date-picker-btn" title="Jour précédent"><i class="fas fa-chevron-left"></i></button>
+            <span class="date-picker-label">{{ formatted_date }}</span>
+            <button class="date-picker-btn" title="Jour suivant"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <div class="report-grid">
+
+        <!-- Colonne gauche -->
+        <div class="report-main">
+
+            <!-- Résumé IA -->
+            <div class="wf-card">
+                <div class="wf-card-header">
+                    <h2 class="wf-card-title">
+                        <span class="icon-wrap icon-ai"><i class="fas fa-star"></i></span>
+                        Résumé généré par l'IA
+                    </h2>
+                    <span class="ai-badge">Généré automatiquement</span>
+                </div>
+                <textarea class="ai-summary-text" id="aiSummary" {% if is_submitted %}readonly{% endif %}>{{ ai_summary }}</textarea>
+                <div class="ai-actions">
+                    {% if not is_submitted %}
+                    <button class="btn-wf-outline" onclick="regenerateSummary()">
+                        <i class="fas fa-sync-alt"></i> Régénérer
+                    </button>
+                    <button class="btn-wf-primary" onclick="editSummary()">
+                        <i class="fas fa-pen"></i> Modifier le texte
+                    </button>
+                    {% else %}
+                    <span class="ai-badge"><i class="fas fa-check me-1"></i> Rapport envoyé</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Détail des activités -->
+            <div class="wf-card">
+                <div class="wf-card-header">
+                    <h2 class="wf-card-title">
+                        <span class="icon-wrap icon-activities"><i class="fas fa-list-check"></i></span>
+                        Détail des activités
+                    </h2>
+                </div>
+                <div class="activity-list">
+                    {% if activities %}
+                        {% for activity in activities %}
+                        <div class="activity-row">
+                            <div class="activity-icon {{ activity.status_class }}">
+                                {% if activity.status == 'completed' %}
+                                    <i class="fas fa-check"></i>
+                                {% elif activity.status == 'in_progress' %}
+                                    <i class="fas fa-clock"></i>
+                                {% else %}
+                                    <i class="far fa-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="activity-body">
+                                <div class="activity-title">{{ activity.title }}</div>
+                                <div class="activity-desc">{{ activity.description|truncatechars:80 }}</div>
+                            </div>
+                            <div class="activity-meta">
+                                <span class="status-badge {{ activity.status_class }}">{{ activity.status_label }}</span>
+                                <span class="activity-time">{{ activity.time }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-activities">
+                            <i class="fas fa-inbox d-block"></i>
+                            <p>Aucune activité enregistrée pour aujourd'hui</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Colonne droite -->
+        <div class="report-sidebar">
+
+            <!-- Statistiques -->
+            <div class="wf-card">
+                <div class="wf-card-header">
+                    <h2 class="wf-card-title">
+                        <span class="icon-wrap icon-stats"><i class="fas fa-chart-bar"></i></span>
+                        Statistiques du jour
+                    </h2>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm blue"><i class="fas fa-tasks"></i></div>
+                    <span class="stat-label-sm">Tâches prévues</span>
+                    <span class="stat-value-sm">{{ stats.tasks_planned }}</span>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm green"><i class="fas fa-check-circle"></i></div>
+                    <span class="stat-label-sm">Tâches terminées</span>
+                    <span class="stat-value-sm">{{ stats.tasks_completed }}</span>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm orange"><i class="fas fa-spinner"></i></div>
+                    <span class="stat-label-sm">Tâches en cours</span>
+                    <span class="stat-value-sm">{{ stats.tasks_in_progress }}</span>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm purple"><i class="fas fa-clock"></i></div>
+                    <span class="stat-label-sm">Temps travaillé</span>
+                    <span class="stat-value-sm">{{ stats.hours_worked }}</span>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm teal"><i class="fas fa-bolt"></i></div>
+                    <span class="stat-label-sm">Productivité</span>
+                    <span class="stat-value-sm">{{ stats.productivity }}%</span>
+                </div>
+            </div>
+
+            <!-- Remarques -->
+            <div class="wf-card">
+                <h2 class="wf-card-title" style="margin-bottom:12px;">
+                    <span class="icon-wrap" style="background:#fef3c7;color:#d97706;"><i class="fas fa-comment-dots"></i></span>
+                    Ajoutez une remarque
+                </h2>
+                <textarea class="remarks-textarea" id="remarks" maxlength="500"
+                    placeholder="Écrivez vos remarques ici..."
+                    oninput="updateCounter()"></textarea>
+                <div class="char-counter"><span id="charCount">0</span>/500</div>
+            </div>
+
+            <!-- Envoi -->
+            <div class="wf-card submit-card">
+                <div class="submit-illustration">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="40" cy="40" r="38" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+                        <path d="M20 45 Q40 20 60 45" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+                        <path d="M38 52 L58 32 L52 50 L38 52Z" fill="#2563eb"/>
+                        <path d="M38 52 L22 58 L28 44 Z" fill="#1d4ed8"/>
+                        <circle cx="58" cy="32" r="3" fill="#2563eb"/>
+                    </svg>
+                </div>
+                {% if is_submitted %}
+                <h3>Rapport envoyé avec succès</h3>
+                <div class="submitted-badge">
+                    <i class="fas fa-check-circle"></i> Envoyé le {{ report.created_at|date:"d/m/Y à H:i" }}
+                </div>
+                {% else %}
+                <h3>Prêt à envoyer votre rapport ?</h3>
+                <button class="btn-submit-report" onclick="submitReport()">
+                    <i class="fas fa-paper-plane"></i> Envoyer le rapport
+                </button>
+                {% endif %}
+                {% if last_report %}
+                <p class="last-sent">Dernier envoi : {{ last_report.created_at|date:"d/m/Y à H:i" }}</p>
+                {% elif not is_submitted %}
+                <p class="last-sent">Aucun rapport envoyé précédemment</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editSummary() {
+    const el = document.getElementById('aiSummary');
+    el.removeAttribute('readonly');
+    el.focus();
+    el.style.background = '#fff';
+}
+
+function regenerateSummary() {
+    const el = document.getElementById('aiSummary');
+    el.value = 'Régénération en cours...';
+    el.setAttribute('readonly', true);
+    setTimeout(() => {
+        window.location.reload();
+    }, 800);
+}
+
+function updateCounter() {
+    const ta = document.getElementById('remarks');
+    document.getElementById('charCount').textContent = ta.value.length;
+}
+
+function submitReport() {
+    const summary = document.getElementById('aiSummary').value.trim();
+    if (!summary) {
+        alert('Veuillez générer un résumé avant d\'envoyer le rapport.');
+        return;
+    }
+    window.location.href = '{% url "reports:generate" %}';
+}
+</script>
+{% endblock %}

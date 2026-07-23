@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}Ma Todo List - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Ma Todo List</h2>
+    <span class="badge bg-primary">{{ pending_items.count }} en cours</span>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list-check me-2"></i>Tâches à faire</h5>
+            </div>
+            <div class="card-body">
+                {% if pending_items %}
+                    <ul class="list-group">
+                        {% for item in pending_items %}
+                        <li class="list-group-item d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-3" 
+                                   onchange="toggleTodo({{ item.pk }})"
+                                   {% if item.is_completed %}checked{% endif %}>
+                            <div class="flex-grow-1">
+                                <strong>{{ item.title }}</strong>
+                                {% if item.description %}
+                                    <p class="mb-0 text-muted small">{{ item.description }}</p>
+                                {% endif %}
+                                <small class="text-muted">
+                                    <i class="fas fa-flag me-1"></i>{{ item.get_priority_display }}
+                                </small>
+                            </div>
+                            <a href="{% url 'todo:delete' item.pk %}" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucune tâche en cours. Bravo !</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Tâches terminées</h5>
+            </div>
+            <div class="card-body">
+                {% if completed_items %}
+                    <ul class="list-group">
+                        {% for item in completed_items %}
+                        <li class="list-group-item d-flex align-items-center opacity-50">
+                            <input type="checkbox" class="form-check-input me-3" checked
+                                   onchange="toggleTodo({{ item.pk }})">
+                            <div class="flex-grow-1">
+                                <strong>{{ item.title }}</strong>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-clock me-1"></i>Terminé le {{ item.completed_at|date:"d/m/Y H:i" }}
+                                </small>
+                            </div>
+                            <a href="{% url 'todo:delete' item.pk %}" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">Aucune tâche terminée aujourd'hui.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Ajouter une tâche</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Statistiques</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Total des tâches:</strong>
+                    <span class="float-end">{{ pending_items.count|add:completed_items.count }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>En cours:</strong>
+                    <span class="float-end">{{ pending_items.count }}</span>
+                </div>
+                <div>
+                    <strong>Terminées:</strong>
+                    <span class="float-end">{{ completed_items.count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleTodo(pk) {
+    fetch(`/todo/toggle/${pk}/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

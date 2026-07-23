@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ task.title }} - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">{{ task.title }}</h2>
+    <div>
+        <a href="{% url 'tasks:update' task.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit me-2"></i>Modifier
+        </a>
+        <a href="{% url 'tasks:delete' task.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Supprimer
+        </a>
+        <a href="{% url 'tasks:list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la tâche</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Titre</strong></td>
+                            <td>{{ task.title }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Description</strong></td>
+                            <td>{{ task.description|default:"Non renseignée" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Projet</strong></td>
+                            <td>
+                                {% if task.project %}
+                                    <a href="{% url 'projects:detail' task.project.pk %}">{{ task.project.name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Non assigné</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Assigné à</strong></td>
+                            <td>
+                                {% if task.assigned_to %}
+                                    <a href="{% url 'employees:detail' task.assigned_to.pk %}">{{ task.assigned_to.full_name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Non assigné</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Statut</strong></td>
+                            <td>{{ task.get_status_display }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Priorité</strong></td>
+                            <td>{{ task.get_priority_display }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date limite</strong></td>
+                            <td>{{ task.due_date|date:"d/m/Y"|default:"Non définie" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Heures estimées</strong></td>
+                            <td>{{ task.estimated_hours|default:"-" }} h</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Heures réelles</strong></td>
+                            <td>{{ task.actual_hours|default:"-" }} h</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Commentaires</strong></td>
+                            <td>{{ task.comments|default:"Aucun commentaire" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Créé le</strong></td>
+                            <td>{{ task.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mis à jour le</strong></td>
+                            <td>{{ task.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Statistiques</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Jours restants:</strong>
+                    <span class="float-end">{{ task.days_remaining|default:"-" }} jours</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Statut:</strong>
+                    {% if task.is_overdue %}
+                        <span class="badge bg-danger float-end">En retard</span>
+                    {% else %}
+                        <span class="badge bg-success float-end">À temps</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <strong>Projet:</strong>
+                    <span class="float-end">{{ task.project.name|default:"Non assigné" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

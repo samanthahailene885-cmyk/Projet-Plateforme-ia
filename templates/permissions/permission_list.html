@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+
+{% block title %}Permissions - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --wf-accent: #2563eb;
+        --wf-accent-light: #eff6ff;
+        --wf-green: #22c55e;
+        --wf-green-light: #dcfce7;
+        --wf-orange: #f97316;
+        --wf-orange-light: #ffedd5;
+        --wf-red: #ef4444;
+        --wf-red-light: #fee2e2;
+        --wf-yellow: #eab308;
+        --wf-yellow-light: #fef9c3;
+        --wf-bg: #f1f5f9;
+        --wf-card: #ffffff;
+        --wf-text: #1e293b;
+        --wf-text-muted: #64748b;
+        --wf-border: #e2e8f0;
+    }
+
+    .permissions-page { padding: 0 4px 32px; }
+
+    /* Header */
+    .permissions-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .permissions-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--wf-text);
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+    }
+    .permissions-subtitle {
+        font-size: 0.875rem;
+        color: var(--wf-text-muted);
+        margin: 0;
+    }
+    .permissions-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .btn-add-permission {
+        background: var(--wf-accent);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .btn-add-permission:hover { background: #1d4ed8; }
+
+    /* Filters */
+    .filters-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .filters-form {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+    .filter-group label {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--wf-text-muted);
+        margin-bottom: 6px;
+        display: block;
+    }
+    .filter-group select {
+        width: 100%;
+        border: 1px solid var(--wf-border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        background: white;
+        color: var(--wf-text);
+        outline: none;
+    }
+    .filter-group select:focus {
+        border-color: var(--wf-accent);
+    }
+    .btn-filter {
+        background: var(--wf-accent);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background .15s;
+    }
+    .btn-filter:hover { background: #1d4ed8; }
+
+    /* Permissions Grid */
+    .permissions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 16px;
+    }
+    @media (max-width: 768px) { .permissions-grid { grid-template-columns: 1fr; } }
+
+    .permission-card {
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+        transition: box-shadow .15s, transform .15s;
+    }
+    .permission-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        transform: translateY(-2px);
+    }
+    .permission-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .permission-employee {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .permission-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--wf-accent-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--wf-accent);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .permission-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .permission-employee-info h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0 0 2px;
+    }
+    .permission-employee-info p {
+        font-size: 0.78rem;
+        color: var(--wf-text-muted);
+        margin: 0;
+    }
+    .permission-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .permission-badge.pending { background: var(--wf-yellow-light); color: #a16207; }
+    .permission-badge.approved { background: var(--wf-green-light); color: #15803d; }
+    .permission-badge.rejected { background: var(--wf-red-light); color: var(--wf-red); }
+
+    .permission-type {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--wf-text);
+    }
+    .permission-type i {
+        color: var(--wf-accent);
+        font-size: 0.9rem;
+    }
+
+    .permission-dates {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 12px;
+        padding: 12px;
+        background: var(--wf-bg);
+        border-radius: 8px;
+    }
+    .permission-date-item {
+        flex: 1;
+    }
+    .permission-date-label {
+        font-size: 0.72rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 4px;
+    }
+    .permission-date-value {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--wf-text);
+    }
+
+    .permission-duration {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.82rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 16px;
+    }
+    .permission-duration i {
+        font-size: 0.85rem;
+    }
+
+    .permission-reason {
+        font-size: 0.82rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 16px;
+        line-height: 1.5;
+        padding: 12px;
+        background: var(--wf-bg);
+        border-radius: 8px;
+    }
+
+    .permission-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--wf-border);
+    }
+    .permission-action-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        text-align: center;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .permission-action-btn.view {
+        background: var(--wf-accent-light);
+        color: var(--wf-accent);
+    }
+    .permission-action-btn.view:hover { background: #dbeafe; }
+    .permission-action-btn.approve {
+        background: var(--wf-green-light);
+        color: #15803d;
+    }
+    .permission-action-btn.approve:hover { background: #dcfce7; }
+    .permission-action-btn.reject {
+        background: var(--wf-red-light);
+        color: var(--wf-red);
+    }
+    .permission-action-btn.reject:hover { background: #fee2e2; }
+
+    /* Empty state */
+    .empty-permissions {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--wf-card);
+        border: 1px solid var(--wf-border);
+        border-radius: 12px;
+    }
+    .empty-permissions i {
+        font-size: 3rem;
+        color: var(--wf-text-muted);
+        margin-bottom: 16px;
+    }
+    .empty-permissions h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--wf-text);
+        margin: 0 0 8px;
+    }
+    .empty-permissions p {
+        font-size: 0.9rem;
+        color: var(--wf-text-muted);
+        margin: 0 0 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="permissions-page">
+
+    <!-- Header -->
+    <div class="permissions-header">
+        <div>
+            <h1 class="permissions-title">Permissions</h1>
+            <p class="permissions-subtitle">Gérez les demandes de congés et permissions</p>
+        </div>
+        <div class="permissions-header-actions">
+            <a href="{% url 'permissions:create' %}" class="btn-add-permission">
+                <i class="fas fa-plus"></i>
+                Nouvelle demande
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-card">
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label>Statut</label>
+                <select name="status">
+                    <option value="">Tous</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>En attente</option>
+                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approuvé</option>
+                    <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Refusé</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Type</label>
+                <select name="type">
+                    <option value="">Tous</option>
+                    <option value="annual" {% if request.GET.type == 'annual' %}selected{% endif %}>Congé annuel</option>
+                    <option value="sick" {% if request.GET.type == 'sick' %}selected{% endif %}>Maladie</option>
+                    <option value="personal" {% if request.GET.type == 'personal' %}selected{% endif %}>Personnel</option>
+                    <option value="permission" {% if request.GET.type == 'permission' %}selected{% endif %}>Permission</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-search"></i> Filtrer
+            </button>
+        </form>
+    </div>
+
+    <!-- Permissions Grid -->
+    {% if permissions %}
+    <div class="permissions-grid">
+        {% for permission in permissions %}
+        <div class="permission-card">
+            <div class="permission-card-header">
+                <div class="permission-employee">
+                    <div class="permission-avatar">
+                        {% if permission.employee.user.photo %}
+                            <img src="{{ permission.employee.user.photo.url }}" alt="">
+                        {% else %}
+                            {{ permission.employee.user.first_name|first }}{{ permission.employee.user.last_name|first }}
+                        {% endif %}
+                    </div>
+                    <div class="permission-employee-info">
+                        <h3>{{ permission.employee.full_name }}</h3>
+                        <p>{{ permission.employee.get_position_display }}</p>
+                    </div>
+                </div>
+                <span class="permission-badge {{ permission.status }}">{{ permission.get_status_display }}</span>
+            </div>
+
+            <div class="permission-type">
+                <i class="fas fa-calendar-alt"></i>
+                <span>{{ permission.get_type_display }}</span>
+            </div>
+
+            <div class="permission-dates">
+                <div class="permission-date-item">
+                    <div class="permission-date-label">Début</div>
+                    <div class="permission-date-value">{{ permission.start_date|date:"d/m/Y" }}</div>
+                </div>
+                <div class="permission-date-item">
+                    <div class="permission-date-label">Fin</div>
+                    <div class="permission-date-value">{{ permission.end_date|date:"d/m/Y" }}</div>
+                </div>
+            </div>
+
+            <div class="permission-duration">
+                <i class="fas fa-clock"></i>
+                <span>{{ permission.days_count }} jour(s)</span>
+            </div>
+
+            {% if permission.reason %}
+            <div class="permission-reason">
+                {{ permission.reason }}
+            </div>
+            {% endif %}
+
+            <div class="permission-actions">
+                <a href="{% url 'permissions:detail' permission.pk %}" class="permission-action-btn view">
+                    <i class="fas fa-eye"></i> Voir
+                </a>
+                {% if user.is_admin and permission.status == 'pending' %}
+                <a href="{% url 'permissions:approve' permission.pk %}" class="permission-action-btn approve">
+                    <i class="fas fa-check"></i> Approuver
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-permissions">
+        <i class="fas fa-calendar-check"></i>
+        <h3>Aucune demande de permission</h3>
+        <p>Commencez par faire votre première demande</p>
+        <a href="{% url 'permissions:create' %}" class="btn-add-permission">
+            <i class="fas fa-plus"></i>
+            Nouvelle demande
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

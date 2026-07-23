@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Demande de permission - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Détail de la demande</h2>
+    <div>
+        {% if user.is_admin and permission.status == 'pending' %}
+        <a href="{% url 'permissions:approve' permission.pk %}" class="btn btn-success">
+            <i class="fas fa-check me-2"></i>Traiter la demande
+        </a>
+        {% endif %}
+        <a href="{% url 'permissions:list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la demande</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Employé</strong></td>
+                            <td><a href="{% url 'employees:detail' permission.employee.pk %}">{{ permission.employee.full_name }}</a></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Type</strong></td>
+                            <td>{{ permission.get_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date de début</strong></td>
+                            <td>{{ permission.start_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date de fin</strong></td>
+                            <td>{{ permission.end_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Durée</strong></td>
+                            <td>{{ permission.days_count }} jour(s)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Motif</strong></td>
+                            <td>{{ permission.reason }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Statut</strong></td>
+                            <td>
+                                {% if permission.status == 'pending' %}
+                                    <span class="badge bg-warning">En attente</span>
+                                {% elif permission.status == 'approved' %}
+                                    <span class="badge bg-success">Approuvé</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Refusé</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Commentaire administrateur</strong></td>
+                            <td>{{ permission.admin_comment|default:"Aucun commentaire" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Créé le</strong></td>
+                            <td>{{ permission.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Demande faite à temps</strong></td>
+                            <td>
+                                {% if permission.is_requested_early %}
+                                    <span class="badge bg-success">Oui</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Non (moins de 3 jours)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Statut de la demande</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-3">
+                    {% if permission.status == 'pending' %}
+                        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                        <h4>En attente</h4>
+                        <p class="text-muted">Votre demande est en cours de traitement.</p>
+                    {% elif permission.status == 'approved' %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h4>Approuvé</h4>
+                        <p class="text-muted">Votre demande a été approuvée.</p>
+                    {% else %}
+                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                        <h4>Refusé</h4>
+                        <p class="text-muted">Votre demande a été refusée.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

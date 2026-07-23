@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Traiter la demande - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Traiter la demande de permission</h2>
+    <a href="{% url 'permissions:detail' permission.pk %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la demande</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Employé:</strong> {{ permission.employee.full_name }}</p>
+                <p><strong>Type:</strong> {{ permission.get_type_display }}</p>
+                <p><strong>Dates:</strong> Du {{ permission.start_date|date:"d/m/Y" }} au {{ permission.end_date|date:"d/m/Y" }}</p>
+                <p><strong>Durée:</strong> {{ permission.days_count }} jour(s)</p>
+                <p><strong>Motif:</strong> {{ permission.reason }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Décision</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

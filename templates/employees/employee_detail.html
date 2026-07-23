@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ employee.full_name }} - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Détail de l'employé</h2>
+    <div>
+        <a href="{% url 'employees:update' employee.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit me-2"></i>Modifier
+        </a>
+        <a href="{% url 'employees:delete' employee.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Supprimer
+        </a>
+        <a href="{% url 'employees:list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if employee.user.photo %}
+                    <img src="{{ employee.user.photo.url }}" alt="{{ employee.full_name }}" class="rounded-circle mb-3" width="150" height="150">
+                {% else %}
+                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3 mx-auto" style="width: 150px; height: 150px;">
+                        <i class="fas fa-user fa-4x text-muted"></i>
+                    </div>
+                {% endif %}
+                
+                <h4 class="mb-1">{{ employee.full_name }}</h4>
+                <p class="text-muted mb-2">@{{ employee.user.username }}</p>
+                <span class="badge bg-primary">{{ employee.get_position_display }}</span>
+                
+                <hr>
+                
+                <div class="text-start">
+                    <p class="mb-1"><strong><i class="fas fa-envelope me-2"></i>Email:</strong> {{ employee.email }}</p>
+                    {% if employee.phone %}
+                    <p class="mb-1"><strong><i class="fas fa-phone me-2"></i>Téléphone:</strong> {{ employee.phone }}</p>
+                    {% endif %}
+                    <p class="mb-1"><strong><i class="fas fa-building me-2"></i>Département:</strong> {{ employee.department|default:"Non renseigné" }}</p>
+                    <p class="mb-1"><strong><i class="fas fa-calendar me-2"></i>Date d'embauche:</strong> {{ employee.hire_date|date:"d F Y" }}</p>
+                    <p class="mb-1"><strong><i class="fas fa-clock me-2"></i>Statut:</strong> 
+                        {% if employee.status == 'active' %}
+                            <span class="badge bg-success">Actif</span>
+                        {% elif employee.status == 'inactive' %}
+                            <span class="badge bg-danger">Inactif</span>
+                        {% else %}
+                            <span class="badge bg-warning">En congé</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations complètes</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Nom d'utilisateur</strong></td>
+                            <td>{{ employee.user.username }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Prénom</strong></td>
+                            <td>{{ employee.user.first_name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Nom</strong></td>
+                            <td>{{ employee.user.last_name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Email</strong></td>
+                            <td>{{ employee.user.email }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Téléphone</strong></td>
+                            <td>{{ employee.user.phone|default:"Non renseigné" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Poste</strong></td>
+                            <td>{{ employee.get_position_display }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Département</strong></td>
+                            <td>{{ employee.department|default:"Non renseigné" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date d'embauche</strong></td>
+                            <td>{{ employee.hire_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Statut</strong></td>
+                            <td>{{ employee.get_status_display }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Salaire</strong></td>
+                            <td>{{ employee.salary|default:"Non renseigné" }} €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dernière connexion</strong></td>
+                            <td>{{ employee.user.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Présence - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Détail de la présence</h2>
+    <div>
+        <a href="{% url 'attendance:update' attendance.pk %}" class="btn btn-warning">
+            <i class="fas fa-edit me-2"></i>Modifier
+        </a>
+        <a href="{% url 'attendance:delete' attendance.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Supprimer
+        </a>
+        <a href="{% url 'attendance:list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de présence</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Employé</strong></td>
+                            <td><a href="{% url 'employees:detail' attendance.employee.pk %}">{{ attendance.employee.full_name }}</a></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date</strong></td>
+                            <td>{{ attendance.date|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Statut</strong></td>
+                            <td>
+                                {% if attendance.status == 'present' %}
+                                    <span class="badge bg-success">Présent</span>
+                                {% elif attendance.status == 'absent' %}
+                                    <span class="badge bg-danger">Absent</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Retard</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Heure d'arrivée</strong></td>
+                            <td>{{ attendance.check_in_time|date:"H:i"|default:"Non renseignée" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Heure de départ</strong></td>
+                            <td>{{ attendance.check_out_time|date:"H:i"|default:"Non renseignée" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Notes</strong></td>
+                            <td>{{ attendance.notes|default:"Aucune note" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enregistré le</strong></td>
+                            <td>{{ attendance.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mis à jour le</strong></td>
+                            <td>{{ attendance.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Statut</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-3">
+                    {% if attendance.status == 'present' %}
+                        <i class="fas fa-user-check fa-3x text-success mb-3"></i>
+                        <h4>Présent</h4>
+                    {% elif attendance.status == 'absent' %}
+                        <i class="fas fa-user-times fa-3x text-danger mb-3"></i>
+                        <h4>Absent</h4>
+                    {% else %}
+                        <i class="fas fa-user-clock fa-3x text-warning mb-3"></i>
+                        <h4>Retard</h4>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

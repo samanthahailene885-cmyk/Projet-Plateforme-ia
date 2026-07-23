@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Analyse de Charge - Plateforme de Gestion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Analyse de la Charge de Travail</h2>
+    <a href="{% url 'decision_ai:assistant' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour à l'assistant
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Analyse de la charge de travail par employé</h5>
+    </div>
+    <div class="card-body">
+        {% if workload_analysis %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Employé</th>
+                        <th>Tâches totales</th>
+                        <th>Tâches haute priorité</th>
+                        <th>Niveau de charge</th>
+                        <th>Recommandation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in workload_analysis %}
+                    <tr>
+                        <td><strong>{{ item.employee.full_name }}</strong></td>
+                        <td>{{ item.total_tasks }}</td>
+                        <td>{{ item.high_priority_tasks }}</td>
+                        <td>
+                            {% if item.workload_level == 'overloaded' %}
+                                <span class="badge bg-danger">Surchargé</span>
+                            {% elif item.workload_level == 'underloaded' %}
+                                <span class="badge bg-warning">Sous-chargé</span>
+                            {% else %}
+                                <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.recommendation }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Aucune donnée disponible pour l'analyse.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
