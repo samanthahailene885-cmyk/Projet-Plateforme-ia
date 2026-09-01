@@ -12,6 +12,12 @@ class User(AbstractUser):
         ('employee', _('Employé')),
     ]
     
+    GENDER_CHOICES = [
+        ('M', _('Homme')),
+        ('F', _('Femme')),
+        ('O', _('Autre')),
+    ]
+    
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
@@ -29,6 +35,26 @@ class User(AbstractUser):
         blank=True,
         verbose_name=_('Téléphone')
     )
+    birth_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name=_('Date de naissance')
+    )
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name=_('Genre')
+    )
+    address = models.TextField(
+        blank=True,
+        verbose_name=_('Adresse')
+    )
+    bio = models.TextField(
+        blank=True,
+        verbose_name=_('Bio')
+    )
     
     class Meta:
         verbose_name = _('Utilisateur')
@@ -41,4 +67,4 @@ class User(AbstractUser):
         return self.role == 'admin'
 
     def get_home_url_name(self):
-        return 'dashboard:home' if self.is_admin() else 'tasks:list'
+        return 'dashboard:home' if self.is_admin() else 'dashboard:employee_home'

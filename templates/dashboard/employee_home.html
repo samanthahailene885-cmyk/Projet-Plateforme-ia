@@ -1,184 +1,799 @@
 {% extends 'base.html' %}
 
-{% block title %}Gestion des Tâches - Plateforme de Gestion{% endblock %}
+{% block title %}Tableau de bord - WorkFlow{% endblock %}
 
 {% block extra_css %}
 <style>
-    html, body {
-        overflow-x: hidden;
+    :root {
+        --emp-accent: #7c3aed;
+        --emp-accent-light: #ede9fe;
+        --emp-green: #22c55e;
+        --emp-green-light: #dcfce7;
+        --emp-orange: #f97316;
+        --emp-orange-light: #ffedd5;
+        --emp-blue: #3b82f6;
+        --emp-blue-light: #dbeafe;
+        --emp-purple-light: #f3e8ff;
+        --emp-red: #ef4444;
+        --emp-bg: #f8fafc;
+        --emp-card: #ffffff;
+        --emp-text: #1e293b;
+        --emp-text-muted: #64748b;
+        --emp-border: #e2e8f0;
     }
-    .compact-form .form-control,
-    .compact-form .form-select {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
+
+    .emp-dash { padding: 0 4px 32px; }
+
+    /* Header */
+    .emp-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
     }
-    .compact-table th,
-    .compact-table td {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.5rem;
-        vertical-align: middle;
+    .emp-greeting {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--emp-text);
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
     }
-    .compact-table .badge {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
+    .emp-subtitle {
+        font-size: 0.875rem;
+        color: var(--emp-text-muted);
+        margin: 0;
     }
-    .page-title {
-        font-size: 1.1rem;
+    .emp-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .emp-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--emp-card);
+        border: 1px solid var(--emp-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        min-width: 260px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .emp-search input {
+        border: none;
+        outline: none;
+        font-size: 0.85rem;
+        width: 100%;
+        background: transparent;
+        color: var(--emp-text);
+    }
+    .emp-search i { color: var(--emp-text-muted); font-size: 0.85rem; }
+    .emp-date-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--emp-card);
+        border: 1px solid var(--emp-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--emp-text);
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        white-space: nowrap;
+    }
+    .emp-notif-btn {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid var(--emp-border);
+        background: var(--emp-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--emp-text-muted);
+        text-decoration: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        transition: background .15s;
+    }
+    .emp-notif-btn:hover { background: var(--emp-bg); color: var(--emp-accent); }
+    .emp-notif-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: var(--emp-red);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* KPI Cards */
+    .emp-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 1200px) { .emp-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .emp-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .emp-kpi-card {
+        background: var(--emp-card);
+        border: 1px solid var(--emp-border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .emp-kpi-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .emp-kpi-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+    .emp-kpi-icon.purple { background: var(--emp-accent-light); color: var(--emp-accent); }
+    .emp-kpi-icon.green { background: var(--emp-green-light); color: var(--emp-green); }
+    .emp-kpi-icon.orange { background: var(--emp-orange-light); color: var(--emp-orange); }
+    .emp-kpi-icon.blue { background: var(--emp-blue-light); color: var(--emp-blue); }
+    .emp-kpi-icon.pink { background: #fce7f3; color: #ec4899; }
+    .emp-kpi-label { font-size: 0.78rem; color: var(--emp-text-muted); font-weight: 500; }
+    .emp-kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--emp-text); line-height: 1; margin-bottom: 2px; }
+    .emp-kpi-sub { font-size: 0.72rem; color: var(--emp-text-muted); }
+    .emp-kpi-sub.positive { color: var(--emp-green); }
+
+    /* Main grid */
+    .emp-main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 340px;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 1200px) { .emp-main-grid { grid-template-columns: 1fr; } }
+
+    .emp-bottom-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    @media (max-width: 992px) { .emp-bottom-grid { grid-template-columns: 1fr; } }
+
+    .emp-card {
+        background: var(--emp-card);
+        border: 1px solid var(--emp-border);
+        border-radius: 12px;
+        padding: 20px 22px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .emp-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .emp-card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--emp-text);
+        margin: 0;
+    }
+    .emp-card-link {
+        font-size: 0.78rem;
+        color: var(--emp-accent);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .emp-card-link:hover { text-decoration: underline; }
+
+    /* Tasks list */
+    .emp-task-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--emp-border);
+    }
+    .emp-task-item:last-child { border-bottom: none; }
+    .emp-task-check {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 2px solid var(--emp-border);
+        flex-shrink: 0;
+        margin-top: 2px;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: all .15s;
+    }
+    .emp-task-check:checked {
+        background: var(--emp-accent);
+        border-color: var(--emp-accent);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+        background-size: 12px;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    .emp-task-check.done {
+        background: var(--emp-accent);
+        border-color: var(--emp-accent);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+        background-size: 12px;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    .emp-task-info { flex: 1; min-width: 0; }
+    .emp-task-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--emp-text);
+        margin: 0 0 2px;
+    }
+    .emp-task-title.done { text-decoration: line-through; color: var(--emp-text-muted); }
+    .emp-task-project {
+        font-size: 0.75rem;
+        color: var(--emp-text-muted);
+        margin: 0;
+    }
+    .emp-task-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    .emp-priority {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+    .emp-priority.high { background: var(--emp-green-light); color: #15803d; }
+    .emp-priority.medium { background: var(--emp-orange-light); color: #c2410c; }
+    .emp-priority.low { background: var(--emp-purple-light); color: var(--emp-accent); }
+    .emp-priority.urgent { background: #fee2e2; color: #dc2626; }
+    .emp-task-time { font-size: 0.72rem; color: var(--emp-text-muted); }
+    .emp-add-task {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        color: var(--emp-accent);
+        text-decoration: none;
+        font-weight: 500;
+        margin-top: 12px;
+    }
+    .emp-add-task:hover { text-decoration: underline; }
+
+    /* Projects list */
+    .emp-project-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--emp-border);
+    }
+    .emp-project-item:last-child { border-bottom: none; }
+    .emp-project-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    .emp-project-info { flex: 1; min-width: 0; }
+    .emp-project-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--emp-text);
+        margin: 0 0 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .emp-progress-bar {
+        height: 6px;
+        background: var(--emp-border);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .emp-progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--emp-accent);
+        transition: width .3s;
+    }
+    .emp-project-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    .emp-project-pct { font-size: 0.78rem; font-weight: 600; color: var(--emp-text); }
+    .emp-status {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+    .emp-status.in_progress { background: var(--emp-green-light); color: #15803d; }
+    .emp-status.planning { background: var(--emp-blue-light); color: #1d4ed8; }
+    .emp-status.on_hold { background: var(--emp-orange-light); color: #c2410c; }
+    .emp-status.completed { background: #f1f5f9; color: var(--emp-text-muted); }
+
+    /* Report card */
+    .emp-report-card {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 280px;
+    }
+    .emp-report-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--emp-accent-light);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--emp-accent);
+        margin-bottom: 16px;
+    }
+    .emp-report-text {
+        font-size: 0.82rem;
+        color: var(--emp-text-muted);
+        margin-bottom: 20px;
+        line-height: 1.5;
+        max-width: 240px;
+    }
+    .emp-report-btn {
+        background: var(--emp-accent);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 24px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .emp-report-btn:hover { background: #6d28d9; color: white; }
+    .emp-report-sent {
+        color: var(--emp-green);
+        font-size: 0.85rem;
         font-weight: 600;
     }
-    .btn-compact {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
+
+    /* Activity timeline */
+    .emp-activity-item {
+        display: flex;
+        gap: 12px;
+        padding: 10px 0;
+        position: relative;
     }
-    .card-compact {
-        padding: 0.75rem;
+    .emp-activity-item:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 36px;
+        bottom: -4px;
+        width: 2px;
+        background: var(--emp-border);
     }
-    .btn-sm {
-        padding: 0.2rem 0.4rem;
+    .emp-activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        z-index: 1;
+    }
+    .emp-activity-icon.green { background: var(--emp-green-light); color: var(--emp-green); }
+    .emp-activity-icon.blue { background: var(--emp-blue-light); color: var(--emp-blue); }
+    .emp-activity-icon.orange { background: var(--emp-orange-light); color: var(--emp-orange); }
+    .emp-activity-icon.purple { background: var(--emp-accent-light); color: var(--emp-accent); }
+    .emp-activity-text {
+        font-size: 0.82rem;
+        color: var(--emp-text);
+        margin: 0 0 2px;
+        line-height: 1.4;
+    }
+    .emp-activity-time {
+        font-size: 0.72rem;
+        color: var(--emp-text-muted);
+    }
+
+    /* Calendar */
+    .emp-calendar-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    @media (max-width: 768px) { .emp-calendar-grid { grid-template-columns: 1fr; } }
+    .emp-cal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .emp-cal-month {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--emp-text);
+    }
+    .emp-cal-table {
+        width: 100%;
+        border-collapse: collapse;
         font-size: 0.75rem;
     }
+    .emp-cal-table th {
+        color: var(--emp-text-muted);
+        font-weight: 500;
+        padding: 4px;
+        text-align: center;
+    }
+    .emp-cal-table td {
+        text-align: center;
+        padding: 4px;
+    }
+    .emp-cal-day {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: var(--emp-text);
+    }
+    .emp-cal-day.today {
+        background: var(--emp-accent);
+        color: white;
+        font-weight: 700;
+    }
+    .emp-cal-day.has-event {
+        font-weight: 700;
+        color: var(--emp-accent);
+    }
+    .emp-cal-day.empty { visibility: hidden; }
+    .emp-event-item {
+        display: flex;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--emp-border);
+    }
+    .emp-event-item:last-child { border-bottom: none; }
+    .emp-event-time {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--emp-text);
+        min-width: 40px;
+    }
+    .emp-event-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 5px;
+        flex-shrink: 0;
+    }
+    .emp-event-dot.green { background: var(--emp-green); }
+    .emp-event-dot.blue { background: var(--emp-blue); }
+    .emp-event-dot.orange { background: var(--emp-orange); }
+    .emp-event-info { flex: 1; }
+    .emp-event-title { font-size: 0.82rem; font-weight: 600; color: var(--emp-text); margin: 0; }
+    .emp-event-sub { font-size: 0.72rem; color: var(--emp-text-muted); margin: 0; }
+
+    .emp-empty {
+        text-align: center;
+        padding: 24px 0;
+        color: var(--emp-text-muted);
+        font-size: 0.85rem;
+    }
+    .emp-empty i { font-size: 1.5rem; margin-bottom: 8px; display: block; opacity: .5; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0 page-title">Gestion des Tâches</h2>
-    <a href="{% url 'tasks:create' %}" class="btn btn-primary btn-compact">
-        <i class="fas fa-plus me-1"></i>Ajouter une tâche
-    </a>
-</div>
+<div class="emp-dash">
 
-<div class="card mb-3">
-    <div class="card-body card-compact">
-        <form method="get" class="row g-2 compact-form">
-            <div class="col-md-3">
-                <input type="text" name="search" class="form-control" placeholder="Titre, description..." value="{{ request.GET.search }}">
-            </div>
-            <div class="col-md-2">
-                <select name="project" class="form-select">
-                    <option value="">Tous les projets</option>
-                    {% for project in projects %}
-                        <option value="{{ project.id }}" {% if request.GET.project == project.id|stringformat:"s" %}selected{% endif %}>
-                            {{ project.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="status" class="form-select">
-                    <option value="">Tous</option>
-                    <option value="todo" {% if request.GET.status == 'todo' %}selected{% endif %}>À faire</option>
-                    <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>En cours</option>
-                    <option value="review" {% if request.GET.status == 'review' %}selected{% endif %}>En révision</option>
-                    <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Terminé</option>
-                    <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Annulé</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="priority" class="form-select">
-                    <option value="">Toutes</option>
-                    <option value="low" {% if request.GET.priority == 'low' %}selected{% endif %}>Faible</option>
-                    <option value="medium" {% if request.GET.priority == 'medium' %}selected{% endif %}>Moyen</option>
-                    <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>Haute</option>
-                    <option value="urgent" {% if request.GET.priority == 'urgent' %}selected{% endif %}>Urgent</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="assigned_to" class="form-select">
-                    <option value="">Tous les employés</option>
-                    {% for employee in employees %}
-                        <option value="{{ employee.user.id }}" {% if request.GET.assigned_to == employee.user.id|stringformat:"s" %}selected{% endif %}>
-                            {{ employee.full_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary w-100 btn-compact">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-body card-compact">
-        {% if tasks %}
-        <div class="table-responsive">
-            <table class="table table-hover compact-table">
-                <thead>
-                    <tr>
-                        <th>Titre</th>
-                        <th>Projet</th>
-                        <th>Statut</th>
-                        <th>Priorité</th>
-                        <th>Date limite</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in tasks %}
-                    <tr>
-                        <td>
-                            <strong>{{ task.title }}</strong>
-                            {% if task.is_overdue %}
-                                <span class="badge bg-danger ms-1">En retard</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ task.project.name }}</td>
-                        <td>
-                            {% if task.status == 'todo' %}
-                                <span class="badge bg-secondary">À faire</span>
-                            {% elif task.status == 'in_progress' %}
-                                <span class="badge bg-primary">En cours</span>
-                            {% elif task.status == 'review' %}
-                                <span class="badge bg-info">En révision</span>
-                            {% elif task.status == 'completed' %}
-                                <span class="badge bg-success">Terminé</span>
-                            {% else %}
-                                <span class="badge bg-danger">Annulé</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if task.priority == 'low' %}
-                                <span class="badge bg-info">Faible</span>
-                            {% elif task.priority == 'medium' %}
-                                <span class="badge bg-primary">Moyen</span>
-                            {% elif task.priority == 'high' %}
-                                <span class="badge bg-warning">Haute</span>
-                            {% else %}
-                                <span class="badge bg-danger">Urgent</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ task.due_date|date:"d/m/Y"|default:"-" }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'tasks:update' task.pk %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'tasks:delete' task.pk %}" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Header -->
+    <div class="emp-header">
+        <div>
+            <h1 class="emp-greeting">Bonjour {{ first_name }} 👋</h1>
+            <p class="emp-subtitle">Voici un aperçu de vos activités aujourd'hui</p>
         </div>
-        {% else %}
-        <div class="text-center py-4">
-            <i class="fas fa-tasks fa-2x text-muted mb-2"></i>
-            <p class="text-muted mb-2" style="font-size: 0.9rem;">Aucune tâche trouvée.</p>
-            <a href="{% url 'tasks:create' %}" class="btn btn-primary btn-compact">
-                <i class="fas fa-plus me-1"></i>Ajouter la première tâche
+        <div class="emp-header-actions">
+            <form method="get" class="emp-search">
+                <i class="fas fa-search"></i>
+                <input type="text" name="search" placeholder="Rechercher (tâche, projet…)" value="">
+            </form>
+            <a href="{% url 'notifications:list' %}" class="emp-notif-btn">
+                <i class="fas fa-bell"></i>
+                {% if unread_notifications %}
+                <span class="emp-notif-badge">{{ unread_notifications }}</span>
+                {% endif %}
+            </a>
+            <div class="emp-date-picker">
+                <i class="fas fa-calendar-alt"></i>
+                {{ today_formatted }}
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="emp-kpi-grid">
+        <div class="emp-kpi-card">
+            <div class="emp-kpi-top">
+                <span class="emp-kpi-label">Tâches du jour</span>
+                <div class="emp-kpi-icon purple"><i class="fas fa-clipboard-list"></i></div>
+            </div>
+            <div class="emp-kpi-value">{{ tasks_today_count }}</div>
+            <div class="emp-kpi-sub">{{ completed_today }} terminée{{ completed_today|pluralize }}</div>
+        </div>
+        <div class="emp-kpi-card">
+            <div class="emp-kpi-top">
+                <span class="emp-kpi-label">Taux d'achèvement</span>
+                <div class="emp-kpi-icon green"><i class="fas fa-check-circle"></i></div>
+            </div>
+            <div class="emp-kpi-value">{{ completion_rate }}%</div>
+            <div class="emp-kpi-sub {% if completion_trend >= 0 %}positive{% endif %}">
+                {% if completion_trend >= 0 %}↑{% else %}↓{% endif %}
+                {{ completion_trend|floatformat:0 }}% Par rapport à hier
+            </div>
+        </div>
+        <div class="emp-kpi-card">
+            <div class="emp-kpi-top">
+                <span class="emp-kpi-label">Heures travaillées</span>
+                <div class="emp-kpi-icon orange"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="emp-kpi-value">{{ hours_worked }}</div>
+            <div class="emp-kpi-sub">Aujourd'hui</div>
+        </div>
+        <div class="emp-kpi-card">
+            <div class="emp-kpi-top">
+                <span class="emp-kpi-label">Projets actifs</span>
+                <div class="emp-kpi-icon blue"><i class="fas fa-folder-open"></i></div>
+            </div>
+            <div class="emp-kpi-value">{{ active_projects_count }}</div>
+            <div class="emp-kpi-sub">Sur {{ total_projects_count }} projet{{ total_projects_count|pluralize }}</div>
+        </div>
+        <div class="emp-kpi-card">
+            <div class="emp-kpi-top">
+                <span class="emp-kpi-label">Prochaine échéance</span>
+                <div class="emp-kpi-icon pink"><i class="fas fa-calendar-day"></i></div>
+            </div>
+            <div class="emp-kpi-value" style="font-size:1.1rem;">
+                {% if next_deadline %}{{ next_deadline|date:"d/m/Y" }}{% else %}—{% endif %}
+            </div>
+            <div class="emp-kpi-sub">{{ next_deadline_task|default:"Aucune échéance" }}</div>
+        </div>
+    </div>
+
+    <!-- Main row: Tasks + Projects + Report -->
+    <div class="emp-main-grid">
+
+        <!-- Mes tâches du jour -->
+        <div class="emp-card">
+            <div class="emp-card-header">
+                <h2 class="emp-card-title">Mes tâches du jour</h2>
+                <a href="{% url 'tasks:list' %}" class="emp-card-link">Voir toutes</a>
+            </div>
+            {% if today_tasks %}
+                {% for task in today_tasks %}
+                <div class="emp-task-item">
+                    {% if task.status == 'completed' %}
+                    <div class="emp-task-check done"></div>
+                    {% else %}
+                    <form action="{% url 'tasks:complete' task.pk %}" method="post" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'dashboard:employee_home' %}">
+                        <input type="checkbox" class="emp-task-check" onchange="this.form.submit()">
+                    </form>
+                    {% endif %}
+                    <div class="emp-task-info">
+                        <p class="emp-task-title {% if task.status == 'completed' %}done{% endif %}">{{ task.title }}</p>
+                        <p class="emp-task-project">{{ task.project.name|default:"Sans projet" }}</p>
+                    </div>
+                    <div class="emp-task-meta">
+                        {% if task.priority == 'high' or task.priority == 'urgent' %}
+                        <span class="emp-priority {% if task.priority == 'urgent' %}urgent{% else %}high{% endif %}">
+                            {% if task.priority == 'urgent' %}Urgent{% else %}Élevée{% endif %}
+                        </span>
+                        {% elif task.priority == 'medium' %}
+                        <span class="emp-priority medium">Moyenne</span>
+                        {% else %}
+                        <span class="emp-priority low">Faible</span>
+                        {% endif %}
+                        <span class="emp-task-time">
+                            {% if task.due_date %}{{ task.due_date|date:"H:i" }}{% else %}{{ task.created_at|date:"H:i" }}{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="emp-empty">
+                    <i class="fas fa-check-double"></i>
+                    Aucune tâche pour aujourd'hui
+                </div>
+            {% endif %}
+            <a href="{% url 'tasks:create' %}" class="emp-add-task">
+                <i class="fas fa-plus"></i> Ajouter une tâche
             </a>
         </div>
-        {% endif %}
+
+        <!-- Mes projets -->
+        <div class="emp-card">
+            <div class="emp-card-header">
+                <h2 class="emp-card-title">Mes projets</h2>
+                <a href="{% url 'projects:list' %}" class="emp-card-link">Voir tous</a>
+            </div>
+            {% if projects_list %}
+                {% for project in projects_list %}
+                <div class="emp-project-item">
+                    <div class="emp-project-logo" style="background:{% cycle '#ede9fe' '#dbeafe' '#dcfce7' '#ffedd5' %};color:{% cycle '#7c3aed' '#2563eb' '#16a34a' '#ea580c' %};">
+                        {{ project.name|first|upper }}
+                    </div>
+                    <div class="emp-project-info">
+                        <p class="emp-project-name">{{ project.name }}</p>
+                        <div class="emp-progress-bar">
+                            <div class="emp-progress-fill" style="width:{{ project.progress }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="emp-project-meta">
+                        <span class="emp-project-pct">{{ project.progress }}%</span>
+                        <span class="emp-status {{ project.status }}">
+                            {% if project.status == 'in_progress' %}En cours
+                            {% elif project.status == 'planning' %}Planifié
+                            {% elif project.status == 'on_hold' %}En pause
+                            {% elif project.status == 'completed' %}Terminé
+                            {% else %}Annulé{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="emp-empty">
+                    <i class="fas fa-folder-open"></i>
+                    Aucun projet assigné
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Mon rapport quotidien -->
+        <div class="emp-card emp-report-card">
+            <div class="emp-report-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            {% if today_report %}
+                <p class="emp-report-sent"><i class="fas fa-check-circle me-1"></i> Rapport envoyé aujourd'hui</p>
+                <p class="emp-report-text">Votre rapport du {{ today|date:"d/m/Y" }} a bien été enregistré.</p>
+                <a href="{% url 'reports:create' %}" class="emp-report-btn">Voir mon rapport</a>
+            {% else %}
+                <p class="emp-report-text">Votre rapport n'a pas encore été envoyé. Générez votre rapport quotidien en quelques secondes avec l'IA.</p>
+                <a href="{% url 'reports:create' %}" class="emp-report-btn">Générer mon rapport</a>
+            {% endif %}
+        </div>
     </div>
+
+    <!-- Bottom row: Activity + Calendar -->
+    <div class="emp-bottom-grid">
+
+        <!-- Activité récente -->
+        <div class="emp-card">
+            <div class="emp-card-header">
+                <h2 class="emp-card-title">Activité récente</h2>
+            </div>
+            {% if activities %}
+                {% for activity in activities %}
+                <div class="emp-activity-item">
+                    <div class="emp-activity-icon {{ activity.color }}">
+                        {% if activity.icon == 'check' %}<i class="fas fa-check"></i>
+                        {% elif activity.icon == 'paper-plane' %}<i class="fas fa-paper-plane"></i>
+                        {% elif activity.icon == 'bell' %}<i class="fas fa-bell"></i>
+                        {% else %}<i class="fas fa-calendar-check"></i>{% endif %}
+                    </div>
+                    <div>
+                        <p class="emp-activity-text">{{ activity.text }}</p>
+                        <span class="emp-activity-time">{{ activity.relative_time }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="emp-empty">
+                    <i class="fas fa-history"></i>
+                    Aucune activité récente
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Calendrier -->
+        <div class="emp-card">
+            <div class="emp-card-header">
+                <h2 class="emp-card-title">Calendrier</h2>
+                <a href="{% url 'tasks:list' %}" class="emp-card-link">Voir le calendrier</a>
+            </div>
+            <div class="emp-calendar-grid">
+                <div>
+                    <div class="emp-cal-header">
+                        <span class="emp-cal-month">{{ calendar_month }} {{ calendar_year }}</span>
+                    </div>
+                    <table class="emp-cal-table">
+                        <thead>
+                            <tr>
+                                <th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th><th>D</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for week in month_weeks %}
+                            <tr>
+                                {% for day in week %}
+                                <td>
+                                    {% if day == 0 %}
+                                    <span class="emp-cal-day empty">0</span>
+                                    {% else %}
+                                    <span class="emp-cal-day {% if day == calendar_today %}today{% elif day in calendar_days %}has-event{% endif %}">
+                                        {{ day }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <p style="font-size:0.82rem;font-weight:600;color:var(--emp-text);margin-bottom:12px;">
+                        {{ today_formatted }}
+                    </p>
+                    {% if today_events %}
+                        {% for event in today_events %}
+                        <div class="emp-event-item">
+                            <span class="emp-event-time">{{ event.time }}</span>
+                            <span class="emp-event-dot {{ event.color }}"></span>
+                            <div class="emp-event-info">
+                                <p class="emp-event-title">{{ event.title }}</p>
+                                <p class="emp-event-sub">{{ event.subtitle }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="emp-empty" style="padding:16px 0;">
+                            <i class="fas fa-calendar"></i>
+                            Aucun événement aujourd'hui
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

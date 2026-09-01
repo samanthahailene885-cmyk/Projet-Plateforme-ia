@@ -86,8 +86,38 @@ class Project(models.Model):
         verbose_name_plural = _('Projets')
         ordering = ['-created_at']
     
+    ICON_COLORS = (
+        '#F97316', '#8B5CF6', '#14B8A6', '#0F172A', '#EC4899',
+        '#2563EB', '#22C55E', '#EAB308', '#EF4444', '#06B6D4',
+    )
+
     def __str__(self):
         return f"{self.name} - {self.client}"
+
+    @property
+    def initials(self):
+        words = [part for part in self.name.split() if part]
+        if len(words) >= 2:
+            return (words[0][0] + words[1][0]).upper()
+        return (self.name[:2] or 'PR').upper()
+
+    @property
+    def accent_color(self):
+        return self.ICON_COLORS[self.pk % len(self.ICON_COLORS)]
+
+    @property
+    def deadline_label(self):
+        if self.status == 'completed':
+            return 'Date de fin'
+        if self.status == 'on_hold':
+            return 'Dernière mise à jour'
+        return 'Prochaine échéance'
+
+    @property
+    def deadline_value(self):
+        if self.status == 'on_hold':
+            return self.updated_at.date()
+        return self.end_date
     
     @property
     def is_overdue(self):

@@ -8,4 +8,5 @@ urlpatterns = [
     path('create/', views.permission_create, name='create'),
     path('<int:pk>/', views.permission_detail, name='detail'),
     path('<int:pk>/approve/', views.permission_approve, name='approve'),
+    path('<int:pk>/cancel/', views.permission_cancel, name='cancel'),
 ]

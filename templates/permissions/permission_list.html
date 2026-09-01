@@ -336,10 +336,11 @@
                 <label>Type</label>
                 <select name="type">
                     <option value="">Tous</option>
-                    <option value="annual" {% if request.GET.type == 'annual' %}selected{% endif %}>Congé annuel</option>
-                    <option value="sick" {% if request.GET.type == 'sick' %}selected{% endif %}>Maladie</option>
-                    <option value="personal" {% if request.GET.type == 'personal' %}selected{% endif %}>Personnel</option>
                     <option value="permission" {% if request.GET.type == 'permission' %}selected{% endif %}>Permission</option>
+                    <option value="annual" {% if request.GET.type == 'annual' %}selected{% endif %}>Congé annuel</option>
+                    <option value="sick" {% if request.GET.type == 'sick' %}selected{% endif %}>Congé maladie</option>
+                    <option value="unpaid" {% if request.GET.type == 'unpaid' %}selected{% endif %}>Congé sans solde</option>
+                    <option value="absence" {% if request.GET.type == 'absence' %}selected{% endif %}>Absence</option>
                 </select>
             </div>
             <button type="submit" class="btn-filter">

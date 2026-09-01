@@ -150,6 +150,9 @@ def task_complete(request, pk):
         task.status = 'completed'
         task.save()
         messages.success(request, f'Tâche {task.title} marquée comme terminée.')
+        next_url = request.POST.get('next') or request.META.get('HTTP_REFERER')
+        if next_url:
+            return redirect(next_url)
         return redirect('tasks:list')
 
     return redirect('tasks:list')

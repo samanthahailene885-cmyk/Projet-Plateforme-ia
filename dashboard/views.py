@@ -1,9 +1,10 @@
+import calendar
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.contrib.auth.decorators import login_required
 
 from authentication.decorators import admin_required
@@ -172,35 +173,217 @@ def dashboard_home(request):
     return render(request, 'dashboard/dashboard.html', context)
 
 
+def _get_or_create_employee(user):
+    try:
+        return user.employee_profile
+    except Exception:
+        position = 'other' if user.role == 'employee' else 'project_manager'
+        return Employee.objects.create(
+            user=user,
+            position=position,
+            hire_date=timezone.now().date(),
+            status='active',
+        )
+
+
+def _compute_hours_worked(employee, today):
+    attendance = Attendance.objects.filter(employee=employee, date=today).first()
+    if attendance and attendance.check_in_time and attendance.check_out_time:
+        check_in = datetime.combine(today, attendance.check_in_time)
+        check_out = datetime.combine(today, attendance.check_out_time)
+        total_minutes = int((check_out - check_in).total_seconds() // 60)
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours}h {minutes:02d}m"
+
+    total_hours = Task.objects.filter(
+        assigned_to=employee,
+        status='completed',
+        updated_at__date=today,
+    ).aggregate(total=Sum('actual_hours'))['total']
+
+    if total_hours:
+        hours = int(total_hours)
+        minutes = int((total_hours - hours) * 60)
+        return f"{hours}h {minutes:02d}m"
+
+    return "0h 00m"
+
+
+def _build_recent_activities(user, employee, limit=5):
+    activities = []
+
+    for task in Task.objects.filter(
+        assigned_to=employee, status='completed'
+    ).select_related('project').order_by('-updated_at')[:limit]:
+        activities.append({
+            'icon': 'check',
+            'color': 'green',
+            'text': f'Vous avez terminé la tâche « {task.title} »',
+            'time': task.updated_at,
+        })
+
+    for report in DailyReport.objects.filter(employee=user).order_by('-created_at')[:3]:
+        activities.append({
+            'icon': 'paper-plane',
+            'color': 'blue',
+            'text': 'Votre rapport quotidien a été envoyé',
+            'time': report.created_at,
+        })
+
+    for notif in user.notifications.order_by('-created_at')[:limit]:
+        activities.append({
+            'icon': 'bell',
+            'color': 'orange',
+            'text': notif.message,
+            'time': notif.created_at,
+        })
+
+    for perm in PermissionRequest.objects.filter(
+        employee=employee, status='approved'
+    ).order_by('-updated_at')[:2]:
+        activities.append({
+            'icon': 'calendar-check',
+            'color': 'purple',
+            'text': f'Votre demande de {perm.get_type_display().lower()} a été approuvée',
+            'time': perm.updated_at,
+        })
+
+    activities.sort(key=lambda item: item['time'], reverse=True)
+    return activities[:limit]
+
+
+def _format_relative_time(dt):
+    now = timezone.now()
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt)
+    diff = now - dt
+    minutes = int(diff.total_seconds() // 60)
+    if minutes < 1:
+        return "À l'instant"
+    if minutes < 60:
+        return f"Il y a {minutes} min"
+    hours = minutes // 60
+    if hours < 24:
+        return f"Il y a {hours}h"
+    days = hours // 24
+    return f"Il y a {days}j"
+
+
 @login_required
 def employee_home(request):
-    """Vue de la page d'accueil de l'employé avec gestion des tâches."""
-    try:
-        employee = request.user.employee_profile
-    except Exception:
-        if request.user.role == 'employee':
-            employee = Employee.objects.create(
-                user=request.user,
-                position='other',
-                hire_date=timezone.now().date(),
-                status='active',
-            )
-        else:
-            employee = Employee.objects.create(
-                user=request.user,
-                position='project_manager',
-                hire_date=timezone.now().date(),
-                status='active',
-            )
+    """Tableau de bord employé — vue principale."""
+    employee = _get_or_create_employee(request.user)
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
 
-    user_tasks = Task.objects.filter(assigned_to=employee)
-    all_projects = Project.objects.all()
-    all_employees = Employee.objects.all()
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        return redirect(f'/tasks/?search={search_query}')
+
+    user_tasks = Task.objects.filter(assigned_to=employee).select_related('project')
+
+    today_tasks_qs = user_tasks.filter(
+        Q(due_date=today) | Q(status__in=['todo', 'in_progress', 'review'])
+    ).exclude(status='cancelled').order_by('due_date', '-priority')
+
+    tasks_today_count = today_tasks_qs.count()
+    completed_today = user_tasks.filter(
+        status='completed', updated_at__date=today
+    ).count()
+
+    completion_rate = round(
+        (completed_today / tasks_today_count * 100) if tasks_today_count else 0
+    )
+
+    tasks_yesterday = user_tasks.filter(
+        Q(due_date=yesterday) | Q(updated_at__date=yesterday)
+    ).exclude(status='cancelled').count()
+    completed_yesterday = user_tasks.filter(
+        status='completed', updated_at__date=yesterday
+    ).count()
+    rate_yesterday = round(
+        (completed_yesterday / tasks_yesterday * 100) if tasks_yesterday else 0
+    )
+    completion_trend = completion_rate - rate_yesterday
+
+    employee_projects = Project.objects.filter(
+        assigned_employees=employee
+    ).distinct()
+    active_projects_count = employee_projects.filter(status='in_progress').count()
+    total_projects_count = employee_projects.exclude(status='cancelled').count()
+    projects_list = employee_projects.exclude(status='cancelled').order_by('-updated_at')[:4]
+
+    next_task = user_tasks.filter(
+        due_date__gte=today
+    ).exclude(status__in=['completed', 'cancelled']).order_by('due_date').first()
+
+    today_report = DailyReport.objects.filter(
+        employee=request.user, date=today
+    ).first()
+
+    calendar_tasks = user_tasks.filter(
+        due_date__year=today.year,
+        due_date__month=today.month,
+    ).exclude(status='cancelled')
+
+    calendar_days = {}
+    for task in calendar_tasks:
+        if task.due_date:
+            calendar_days.setdefault(task.due_date.day, []).append(task)
+
+    today_events = []
+    for task in calendar_tasks.filter(due_date=today).order_by('due_date'):
+        today_events.append({
+            'time': task.updated_at.strftime('%H:%M') if task.updated_at else '09:00',
+            'title': task.title,
+            'subtitle': task.project.name if task.project else 'Sans projet',
+            'color': 'green' if task.priority in ('high', 'urgent') else 'blue',
+        })
+
+    for perm in PermissionRequest.objects.filter(
+        employee=employee, start_date=today, status='approved'
+    ):
+        today_events.append({
+            'time': '10:00',
+            'title': perm.get_type_display(),
+            'subtitle': perm.reason[:40],
+            'color': 'orange',
+        })
+
+    cal = calendar.Calendar(firstweekday=0)
+    month_weeks = cal.monthdayscalendar(today.year, today.month)
+
+    activities = _build_recent_activities(request.user, employee)
+    for activity in activities:
+        activity['relative_time'] = _format_relative_time(activity['time'])
+
+    unread_notifications = request.user.notifications.filter(is_read=False).count()
 
     context = {
-        'tasks': user_tasks,
-        'projects': all_projects,
-        'employees': all_employees,
+        'today_formatted': _format_french_date(today),
+        'today': today,
+        'first_name': request.user.first_name or request.user.username,
+        'position': employee.get_position_display(),
+        'tasks_today_count': tasks_today_count,
+        'completed_today': completed_today,
+        'completion_rate': completion_rate,
+        'completion_trend': completion_trend,
+        'hours_worked': _compute_hours_worked(employee, today),
+        'active_projects_count': active_projects_count,
+        'total_projects_count': total_projects_count,
+        'next_deadline': next_task.due_date if next_task else None,
+        'next_deadline_task': next_task.title if next_task else None,
+        'today_tasks': today_tasks_qs[:6],
+        'projects_list': projects_list,
+        'today_report': today_report,
+        'activities': activities,
+        'month_weeks': month_weeks,
+        'calendar_month': FRENCH_MONTHS[today.month].capitalize(),
+        'calendar_year': today.year,
+        'calendar_today': today.day,
+        'calendar_days': calendar_days,
+        'today_events': today_events[:4],
+        'unread_notifications': unread_notifications,
     }
 
     return render(request, 'dashboard/employee_home.html', context)

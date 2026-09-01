@@ -84,24 +84,36 @@ class UserProfileForm(forms.ModelForm):
     """
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email', 'phone', 'photo')
+        fields = ('first_name', 'last_name', 'email', 'phone', 'photo', 'birth_date', 'gender', 'address', 'bio')
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'photo': forms.FileInput(attrs={'class': 'form-control'}),
+            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'gender': forms.Select(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Field('first_name'),
-            Field('last_name'),
-            Field('email'),
-            Field('phone'),
-            Field('photo'),
+            Row(
+                Column('first_name', css_class='col-md-6 mb-3'),
+                Column('last_name', css_class='col-md-6 mb-3'),
+            ),
+            Field('email', css_class='mb-3'),
+            Field('phone', css_class='mb-3'),
+            Field('photo', css_class='mb-3'),
+            Row(
+                Column('birth_date', css_class='col-md-6 mb-3'),
+                Column('gender', css_class='col-md-6 mb-3'),
+            ),
+            Field('address', css_class='mb-3'),
+            Field('bio', css_class='mb-3'),
             ButtonHolder(
                 Submit('submit', 'Mettre à jour', css_class='btn btn-primary')
             )

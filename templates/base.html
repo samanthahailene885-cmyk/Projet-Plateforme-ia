@@ -24,6 +24,7 @@
             --border-color: #E2E8F0;
             --sidebar-bg: #0F172A;
             --sidebar-active: #1E293B;
+            --emp-accent: #7c3aed;
         }
         
         body {
@@ -144,9 +145,22 @@
         }
 
         .sidebar .nav-link.active {
-            background: rgba(37, 99, 235, 0.15);
+            background: var(--primary-color);
             color: white;
-            border-left-color: var(--primary-color);
+            border-left-color: transparent;
+        }
+
+        {% if not user.is_admin %}
+        .sidebar .nav-link.active {
+            background: var(--emp-accent);
+        }
+        .sidebar-brand-icon {
+            background: var(--emp-accent);
+        }
+        {% endif %}
+        
+        .sidebar .nav-link.active i {
+            opacity: 1;
         }
         
         .sidebar .nav-link i {
@@ -293,10 +307,109 @@
                 <!-- Brand -->
                 <div class="sidebar-brand">
                     <div class="sidebar-brand-icon">W</div>
-                    <span class="sidebar-brand-name">WorkFlow</span>
+                    <div>
+                        <span class="sidebar-brand-name">WorkFlow</span>
+                        <span class="sidebar-brand-sub">Gestion intelligente</span>
+                    </div>
                 </div>
 
-                <!-- Profile -->
+                <nav class="sidebar-nav nav flex-column">
+                    {% if user.is_admin %}
+                    <a class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.namespace == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}">
+                        <i class="fas fa-home"></i> Tableau de bord
+                    </a>
+                    <a class="nav-link" href="{% url 'notifications:list' %}">
+                        <i class="fas fa-bell"></i> Notifications
+                        {% if sidebar_unread_messages %}<span class="badge bg-danger ms-auto">{{ sidebar_unread_messages }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link" href="{% url 'employees:list' %}">
+                        <i class="fas fa-users"></i> Employés
+                    </a>
+                    <a class="nav-link" href="{% url 'projects:list' %}">
+                        <i class="fas fa-project-diagram"></i> Projets
+                    </a>
+                    <a class="nav-link" href="{% url 'tasks:list' %}">
+                        <i class="fas fa-tasks"></i> Tâches
+                    </a>
+                    <a class="nav-link" href="{% url 'permissions:list' %}">
+                        <i class="fas fa-calendar-check"></i> Permissions
+                        {% if sidebar_pending_permissions %}<span class="badge bg-warning text-dark ms-auto">{{ sidebar_pending_permissions }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link" href="{% url 'attendance:list' %}">
+                        <i class="fas fa-clock"></i> Présence
+                    </a>
+                    <a class="nav-link" href="{% url 'reports:list' %}">
+                        <i class="fas fa-file-alt"></i> Rapports
+                    </a>
+                    <a class="nav-link" href="{% url 'decision_ai:assistant' %}">
+                        <i class="fas fa-robot"></i> Assistant IA
+                    </a>
+                    {% else %}
+                    <a class="nav-link {% if request.resolver_match.url_name == 'employee_home' %}active{% endif %}" href="{% url 'dashboard:employee_home' %}">
+                        <i class="fas fa-th-large"></i> Tableau de bord
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                        <i class="fas fa-tasks"></i> Mes tâches
+                        {% if sidebar_task_count %}<span class="badge bg-danger ms-auto">{{ sidebar_task_count }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'projects' %}active{% endif %}" href="{% url 'projects:list' %}">
+                        <i class="fas fa-folder-open"></i> Mes projets
+                    </a>
+                    <a class="nav-link" href="{% url 'tasks:list' %}?status=todo">
+                        <i class="fas fa-list-check"></i> Ma Todo List
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:create' %}">
+                        <i class="fas fa-file-alt"></i> Mon rapport
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'permissions' %}active{% endif %}" href="{% url 'permissions:list' %}">
+                        <i class="fas fa-calendar-check"></i> Mes permissions
+                        {% if sidebar_pending_permissions %}<span class="badge bg-warning text-dark ms-auto">{{ sidebar_pending_permissions }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}">
+                        <i class="fas fa-bell"></i> Notifications
+                        {% if sidebar_unread_messages %}<span class="badge bg-danger ms-auto">{{ sidebar_unread_messages }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
+                        <i class="fas fa-user-circle"></i> Mon profil
+                    </a>
+                    <a class="nav-link" href="{% url 'authentication:profile' %}">
+                        <i class="fas fa-cog"></i> Paramètres
+                    </a>
+                    {% endif %}
+                    {% if user.is_admin %}
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
+                        <i class="fas fa-user-circle"></i> Mon profil
+                    </a>
+                    <a class="nav-link" href="{% url 'authentication:logout' %}">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </a>
+                    {% endif %}
+                </nav>
+
+                {% if not user.is_admin %}
+                <!-- Profile en bas pour les employés -->
+                <div class="sidebar-profile" style="border-top:1px solid rgba(255,255,255,.08);border-bottom:none;margin-top:auto;">
+                    {% if user.photo %}
+                        <img src="{{ user.photo.url }}" alt="{{ user.username }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">
+                    {% else %}
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width:40px;height:40px;background:rgba(255,255,255,.12);">
+                            <i class="fas fa-user" style="color:rgba(255,255,255,.7);font-size:.85rem;"></i>
+                        </div>
+                    {% endif %}
+                    <div class="sidebar-profile-info">
+                        <h6>{{ user.first_name }} {{ user.last_name }}</h6>
+                        <small>{% if user.employee_profile %}{{ user.employee_profile.get_position_display }}{% else %}{{ user.get_role_display }}{% endif %}</small>
+                        <div class="online-badge">En ligne</div>
+                    </div>
+                </div>
+                <div class="sidebar-help" style="border-top:none;padding-top:8px;">
+                    <a href="{% url 'authentication:logout' %}" class="nav-link" style="padding:9px 14px;">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </a>
+                </div>
+                {% else %}
+                <!-- Profile admin en haut -->
                 <div class="sidebar-profile">
                     {% if user.photo %}
                         <img src="{{ user.photo.url }}" alt="{{ user.username }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">
@@ -312,64 +425,7 @@
                         <div class="online-badge">En ligne</div>
                     </div>
                 </div>
-
-                <nav class="sidebar-nav nav flex-column">
-                    {% if user.is_admin %}
-                    <a class="nav-link" href="{% url 'dashboard:home' %}">
-                        <i class="fas fa-home"></i> Tableau de bord
-                    </a>
-                    {% else %}
-                    <a class="nav-link" href="{% url 'dashboard:employee_home' %}">
-                        <i class="fas fa-home"></i> Tableau de bord
-                    </a>
-                    {% endif %}
-                    <a class="nav-link" href="{% url 'notifications:list' %}">
-                        <i class="fas fa-bell"></i> Notifications
-                        <span id="notification-badge" class="badge bg-danger ms-2" style="display: none;">0</span>
-                    </a>
-                    {% if user.is_admin %}
-                    <a class="nav-link" href="{% url 'employees:list' %}">
-                        <i class="fas fa-users"></i> Employés
-                    </a>
-                    <a class="nav-link" href="{% url 'projects:list' %}">
-                        <i class="fas fa-project-diagram"></i> Projets
-                    </a>
-                    <a class="nav-link" href="{% url 'tasks:list' %}">
-                        <i class="fas fa-tasks"></i> Tâches
-                    </a>
-                    <a class="nav-link" href="{% url 'permissions:list' %}">
-                        <i class="fas fa-calendar-check"></i> Permissions
-                    </a>
-                    <a class="nav-link" href="{% url 'attendance:list' %}">
-                        <i class="fas fa-clock"></i> Présence
-                    </a>
-                    <a class="nav-link" href="{% url 'reports:list' %}">
-                        <i class="fas fa-file-alt"></i> Rapports
-                    </a>
-                    <a class="nav-link" href="{% url 'decision_ai:assistant' %}">
-                        <i class="fas fa-robot"></i> Assistant IA
-                    </a>
-                    {% else %}
-                    <a class="nav-link" href="{% url 'tasks:list' %}">
-                        <i class="fas fa-tasks"></i> Mes tâches
-                    </a>
-                    <a class="nav-link" href="{% url 'projects:list' %}">
-                        <i class="fas fa-project-diagram"></i> Mes projets
-                    </a>
-                    <a class="nav-link" href="{% url 'permissions:list' %}">
-                        <i class="fas fa-calendar-check"></i> Mes permissions
-                    </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:create' %}">
-                        <i class="fas fa-file-alt"></i> Mon rapport
-                    </a>
-                    {% endif %}
-                    <a class="nav-link" href="{% url 'authentication:profile' %}">
-                        <i class="fas fa-user-circle"></i> Mon Profil
-                    </a>
-                    <a class="nav-link" href="{% url 'authentication:logout' %}">
-                        <i class="fas fa-sign-out-alt"></i> Déconnexion
-                    </a>
-                </nav>
+                {% endif %}
 
                 <!-- Help -->
                 <div class="sidebar-help">

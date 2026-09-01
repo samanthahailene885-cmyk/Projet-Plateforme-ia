@@ -29,6 +29,15 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'http://localhost:52677',
+    'http://127.0.0.1:52677',
+    'http://localhost:50636',
+    'http://127.0.0.1:50636',
+]
+
 
 # Application definition
 
