@@ -24,7 +24,5 @@ wheels/
 *.egg
 .env
 .DS_Store
-*.sqlite3
-db.sqlite3
 media/
-static/
+staticfiles/
