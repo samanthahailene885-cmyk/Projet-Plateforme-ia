@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.core.exceptions import ValidationError
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -19,6 +20,8 @@ from decision_ai.services import (
     NoSubmittedReportsError,
     compose_employee_report,
 )
+
+from tasks.files import validate_pdf
 
 from .models import DailyReport
 from .synthesis import (
@@ -480,13 +483,13 @@ def report_save(request):
     if extra:
         content = f"{content}\n\nRemarque ajoutée lors de la validation :\n{extra}".strip()
     if not content:
-        messages.error(request, "Le rapport est vide. Rédigez-le avant de l'envoyer. L'IA n'est pas obligatoire.")
+        messages.error(request, "Le rapport est vide. Générez-le ou rédigez-le avant de l'enregistrer.")
         return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 
     draft = request.session.get(_draft_key(request.user, report_date))
     ai_generated = bool(draft) and content == draft
 
-    report, _created = DailyReport.objects.update_or_create(
+    DailyReport.objects.update_or_create(
         employee=request.user,
         date=report_date,
         defaults={
@@ -499,16 +502,55 @@ def report_save(request):
         },
     )
     request.session.pop(_draft_key(request.user, report_date), None)
-    if request.POST.get('send_pdf') == '1':
-        messages.success(
-            request,
-            'Rapport envoyé en PDF. Le responsable peut le consulter dans Rapports.',
-        )
-        return redirect('reports:pdf', pk=report.pk)
     messages.success(
         request,
-        'Rapport enregistré. Vous pouvez l\'envoyer en PDF quand vous voulez.',
+        'Rapport validé. Le responsable peut télécharger le PDF dans Rapports.',
     )
+    return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+
+
+@login_required
+@require_POST
+def report_upload(request):
+    """L'employé envoie son propre PDF au responsable, sans génération IA."""
+    report_date = _parse_date(request.POST.get('date')) or timezone.now().date()
+    if _get_or_create_employee(request.user) is None and not request.user.is_admin():
+        messages.error(request, 'Vous devez avoir un profil employé pour envoyer un rapport.')
+        return redirect('reports:create')
+
+    uploaded = request.FILES.get('pdf')
+    if uploaded is None:
+        messages.error(request, 'Choisissez un fichier PDF à envoyer.')
+        return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+    try:
+        validate_pdf(uploaded)
+    except ValidationError as exc:
+        messages.error(request, ' '.join(exc.messages))
+        return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+
+    report, _created = DailyReport.objects.get_or_create(
+        employee=request.user,
+        date=report_date,
+        defaults={
+            'content': 'Rapport importé en PDF.',
+            'ai_generated': False,
+        },
+    )
+    if report.uploaded_pdf:
+        report.uploaded_pdf.delete(save=False)
+    report.uploaded_pdf = uploaded
+    report.save()
+
+    from notifications.signals import _notify_admins
+
+    name = f'{request.user.first_name} {request.user.last_name}'.strip() or request.user.username
+    _notify_admins(
+        'Rapport PDF importé',
+        f'{name} a envoyé son rapport PDF du {report_date:%d/%m/%Y}.',
+        'success',
+        reverse('reports:detail', args=[report.pk]),
+    )
+    messages.success(request, 'Votre PDF a été envoyé au responsable.')
     return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 
 
@@ -520,6 +562,12 @@ def report_pdf(request, pk):
         return redirect('reports:create')
 
     filename = f"RACIN_Rapport_{report.employee.last_name or report.employee.username}_{report.date.isoformat()}.pdf"
+    if report.uploaded_pdf:
+        handle = report.uploaded_pdf.open('rb')
+        response = FileResponse(handle, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
     response = HttpResponse(build_daily_report_pdf(report), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

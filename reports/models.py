@@ -31,6 +31,12 @@ class DailyReport(models.Model):
         default=True,
         verbose_name=_('Généré par IA')
     )
+    uploaded_pdf = models.FileField(
+        upload_to='reports/imported/%Y/%m/',
+        blank=True,
+        verbose_name=_('PDF importé'),
+        help_text=_("Rapport PDF envoyé par l'employé, sans génération par l'IA."),
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,

@@ -696,8 +696,8 @@
                 <p class="emp-report-text">Votre rapport du {{ today|date:"d/m/Y" }} a bien été enregistré.</p>
                 <a href="{% url 'reports:create' %}" class="emp-report-btn">Voir mon rapport</a>
             {% else %}
-                <p class="emp-report-text">Votre rapport n'a pas encore été envoyé. Rédigez-le, puis envoyez-le en PDF. L'IA est facultative.</p>
-                <a href="{% url 'reports:create' %}" class="emp-report-btn">Rédiger et envoyer en PDF</a>
+                <p class="emp-report-text">Votre rapport n'a pas encore été envoyé. Générez-le avec l'IA, ou importez votre propre PDF.</p>
+                <a href="{% url 'reports:create' %}" class="emp-report-btn">Générer mon rapport avec l'IA</a>
             {% endif %}
         </div>
     </div>

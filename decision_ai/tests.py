@@ -208,15 +208,27 @@ class ReportTests(PlatformDataMixin, TestCase):
         self.assertEqual(report.content, 'Rapport relu par Ada.')
         self.assertFalse(report.ai_generated)
 
-    def test_employee_can_send_a_written_report_as_pdf_without_ai(self):
-        response = self.client.post(reverse('reports:save'), {
+    def test_employee_can_import_a_pdf_for_the_manager(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        uploaded = SimpleUploadedFile(
+            'rapport.pdf',
+            b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF',
+            content_type='application/pdf',
+        )
+        response = self.client.post(reverse('reports:upload'), {
             'date': self.today.isoformat(),
-            'content': 'J\'ai terminé la maquette client.',
-            'send_pdf': '1',
+            'pdf': uploaded,
         })
+        self.assertEqual(response.status_code, 302)
         report = DailyReport.objects.get(employee=self.user, date=self.today)
         self.assertFalse(report.ai_generated)
-        self.assertRedirects(response, reverse('reports:pdf', args=[report.pk]), fetch_redirect_response=False)
+        self.assertTrue(report.uploaded_pdf)
+        download = self.client.get(reverse('reports:pdf', args=[report.pk]))
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Content-Type'], 'application/pdf')
+        payload = b''.join(download.streaming_content)
+        self.assertTrue(payload.startswith(b'%PDF'))
 
     def test_employee_cannot_read_another_report(self):
         report = DailyReport.objects.create(
