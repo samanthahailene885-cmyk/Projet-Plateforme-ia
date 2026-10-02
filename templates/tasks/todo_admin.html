@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Todo Lists du jour - RAC'IN{% endblock %}
+{% block extra_css %}
+<style>
+    .todo-page { padding: 28px; background: #f6f8fc; min-height: 100vh; color: #18254a; margin: -16px; }
+    .todo-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 28px; }
+    .todo-title { display: flex; align-items: center; gap: 15px; }
+    .todo-title-icon { width: 48px; height: 48px; border-radius: 13px; background: #5146e5; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .todo-title h1 { margin: 0; font-size: 28px; font-weight: 700; }
+    .todo-title p { margin: 6px 0 0; color: #7180a5; font-size: 14px; }
+    .todo-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-export { height: 42px; border: 1px solid #dfe4f0; background: white; color: #31415f; border-radius: 9px; padding: 0 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+    .kpi-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1.15fr; gap: 14px; margin-bottom: 20px; }
+    .kpi-card { background: white; border: 1px solid #edf0f7; border-radius: 13px; padding: 18px 20px; box-shadow: 0 3px 12px rgba(28,40,80,.035); min-height: 112px; }
+    .kpi-top { display: flex; align-items: flex-start; gap: 14px; }
+    .kpi-icon { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .icon-purple { background: #efedff; color: #584be7; }
+    .icon-green { background: #e8f9f1; color: #13a673; }
+    .icon-orange { background: #fff2dc; color: #f59e0b; }
+    .icon-blue { background: #eaf1ff; color: #3976e8; }
+    .kpi-card h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #526184; }
+    .kpi-number { font-size: 25px; font-weight: 700; color: #17244b; line-height: 1.1; }
+    .kpi-subtitle { margin-top: 3px; font-size: 11px; color: #8a96b4; line-height: 1.35; }
+    .bar { height: 6px; background: #eef0ff; border-radius: 99px; margin-top: 12px; overflow: hidden; }
+    .bar span { display: block; height: 100%; background: #5146e5; }
+    .bar-label { text-align: right; color: #5146e5; font-size: 11px; font-weight: 700; margin-top: 4px; }
+    .split { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #657291; margin-top: 6px; }
+    .todo-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+    .main-card, .side-card { background: white; border: 1px solid #edf0f7; border-radius: 13px; box-shadow: 0 3px 12px rgba(28,40,80,.035); }
+    .main-card { padding: 18px; }
+    .filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto; gap: 9px; margin-bottom: 16px; }
+    .filter-input, .filter-select, .side-filter input, .side-filter select { height: 39px; border: 1px solid #dfe4f0; border-radius: 8px; background: white; padding: 0 12px; color: #5c698b; outline: none; font-size: 12px; width: 100%; box-sizing: border-box; }
+    .reset-btn { height: 39px; border: none; background: #f1efff; color: #5146e5; border-radius: 8px; padding: 0 13px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; white-space: nowrap; }
+    .table-wrapper { overflow-x: auto; }
+    .todo-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    .todo-table thead { background: #f7f9fd; }
+    .todo-table th { text-align: left; padding: 13px 10px; font-size: 11px; color: #637091; font-weight: 700; }
+    .todo-table td { padding: 14px 10px; border-top: 1px solid #edf0f5; font-size: 12px; color: #536180; vertical-align: middle; }
+    .employee { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 11px; flex-shrink: 0; }
+    .employee-name { color: #18254a; font-weight: 600; }
+    .employee-role { color: #8994b0; font-size: 10px; margin-top: 3px; }
+    .n-green { color: #139a6a; font-weight: 700; }
+    .n-orange { color: #e07a12; font-weight: 700; }
+    .n-red { color: #e11d48; font-weight: 700; }
+    .ring { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: conic-gradient(#16b985 calc(var(--p) * 1%), #e6eaf2 0); }
+    .ring span { width: 28px; height: 28px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #18254a; }
+    .when small { display: block; color: #8994b0; font-size: 10px; }
+    .badge { display: inline-flex; padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .badge-ok { background: #e5f8ef; color: #139a6a; }
+    .badge-late { background: #ffe8ea; color: #e11d48; }
+    .badge-wait { background: #fff2d9; color: #dc9213; }
+    .view-btn { width: 32px; height: 32px; border: 1px solid #dfe4f0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #4e5d80; text-decoration: none; background: white; }
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 17px; color: #8994b0; font-size: 11px; }
+    .pagination-buttons { display: flex; gap: 5px; }
+    .page-btn { min-width: 31px; height: 31px; border: 1px solid #e0e4ee; background: white; border-radius: 7px; color: #62708f; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; }
+    .page-btn.active { background: #5146e5; color: white; border-color: #5146e5; }
+    .side-column { display: flex; flex-direction: column; gap: 16px; }
+    .side-card { padding: 17px; }
+    .side-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+    .picked { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .picked strong { display: block; font-size: 13px; }
+    .picked small { color: #8994b0; font-size: 11px; }
+    .big-ring { width: 96px; height: 96px; margin: 0 auto 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(#16b985 calc(var(--p) * 1%), #e6eaf2 0); }
+    .big-ring span { width: 68px; height: 68px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .ratio { text-align: center; color: #8994b0; font-size: 11px; margin-bottom: 12px; }
+    .ratio b { display: block; color: #18254a; font-size: 16px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #657291; margin-bottom: 8px; }
+    .legend-item strong { margin-left: auto; color: #18254a; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .full-link { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; border: 1px solid #dfe4f0; border-radius: 8px; padding: 10px 12px; color: #31415f; text-decoration: none; font-size: 12px; font-weight: 600; }
+    .chips { display: flex; flex-direction: column; gap: 8px; }
+    .chips a { text-decoration: none; border-radius: 8px; padding: 9px 12px; background: #f7f9fd; color: #31415f; font-size: 12px; }
+    .chips a.on { background: #efedff; color: #5146e5; font-weight: 700; }
+    .tip { background: linear-gradient(145deg, #f1efff, #f8f7ff); border: 1px solid #e1ddff; }
+    .tip p { margin: 6px 0 0; color: #707da0; font-size: 11px; line-height: 1.55; }
+    @media (max-width: 1200px) {
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+        .todo-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+        .todo-page { padding: 15px; }
+        .todo-header, .filters, .kpi-grid { display: flex; flex-direction: column; }
+        .todo-header { align-items: flex-start; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="todo-page">
+    <div class="todo-header">
+        <div class="todo-title">
+            <div class="todo-title-icon"><i class="far fa-calendar-check"></i></div>
+            <div>
+                <h1>Todo Lists du jour</h1>
+                <p>Consultez et suivez les Todo Lists de tous les employés pour la journée.</p>
+            </div>
+        </div>
+        <div class="todo-actions">
+            <input class="filter-input" type="date" value="{{ day|date:'Y-m-d' }}" style="width:160px" onchange="document.querySelector('#td-filters [name=date]').value=this.value; document.getElementById('td-filters').submit()">
+            <a class="btn-export" href="?{{ querystring }}&export=1"><i class="fas fa-download"></i> Exporter</a>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon icon-purple"><i class="fas fa-users"></i></div>
+                <div>
+                    <h4>Total des employés</h4>
+                    <div class="kpi-number">{{ stats.total }}</div>
+                    <div class="kpi-subtitle">dont {{ stats.filled }} ont renseigné leur Todo List</div>
+                </div>
+            </div>
+            <div class="bar"><span style="width:{{ stats.fill_rate }}%"></span></div>
+            <div class="bar-label">{{ stats.fill_rate }}%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon icon-green"><i class="fas fa-check"></i></div>
+                <div><h4>Todo Lists créées</h4><div class="kpi-number">{{ stats.filled }}</div><div class="kpi-subtitle">sur {{ stats.total }} employés</div></div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon icon-orange"><i class="far fa-clock"></i></div>
+                <div><h4>En attente</h4><div class="kpi-number">{{ stats.waiting_people }}</div><div class="kpi-subtitle">employés n'ont pas encore renseigné leur Todo List</div></div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon icon-blue"><i class="fas fa-list-check"></i></div>
+                <div><h4>Total d'activités aujourd'hui</h4><div class="kpi-number">{{ stats.activities }}</div></div>
+            </div>
+            <div class="split"><span>Terminées</span><b>{{ stats.done }}</b></div>
+            <div class="split"><span>En cours</span><b>{{ stats.doing }}</b></div>
+            <div class="split"><span>Non commencées</span><b>{{ stats.waiting }}</b></div>
+        </div>
+    </div>
+
+    <div class="todo-layout">
+        <div class="main-card">
+            <form method="get" class="filters" id="td-filters">
+                <input class="filter-input" type="search" name="search" value="{{ search }}" placeholder="Rechercher un employé...">
+                <select class="filter-select" name="service" onchange="this.form.submit()">
+                    <option value="">Tous les services</option>
+                    {% for item in services %}<option value="{{ item }}" {% if service == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+                <select class="filter-select" name="state" onchange="this.form.submit()">
+                    <option value="">Tous les statuts</option>
+                    <option value="ok" {% if state == 'ok' %}selected{% endif %}>À jour</option>
+                    <option value="late" {% if state == 'late' %}selected{% endif %}>En retard</option>
+                    <option value="wait" {% if state == 'wait' %}selected{% endif %}>En attente</option>
+                </select>
+                <input class="filter-input" type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
+                <a class="reset-btn" href="{% url 'tasks:daily' %}?date={{ day|date:'Y-m-d' }}">Réinitialiser</a>
+            </form>
+            <div class="table-wrapper">
+                <table class="todo-table">
+                    <thead>
+                        <tr>
+                            <th>Employé</th><th>Service</th><th>Activités prévues</th><th>Terminées</th><th>En cours</th><th>Non commencées</th><th>Progression</th><th>Dernière mise à jour</th><th>Statut</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>
+                                <div class="employee">
+                                    <span class="avatar" style="background:{{ row.avatar_color }}">{{ row.initials }}</span>
+                                    <div>
+                                        <div class="employee-name">{{ row.full_name }}</div>
+                                        <div class="employee-role">{{ row.get_position_display }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ row.service_label }}</td>
+                            <td>{{ row.planned }}</td>
+                            <td class="n-green">{{ row.done }}</td>
+                            <td class="n-orange">{{ row.doing }}</td>
+                            <td class="n-red">{{ row.waiting }}</td>
+                            <td><span class="ring" style="--p:{{ row.progress }}"><span>{{ row.progress }}%</span></span></td>
+                            <td class="when">{{ row.updated_label }}{% if row.updated_sub %}<small>{{ row.updated_sub }}</small>{% endif %}</td>
+                            <td><span class="badge badge-{{ row.state_key }}">{{ row.state_label }}</span></td>
+                            <td><a class="view-btn" href="?date={{ day|date:'Y-m-d' }}&employee={{ row.pk }}" title="Détail"><i class="far fa-eye"></i></a></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="10" style="text-align:center;padding:40px;color:#8b96b0;">Aucune Todo List pour ces filtres.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <span>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }} employés</span>
+                <div class="pagination-buttons">
+                    {% if page_obj.has_previous %}<a class="page-btn" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">‹</a>{% endif %}
+                    {% for number in page_obj.paginator.page_range %}
+                        {% if page_obj.number == number %}<span class="page-btn active">{{ number }}</span>{% else %}<a class="page-btn" href="?{{ querystring }}&page={{ number }}">{{ number }}</a>{% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}<a class="page-btn" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">›</a>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="side-column">
+            <div class="side-card">
+                <div class="side-title"><i class="far fa-id-card" style="color:#5146e5"></i> Détail rapide</div>
+                {% if selected %}
+                <div class="picked">
+                    <span class="avatar" style="background:{{ selected.avatar_color }};width:42px;height:42px">{{ selected.initials }}</span>
+                    <div><strong>{{ selected.full_name }}</strong><small>{{ selected.get_position_display }}</small></div>
+                </div>
+                <div class="big-ring" style="--p:{{ selected.progress }}"><span>{{ selected.progress }}%</span></div>
+                <div class="ratio"><b>{{ selected.done }} / {{ selected.planned }}</b> activités terminées</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#16b985"></span> Terminées <strong>{{ selected.done }}</strong></div>
+                <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> En cours <strong>{{ selected.doing }}</strong></div>
+                <div class="legend-item"><span class="legend-dot" style="background:#e11d48"></span> Non commencées <strong>{{ selected.waiting }}</strong></div>
+                <a class="full-link" href="?date={{ day|date:'Y-m-d' }}&employee={{ selected.pk }}&sheet=1">Voir la Todo List complète <i class="fas fa-arrow-right"></i></a>
+                {% else %}
+                <p class="kpi-subtitle">Sélectionnez un employé dans le tableau.</p>
+                {% endif %}
+            </div>
+            <div class="side-card">
+                <div class="side-title"><i class="fas fa-filter" style="color:#5146e5"></i> Filtres rapides</div>
+                <div class="chips">
+                    <a class="{% if not service %}on{% endif %}" href="?date={{ day|date:'Y-m-d' }}">Tous les services</a>
+                    {% for item in services %}
+                    <a class="{% if service == item %}on{% endif %}" href="?date={{ day|date:'Y-m-d' }}&service={{ item|urlencode }}">{{ item }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="side-card tip">
+                <div class="side-title" style="color:#5146e5"><i class="far fa-lightbulb"></i> Astuce</div>
+                <p>Cliquez sur un employé pour voir le détail de sa Todo List : activités, remarques, difficultés et progression.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

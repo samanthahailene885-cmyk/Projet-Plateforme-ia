@@ -20,6 +20,8 @@ class Employee(models.Model):
         ('marketing', _('Marketing')),
         ('content_writer', _('Rédacteur')),
         ('account_manager', _('Account Manager')),
+        ('community_manager', _('Community Manager')),
+        ('communication', _('Chargé de communication')),
         ('other', _('Autre')),
     ]
     

@@ -71,6 +71,11 @@ class Project(models.Model):
         blank=True,
         verbose_name=_('Employés assignés')
     )
+    is_demo = models.BooleanField(
+        default=False,
+        verbose_name=_('Donnée de démonstration'),
+        help_text=_("Projet créé par le générateur. Il ne représente pas un projet réel."),
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,

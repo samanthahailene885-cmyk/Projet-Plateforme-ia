@@ -1,122 +1,113 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ task.title }} - Plateforme de Gestion{% endblock %}
+{% block title %}{{ task.title }} - RAC'IN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .td-page { max-width: 980px; margin: 0 auto; padding: 4px 4px 40px; }
+    .td-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; }
+    .td-kicker { margin: 0 0 6px; color: #7DD3FC; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .td-head h1 { margin: 0 0 8px; font-size: 1.7rem; letter-spacing: -.03em; }
+    .td-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .td-badge { border-radius: 999px; padding: 4px 10px; font-size: .75rem; font-weight: 700; background: rgba(37,99,235,.18); color: #BFDBFE; }
+    .td-badge.late { background: rgba(239,68,68,.16); color: #FCA5A5; }
+    .td-badge.done { background: rgba(16,185,129,.16); color: #6EE7B7; }
+    .td-badge.high, .td-badge.urgent { background: rgba(245,158,11,.16); color: #FCD34D; }
+    .td-actions, .td-status { display: flex; gap: 8px; flex-wrap: wrap; }
+    .td-actions a, .td-status button {
+        min-height: 38px; border-radius: 10px; padding: 0 12px; display: inline-flex; align-items: center; text-decoration: none;
+        border: 1px solid #173B69; background: #0A2142; color: #F8FAFC; font-size: .82rem; font-weight: 650;
+    }
+    .td-status button.on, .td-actions a.primary { background: #2563EB; border-color: #2563EB; color: #fff; }
+    .td-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, .7fr); gap: 16px; }
+    .td-card { background: #0A2142; border: 1px solid #173B69; border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
+    .td-card h2 { margin: 0 0 12px; font-size: 1rem; }
+    .td-card p { color: #CBD5E1; line-height: 1.55; white-space: pre-wrap; }
+    .td-side li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(23,59,105,.8); list-style: none; }
+    .td-side { margin: 0; padding: 0; }
+    .td-side small { color: #94A3B8; }
+    .td-doc {
+        display: flex; align-items: center; gap: 12px; background: #071A33; border: 1px solid #173B69; border-radius: 14px; padding: 12px 14px; margin-top: 10px;
+    }
+    .td-doc i { color: #FCA5A5; font-size: 1.2rem; }
+    .td-doc span { flex: 1; min-width: 0; }
+    .td-doc strong { display: block; }
+    .td-doc small { color: #94A3B8; }
+    .td-doc a { color: #7DD3FC; font-weight: 700; font-size: .82rem; text-decoration: none; margin-left: 10px; }
+    @media (max-width: 800px) { .td-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">{{ task.title }}</h2>
-    <div>
-        <a href="{% url 'tasks:update' task.pk %}" class="btn btn-warning">
-            <i class="fas fa-edit me-2"></i>Modifier
-        </a>
-        <a href="{% url 'tasks:delete' task.pk %}" class="btn btn-danger">
-            <i class="fas fa-trash me-2"></i>Supprimer
-        </a>
-        <a href="{% url 'tasks:list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Retour
-        </a>
+<div class="td-page">
+    <div class="td-head">
+        <div>
+            <p class="td-kicker">{{ task.project.name|default:"Sans projet" }}</p>
+            <h1>{{ task.title }}</h1>
+            <div class="td-meta">
+                <span class="td-badge {% if task.is_overdue %}late{% elif task.status == 'completed' %}done{% endif %}">
+                    {% if task.is_overdue %}En retard{% else %}{{ task.get_status_display }}{% endif %}
+                </span>
+                <span class="td-badge {{ task.priority }}">{{ task.priority_label }}</span>
+                {% if task.assigned_to %}<span class="td-badge">{{ task.assigned_to.full_name }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="td-actions">
+            <a class="primary" href="{% url 'tasks:update' task.pk %}">{% if is_admin_view %}Modifier{% else %}Mettre à jour{% endif %}</a>
+            {% if is_admin_view %}
+            <a href="{% url 'tasks:delete' task.pk %}">Supprimer</a>
+            {% endif %}
+            <a href="{% url 'tasks:list' %}">Retour</a>
+        </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Informations de la tâche</h5>
-            </div>
-            <div class="card-body">
-                <table class="table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Titre</strong></td>
-                            <td>{{ task.title }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Description</strong></td>
-                            <td>{{ task.description|default:"Non renseignée" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Projet</strong></td>
-                            <td>
-                                {% if task.project %}
-                                    <a href="{% url 'projects:detail' task.project.pk %}">{{ task.project.name }}</a>
-                                {% else %}
-                                    <span class="text-muted">Non assigné</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Assigné à</strong></td>
-                            <td>
-                                {% if task.assigned_to %}
-                                    <a href="{% url 'employees:detail' task.assigned_to.pk %}">{{ task.assigned_to.full_name }}</a>
-                                {% else %}
-                                    <span class="text-muted">Non assigné</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Statut</strong></td>
-                            <td>{{ task.get_status_display }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Priorité</strong></td>
-                            <td>{{ task.get_priority_display }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Date limite</strong></td>
-                            <td>{{ task.due_date|date:"d/m/Y"|default:"Non définie" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Heures estimées</strong></td>
-                            <td>{{ task.estimated_hours|default:"-" }} h</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Heures réelles</strong></td>
-                            <td>{{ task.actual_hours|default:"-" }} h</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Commentaires</strong></td>
-                            <td>{{ task.comments|default:"Aucun commentaire" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Créé le</strong></td>
-                            <td>{{ task.created_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Mis à jour le</strong></td>
-                            <td>{{ task.updated_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    <form class="td-status" method="post" action="{% url 'tasks:set_status' task.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'tasks:detail' task.pk %}">
+        {% for code, label in statuses %}
+        <button type="submit" name="status" value="{{ code }}" class="{% if task.status == code %}on{% endif %}">{{ label }}</button>
+        {% endfor %}
+    </form>
+
+    <div class="td-grid" style="margin-top:16px;">
+        <div>
+            <section class="td-card">
+                <h2>Description</h2>
+                <p>{{ task.description|default:"Aucune description." }}</p>
+            </section>
+            <section class="td-card">
+                <h2>Instructions du responsable</h2>
+                <p>{{ task.comments|default:"Aucune instruction particulière." }}</p>
+            </section>
+            <section class="td-card">
+                <h2><i class="fas fa-paperclip"></i> Documents transmis par le responsable</h2>
+                {% for document in documents %}
+                <div class="td-doc">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>
+                        <strong>{{ document.original_name }}</strong>
+                        <small>{{ document.size_label }}</small>
+                    </span>
+                    <span>
+                        <a href="{% url 'tasks:document' task.pk document.pk %}?disposition=inline" target="_blank" rel="noopener">Voir</a>
+                        <a href="{% url 'tasks:document' task.pk document.pk %}">Télécharger</a>
+                    </span>
+                </div>
+                {% empty %}
+                <p>Aucun document joint.</p>
+                {% endfor %}
+            </section>
         </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Statistiques</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <strong>Jours restants:</strong>
-                    <span class="float-end">{{ task.days_remaining|default:"-" }} jours</span>
-                </div>
-                <div class="mb-3">
-                    <strong>Statut:</strong>
-                    {% if task.is_overdue %}
-                        <span class="badge bg-danger float-end">En retard</span>
-                    {% else %}
-                        <span class="badge bg-success float-end">À temps</span>
-                    {% endif %}
-                </div>
-                <div>
-                    <strong>Projet:</strong>
-                    <span class="float-end">{{ task.project.name|default:"Non assigné" }}</span>
-                </div>
-            </div>
-        </div>
+        <aside class="td-card">
+            <h2>Suivi</h2>
+            <ul class="td-side">
+                <li><small>Projet</small><strong>{{ task.project.name|default:"—" }}</strong></li>
+                <li><small>Responsable</small><strong>{{ task.assigned_to.full_name|default:"—" }}</strong></li>
+                <li><small>Début</small><strong>{{ task.start_date|date:"d/m/Y"|default:"—" }}</strong></li>
+                <li><small>Échéance</small><strong>{{ task.due_date|date:"d/m/Y"|default:"—" }}</strong></li>
+                <li><small>Créée par</small><strong>{{ task.created_by.get_full_name|default:"—" }}</strong></li>
+            </ul>
+        </aside>
     </div>
 </div>
 {% endblock %}

@@ -45,26 +45,22 @@
         color: var(--wf-text-muted);
         margin: 0;
     }
-    .permissions-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+    .perm-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 18px;
     }
-    .btn-add-permission {
-        background: var(--wf-accent);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 500;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        transition: background .15s;
+    .perm-kpi {
+        background: #fff;
+        border: 1px solid var(--wf-border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.04);
     }
-    .btn-add-permission:hover { background: #1d4ed8; }
+    .perm-kpi span { display: block; font-size: 0.75rem; color: var(--wf-text-muted); font-weight: 600; margin-bottom: 4px; }
+    .perm-kpi strong { font-size: 1.45rem; color: var(--wf-text); letter-spacing: -0.03em; }
+    @media (max-width: 768px) { .perm-kpis { grid-template-columns: 1fr 1fr; } }
 
     /* Filters */
     .filters-card {
@@ -185,6 +181,7 @@
     .permission-badge.pending { background: var(--wf-yellow-light); color: #a16207; }
     .permission-badge.approved { background: var(--wf-green-light); color: #15803d; }
     .permission-badge.rejected { background: var(--wf-red-light); color: var(--wf-red); }
+    .permission-badge.cancelled { background: #f1f5f9; color: #64748b; }
 
     .permission-type {
         display: flex;
@@ -312,12 +309,13 @@
             <h1 class="permissions-title">Permissions</h1>
             <p class="permissions-subtitle">Gérez les demandes de congés et permissions</p>
         </div>
-        <div class="permissions-header-actions">
-            <a href="{% url 'permissions:create' %}" class="btn-add-permission">
-                <i class="fas fa-plus"></i>
-                Nouvelle demande
-            </a>
-        </div>
+    </div>
+
+    <div class="perm-kpis">
+        <div class="perm-kpi"><span>Toutes</span><strong>{{ stats.total }}</strong></div>
+        <div class="perm-kpi"><span>En attente</span><strong>{{ stats.pending }}</strong></div>
+        <div class="perm-kpi"><span>Approuvées</span><strong>{{ stats.approved }}</strong></div>
+        <div class="perm-kpi"><span>Refusées</span><strong>{{ stats.rejected }}</strong></div>
     </div>
 
     <!-- Filters -->
@@ -415,11 +413,7 @@
     <div class="empty-permissions">
         <i class="fas fa-calendar-check"></i>
         <h3>Aucune demande de permission</h3>
-        <p>Commencez par faire votre première demande</p>
-        <a href="{% url 'permissions:create' %}" class="btn-add-permission">
-            <i class="fas fa-plus"></i>
-            Nouvelle demande
-        </a>
+        <p>Les demandes des employés apparaîtront ici dès qu'elles seront envoyées.</p>
     </div>
     {% endif %}
 

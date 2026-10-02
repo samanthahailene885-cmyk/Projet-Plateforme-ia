@@ -1,0 +1,98 @@
+{% load static %}
+<style>
+    @font-face {
+        font-family: 'Journal Hand';
+        src: url("{% static 'reports/fonts/ShadowsIntoLightTwo-Regular.ttf' %}") format('truetype');
+        font-weight: 400;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'Journal Sans';
+        src: url("{% static 'reports/fonts/Montserrat-Regular.ttf' %}") format('truetype');
+        font-weight: 400;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'Journal Sans';
+        src: url("{% static 'reports/fonts/Montserrat-SemiBold.ttf' %}") format('truetype');
+        font-weight: 600;
+        font-style: normal;
+    }
+    .journal {
+        position: relative;
+        width: min(100%, 760px);
+        container-type: inline-size;
+    }
+    .journal-bg {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 8px;
+    }
+    .journal-pill {
+        position: absolute;
+        top: 8.2%;
+        left: 63%;
+        right: 3%;
+        background: #E84E1B;
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.4em 0.55em 0.32em;
+        font-family: 'Journal Sans', sans-serif;
+        font-weight: 600;
+        font-size: 10px;
+        font-size: 1.28cqi;
+        line-height: 1.15;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .journal-pill span {
+        font-weight: 400;
+        margin-right: 0.25em;
+    }
+    .journal-name {
+        position: absolute;
+        left: 6.5%;
+        top: 22.4%;
+        color: #fff;
+        font-family: 'Journal Hand', cursive;
+        font-size: 4.1cqi;
+        line-height: 1;
+        margin: 0;
+    }
+    .journal-body {
+        position: absolute;
+        left: 5.5%;
+        top: 29.5%;
+        width: 86%;
+        height: 58%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #fff;
+        font-family: 'Journal Hand', cursive;
+        font-size: 3.5cqi;
+        line-height: 1.28;
+        resize: none;
+        overflow: auto;
+    }
+    .journal-body:focus {
+        outline: none;
+    }
+    .journal-body::placeholder {
+        color: rgba(255, 255, 255, 0.55);
+    }
+    .journal-read p {
+        margin: 0 0 0.9em;
+    }
+    .journal-read p::before {
+        content: '';
+        display: inline-block;
+        width: 0.42em;
+        height: 0.42em;
+        margin-right: 0.4em;
+        background: #fff;
+        transform: translateY(-0.12em);
+    }
+</style>

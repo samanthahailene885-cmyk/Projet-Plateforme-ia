@@ -1,61 +1,441 @@
 {% extends 'base.html' %}
-
-{% block title %}Rapports - Plateforme de Gestion{% endblock %}
-
+{% block title %}Rapports journaliers - RAC'IN{% endblock %}
+{% block extra_css %}
+<style>
+    .reports-page { padding: 28px; background: #f6f8fc; min-height: 100vh; color: #18254a; margin: -16px; }
+    .reports-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+    .reports-title { display: flex; align-items: center; gap: 15px; }
+    .reports-title-icon { width: 48px; height: 48px; border-radius: 13px; background: #5146e5; color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .reports-title h1 { margin: 0; font-size: 28px; font-weight: 700; }
+    .reports-title p { margin: 6px 0 0; color: #7180a5; font-size: 14px; }
+    .btn-ai { border: none; background: linear-gradient(135deg, #4f46e5, #673de6); color: white; padding: 13px 21px; border-radius: 9px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 9px; box-shadow: 0 5px 15px rgba(79,70,229,.18); cursor: pointer; }
+    .btn-ai:disabled { opacity: .65; cursor: wait; }
+    .reports-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .synthesis-last { margin: 8px 0 0; font-size: 12px; color: #7180a5; text-align: right; }
+    .synth-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .synth-kpi { background: white; border: 1px solid #edf0f7; border-radius: 13px; padding: 14px 16px; box-shadow: 0 3px 12px rgba(28,40,80,.035); }
+    .synth-kpi h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #526184; }
+    .synth-kpi strong { display: block; font-size: 22px; color: #17244b; line-height: 1.1; }
+    .synth-note { margin: -8px 0 18px; font-size: 12px; color: #7180a5; }
+    .synthesis-status { margin-bottom: 14px; border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+    .synthesis-status.loading { background: #f4f2ff; color: #4338ca; border: 1px solid #e1ddff; }
+    .synthesis-status.ok { background: #e9f9f1; color: #0f7a52; border: 1px solid #c9f0de; }
+    .synthesis-status.err { background: #fff4f2; color: #b4331a; border: 1px solid #ffd7d0; }
+    .synthesis-sheet { background: white; border: 1px solid #e4e0ff; border-radius: 16px; padding: 28px 32px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(79,70,229,.08); }
+    .synthesis-kicker { color: #5146e5; font-weight: 800; letter-spacing: .04em; font-size: 13px; margin-bottom: 8px; }
+    .synthesis-date { font-size: 22px; font-weight: 700; color: #17244b; }
+    .synthesis-count { margin-top: 4px; color: #7180a5; font-size: 13px; }
+    .synthesis-body { margin-top: 18px; color: #243055; font-size: 15px; line-height: 1.65; }
+    .synthesis-body h3 { margin: 22px 0 8px; font-size: 16px; color: #1d294d; }
+    .synthesis-body p { margin: 0 0 10px; }
+    .synthesis-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .synthesis-actions button { border: 1px solid #dfe4f0; background: white; color: #33406a; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .synthesis-actions button:hover { border-color: #5146e5; color: #5146e5; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .kpi-card { background: white; border: 1px solid #edf0f7; border-radius: 13px; padding: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 3px 12px rgba(28,40,80,.035); text-decoration: none; color: inherit; }
+    .kpi-icon { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .icon-purple { background: #efedff; color: #584be7; }
+    .icon-orange { background: #fff2dc; color: #f59e0b; }
+    .icon-blue { background: #eaf1ff; color: #3976e8; }
+    .kpi-card h4 { margin: 0 0 7px; font-size: 12px; font-weight: 600; color: #526184; }
+    .kpi-number { font-size: 25px; font-weight: 700; color: #17244b; line-height: 1.1; }
+    .kpi-subtitle { margin-top: 3px; font-size: 11px; color: #8a96b4; }
+    .reports-layout { display: grid; grid-template-columns: minmax(0, 1fr) 255px; gap: 18px; align-items: start; }
+    .main-card, .side-card { background: white; border: 1px solid #edf0f7; border-radius: 13px; box-shadow: 0 3px 12px rgba(28,40,80,.035); }
+    .main-card { padding: 18px; }
+    .main-card-title { font-size: 16px; font-weight: 700; margin-bottom: 17px; }
+    .filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto; gap: 9px; margin-bottom: 17px; }
+    .filter-input, .filter-select, .side-filter input, .side-filter select { height: 39px; border: 1px solid #dfe4f0; border-radius: 8px; background: white; padding: 0 12px; color: #5c698b; outline: none; font-size: 12px; width: 100%; box-sizing: border-box; }
+    .reset-btn { height: 39px; border: none; background: #f1efff; color: #5146e5; border-radius: 8px; padding: 0 13px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; white-space: nowrap; }
+    .table-wrapper { overflow-x: auto; }
+    .reports-table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    .reports-table thead { background: #f7f9fd; }
+    .reports-table th { text-align: left; padding: 13px 10px; font-size: 11px; color: #637091; font-weight: 700; white-space: nowrap; }
+    .reports-table td { padding: 14px 10px; border-top: 1px solid #edf0f5; font-size: 12px; color: #536180; vertical-align: middle; }
+    .employee { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 11px; flex-shrink: 0; }
+    .employee-name { color: #18254a; font-weight: 600; }
+    .employee-role { color: #8994b0; font-size: 10px; margin-top: 3px; }
+    .badge { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .badge-success { background: #e5f8ef; color: #139a6a; }
+    .badge-warning { background: #fff2d9; color: #dc9213; }
+    .badge-ai { background: #eeeaff; color: #6251dc; }
+    .badge-manual { background: #eaf1ff; color: #3975db; }
+    .view-btn { border: 1px solid #dfe4f0; background: white; color: #4e5d80; padding: 7px 11px; border-radius: 7px; font-size: 11px; text-decoration: none; }
+    .more-btn { border: none; background: transparent; color: #7885a4; font-size: 18px; margin-left: 7px; text-decoration: none; }
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 17px; color: #8994b0; font-size: 11px; }
+    .pagination-buttons { display: flex; gap: 5px; }
+    .page-btn { min-width: 31px; height: 31px; border: 1px solid #e0e4ee; background: white; border-radius: 7px; color: #62708f; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; }
+    .page-btn.active { background: #5146e5; color: white; border-color: #5146e5; }
+    .side-column { display: flex; flex-direction: column; gap: 16px; }
+    .side-card { padding: 17px; }
+    .side-title { font-size: 14px; font-weight: 700; margin-bottom: 15px; }
+    .side-filter { margin-bottom: 13px; }
+    .side-filter label { display: block; font-size: 11px; color: #637091; font-weight: 600; margin-bottom: 6px; }
+    .donut-container { display: flex; align-items: center; justify-content: center; gap: 15px; }
+    .donut { width: 110px; height: 110px; border-radius: 50%; position: relative; flex-shrink: 0; background: conic-gradient(#16b985 0deg {{ stats.ai_deg }}deg, #5979e8 {{ stats.ai_deg }}deg {{ stats.ai_deg|add:stats.manual_deg }}deg, #dce1eb {{ stats.ai_deg|add:stats.manual_deg }}deg 360deg); }
+    .donut::after { content: ""; position: absolute; width: 68px; height: 68px; background: white; border-radius: 50%; top: 21px; left: 21px; }
+    .donut-center { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 700; color: #1d294d; font-size: 16px; }
+    .donut-center span { font-size: 9px; color: #8994b0; font-weight: 500; }
+    .legend { display: flex; flex-direction: column; gap: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #657291; }
+    .legend-item strong { margin-left: auto; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-green { background: #16b985; } .dot-blue { background: #5979e8; } .dot-gray { background: #dce1eb; }
+    .ai-info { background: linear-gradient(145deg, #f1efff, #f8f7ff); border: 1px solid #e1ddff; }
+    .ai-info-title { color: #5146e5; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+    .ai-info p { font-size: 10px; line-height: 1.6; color: #707da0; margin: 0; }
+    .ai-info a { display: inline-block; margin-top: 10px; color: #5146e5; font-size: 10px; font-weight: 600; text-decoration: none; }
+    @media (max-width: 1200px) {
+        .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        .synth-kpis { grid-template-columns: repeat(3, 1fr); }
+        .reports-layout { grid-template-columns: 1fr; }
+        .side-column { display: grid; grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .reports-page { padding: 15px; }
+        .reports-header { align-items: flex-start; flex-direction: column; gap: 15px; }
+        .synthesis-last { text-align: left; }
+        .kpi-grid, .filters, .side-column, .synth-kpis { grid-template-columns: 1fr; }
+    }
+    @media print {
+        body * { visibility: hidden; }
+        .synthesis-sheet, .synthesis-sheet * { visibility: visible; }
+        .synthesis-sheet { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; }
+        .synthesis-actions { display: none !important; }
+    }
+</style>
+{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Rapports Quotidiens</h2>
-    <a href="{% url 'reports:create' %}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Créer un rapport
-    </a>
-</div>
+<div class="reports-page">
+    <div class="reports-header">
+        <div class="reports-title">
+            <div class="reports-title-icon"><i class="far fa-file-alt"></i></div>
+            <div>
+                <h1>Rapports journaliers</h1>
+                <p>Suivez l'activité quotidienne de l'équipe.</p>
+            </div>
+        </div>
+        <div class="reports-actions">
+            <form method="post" action="{% url 'reports:generate_day' %}">
+                {% csrf_token %}
+                <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                <button class="btn-ai" type="submit"><i class="fas fa-wand-magic-sparkles"></i> Générer les rapports du jour</button>
+            </form>
+            <div>
+                <button class="btn-ai" type="button" id="synthesis-generate"
+                    data-url="{% url 'reports:synthesis' %}"
+                    data-date="{{ day|date:'Y-m-d' }}"
+                    data-csrf="{{ csrf_token }}">✨ Générer la synthèse IA</button>
+                <p class="synthesis-last" id="synthesis-last">{% if last_synthesis_label %}Dernière synthèse : {{ last_synthesis_label }}{% else %}Aucune synthèse enregistrée pour cette date.{% endif %}</p>
+            </div>
+        </div>
+    </div>
 
-<div class="card">
-    <div class="card-body">
-        {% if reports %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Employé</th>
-                        <th>Date</th>
-                        <th>Généré par IA</th>
-                        <th>Créé le</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for report in reports %}
-                    <tr>
-                        <td><strong>{{ report.employee.get_full_name }}</strong></td>
-                        <td>{{ report.date|date:"d/m/Y" }}</td>
-                        <td>
-                            {% if report.ai_generated %}
-                                <span class="badge bg-success">Oui</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Non</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ report.created_at|date:"d/m/Y H:i" }}</td>
-                        <td>
-                            <a href="{% url 'reports:detail' report.pk %}" class="btn btn-sm btn-info">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
+    <div class="synth-kpis">
+        <div class="synth-kpi"><h4>Rapports soumis</h4><strong id="stat-submitted">{{ synthesis_stats.submitted }}</strong></div>
+        <div class="synth-kpi"><h4>Rapports non soumis</h4><strong id="stat-missing">{{ synthesis_stats.missing }}</strong></div>
+        <div class="synth-kpi"><h4>Employés analysés</h4><strong id="stat-analyzed">{{ synthesis_stats.analyzed }}</strong></div>
+        <div class="synth-kpi"><h4>Difficultés signalées</h4><strong id="stat-difficulties">{{ synthesis_stats.difficulties }}</strong></div>
+        <div class="synth-kpi"><h4>Activités terminées</h4><strong id="stat-completed">{{ synthesis_stats.completed }}</strong></div>
+        <div class="synth-kpi"><h4>Activités en cours</h4><strong id="stat-progress">{{ synthesis_stats.in_progress }}</strong></div>
+    </div>
+    <p class="synth-note">Ces chiffres sont calculés à partir des rapports soumis et des activités enregistrées. Un rapport non soumis ne signifie pas que l'employé est absent.</p>
+
+    <div id="synthesis-status" class="synthesis-status" hidden></div>
+    <section class="synthesis-sheet" id="synthesis-sheet" {% if not latest_synthesis %}hidden{% endif %}>
+        <div class="synthesis-kicker">✨ SYNTHÈSE IA DE L'ACTIVITÉ DE L'ÉQUIPE</div>
+        <div class="synthesis-date" id="synthesis-date">{{ day_label }}</div>
+        <div class="synthesis-count" id="synthesis-count">{{ synthesis_analyzed }} rapport{{ synthesis_analyzed|pluralize }} analysé{{ synthesis_analyzed|pluralize }}</div>
+        <div class="synthesis-body" id="synthesis-body">{{ synthesis_html|safe }}</div>
+        <div class="synthesis-actions">
+            <button type="button" id="synthesis-regenerate">Régénérer</button>
+            <button type="button" id="synthesis-copy">Copier la synthèse</button>
+            <button type="button" id="synthesis-print">Imprimer</button>
+            <button type="button" id="synthesis-download">Télécharger</button>
+        </div>
+    </section>
+    <textarea id="synthesis-source" hidden>{{ latest_synthesis.content|default:"" }}</textarea>
+
+    <div class="kpi-grid">
+        <a class="kpi-card" href="?date={{ day|date:'Y-m-d' }}&state=done">
+            <div class="kpi-icon icon-purple"><i class="far fa-file"></i></div>
+            <div><h4>Rapports soumis aujourd'hui</h4><div class="kpi-number">{{ stats.submitted }}</div><div class="kpi-subtitle">sur {{ stats.total_people }} employés</div></div>
+        </a>
+        <a class="kpi-card" href="?date={{ day|date:'Y-m-d' }}&state=wait">
+            <div class="kpi-icon icon-orange"><i class="far fa-clock"></i></div>
+            <div><h4>En attente</h4><div class="kpi-number">{{ stats.waiting }}</div><div class="kpi-subtitle">rapports à consulter</div></div>
+        </a>
+        <a class="kpi-card" href="?date={{ day|date:'Y-m-d' }}&kind=ai">
+            <div class="kpi-icon icon-purple"><i class="fas fa-wand-magic-sparkles"></i></div>
+            <div><h4>Rapports générés par IA</h4><div class="kpi-number">{{ stats.ai }}</div><div class="kpi-subtitle">aujourd'hui</div></div>
+        </a>
+        <div class="kpi-card">
+            <div class="kpi-icon icon-blue"><i class="far fa-calendar"></i></div>
+            <div><h4>Période sélectionnée</h4><div class="kpi-number" style="font-size:18px;">{{ day_label }}</div><div class="kpi-subtitle">{% if day == today %}Aujourd'hui{% else %}Journée choisie{% endif %}</div></div>
+        </div>
+    </div>
+
+    <div class="reports-layout">
+        <div class="main-card">
+            <div class="main-card-title">Liste des rapports journaliers</div>
+            <form method="get" class="filters" id="rp-filters">
+                <input class="filter-input" type="search" name="search" placeholder="Rechercher un employé..." value="{{ search }}">
+                <select name="service" class="filter-select" onchange="this.form.submit()">
+                    <option value="">Tous les services</option>
+                    {% for item in services %}<option value="{{ item }}" {% if service == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+                <select name="state" class="filter-select" onchange="this.form.submit()">
+                    <option value="">Tous les statuts</option>
+                    <option value="done" {% if state == 'done' %}selected{% endif %}>Soumis</option>
+                    <option value="wait" {% if state == 'wait' %}selected{% endif %}>En attente</option>
+                </select>
+                <input type="date" name="date" class="filter-input" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
+                <a class="reset-btn" href="{% url 'reports:list' %}">Réinitialiser</a>
+            </form>
+            <div class="table-wrapper">
+                <table class="reports-table">
+                    <thead>
+                        <tr>
+                            <th>Employé</th><th>Date</th><th>Activités prévues</th><th>Activités terminées</th><th>Activités non terminées</th><th>Statut</th><th>Type</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>
+                                <div class="employee">
+                                    <div class="avatar" style="background:{{ row.color }}">{{ row.initials }}</div>
+                                    <div>
+                                        <div class="employee-name">{{ row.employee.full_name }}</div>
+                                        <div class="employee-role">{{ row.employee.get_position_display }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ day|date:"d M Y" }}{% if row.submitted_at %}<br><small>{{ row.submitted_at|date:"H:i" }}</small>{% endif %}</td>
+                            <td>{{ row.planned }}</td>
+                            <td>{{ row.done }}</td>
+                            <td>{{ row.open }}</td>
+                            <td>{% if row.state_key == 'done' %}<span class="badge badge-success">Soumis</span>{% else %}<span class="badge badge-warning">En attente</span>{% endif %}</td>
+                            <td>{% if row.kind_key == 'ai' %}<span class="badge badge-ai">IA</span>{% elif row.kind_key == 'manual' %}<span class="badge badge-manual">Manuel</span>{% else %}—{% endif %}</td>
+                            <td>
+                                {% if row.report %}
+                                <a class="view-btn" href="{% url 'reports:detail' row.report.pk %}"><i class="far fa-eye"></i> Voir</a>
+                                <a class="more-btn" href="{% url 'reports:pdf' row.report.pk %}" title="PDF">⋮</a>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="8" style="text-align:center;padding:40px;color:#8b96b0;">Aucun rapport disponible pour cette période.</td></tr>
                     {% endfor %}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <span>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }} rapports</span>
+                <div class="pagination-buttons">
+                    {% if page_obj.has_previous %}<a class="page-btn" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">‹</a>{% endif %}
+                    {% for number in page_obj.paginator.page_range %}
+                        {% if page_obj.number == number %}<span class="page-btn active">{{ number }}</span>{% else %}<a class="page-btn" href="?{{ querystring }}&page={{ number }}">{{ number }}</a>{% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}<a class="page-btn" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">›</a>{% endif %}
+                </div>
+            </div>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
-            <p class="text-muted">Aucun rapport généré pour le moment.</p>
-            <a href="{% url 'reports:create' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Créer le premier rapport
-            </a>
+
+        <div class="side-column">
+            <div class="side-card">
+                <div class="side-title"><i class="fas fa-filter"></i> Filtres</div>
+                <div class="side-filter">
+                    <label>Recherche</label>
+                    <input id="rp-side-search" type="search" value="{{ search }}" placeholder="Nom, poste, service..." onkeydown="if(event.key==='Enter'){event.preventDefault();document.querySelector('#rp-filters [name=search]').value=this.value;document.getElementById('rp-filters').submit();}">
+                </div>
+                <div class="side-filter">
+                    <label>Employé</label>
+                    <select form="rp-filters" name="employee" onchange="document.getElementById('rp-filters').submit()">
+                        <option value="">Tous les employés</option>
+                        {% for person in people %}<option value="{{ person.pk }}" {% if employee_id == person.pk|stringformat:"s" %}selected{% endif %}>{{ person.full_name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="side-filter">
+                    <label>Statut</label>
+                    <select onchange="document.querySelector('#rp-filters [name=state]').value=this.value; document.getElementById('rp-filters').submit()">
+                        <option value="">Tous les statuts</option>
+                        <option value="done" {% if state == 'done' %}selected{% endif %}>Soumis</option>
+                        <option value="wait" {% if state == 'wait' %}selected{% endif %}>En attente</option>
+                    </select>
+                </div>
+                <div class="side-filter">
+                    <label>Type de rapport</label>
+                    <select form="rp-filters" name="kind" onchange="document.getElementById('rp-filters').submit()">
+                        <option value="">Tous les types</option>
+                        <option value="ai" {% if kind == 'ai' %}selected{% endif %}>IA</option>
+                        <option value="manual" {% if kind == 'manual' %}selected{% endif %}>Manuel</option>
+                    </select>
+                </div>
+                <div class="side-filter">
+                    <label>Date</label>
+                    <input type="date" value="{{ day|date:'Y-m-d' }}" onchange="document.querySelector('#rp-filters [name=date]').value=this.value; document.getElementById('rp-filters').submit()">
+                </div>
+            </div>
+            <div class="side-card">
+                <div class="side-title">Répartition des rapports</div>
+                <div class="donut-container">
+                    <div class="donut"><div class="donut-center">{{ stats.submitted }}<span>rapports</span></div></div>
+                    <div class="legend">
+                        <div class="legend-item"><span class="legend-dot dot-green"></span> IA <strong>{{ stats.ai }}</strong></div>
+                        <div class="legend-item"><span class="legend-dot dot-blue"></span> Manuel <strong>{{ stats.manual }}</strong></div>
+                        <div class="legend-item"><span class="legend-dot dot-gray"></span> En attente <strong>{{ stats.waiting }}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="side-card ai-info">
+                <div class="ai-info-title"><i class="fas fa-wand-magic-sparkles"></i> Rapport généré par l'IA</div>
+                <p>Les rapports marqués IA sont générés à partir des Todo Lists, des activités et des remarques déjà enregistrées par les employés.</p>
+                <a href="{% url 'reports:team' %}?date={{ day|date:'Y-m-d' }}">Voir le rapport d'équipe →</a>
+            </div>
         </div>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const generateBtn = document.getElementById('synthesis-generate');
+    const statusBox = document.getElementById('synthesis-status');
+    const sheet = document.getElementById('synthesis-sheet');
+    const source = document.getElementById('synthesis-source');
+    const steps = [
+        'Analyse des rapports en cours...',
+        'Lecture des rapports...',
+        'Analyse des activités...',
+        'Identification des difficultés...',
+        'Préparation de la synthèse...'
+    ];
+    let stepTimer = null;
+
+    function setStatus(kind, html) {
+        statusBox.hidden = false;
+        statusBox.className = 'synthesis-status ' + kind;
+        statusBox.innerHTML = html;
+    }
+
+    function stopSteps() {
+        if (stepTimer) {
+            clearInterval(stepTimer);
+            stepTimer = null;
+        }
+    }
+
+    function analyzedLabel(count) {
+        const n = Number(count) || 0;
+        if (n <= 1) {
+            return n + ' rapport a été analysé.';
+        }
+        return n + ' rapports ont été analysés.';
+    }
+
+    function applyStats(stats) {
+        if (!stats) return;
+        const map = {
+            submitted: 'stat-submitted',
+            missing: 'stat-missing',
+            analyzed: 'stat-analyzed',
+            difficulties: 'stat-difficulties',
+            completed: 'stat-completed',
+            in_progress: 'stat-progress'
+        };
+        Object.keys(map).forEach(function (key) {
+            const node = document.getElementById(map[key]);
+            if (node && stats[key] !== undefined) node.textContent = stats[key];
+        });
+    }
+
+    function showSynthesis(payload) {
+        source.value = payload.synthesis || '';
+        document.getElementById('synthesis-body').innerHTML = payload.html || '';
+        document.getElementById('synthesis-date').textContent = payload.date_label || '';
+        document.getElementById('synthesis-count').textContent = (payload.analyzed || 0) + (Number(payload.analyzed) > 1 ? ' rapports analysés' : ' rapport analysé');
+        document.getElementById('synthesis-last').textContent = 'Dernière synthèse : ' + payload.generated_at;
+        sheet.hidden = false;
+        setStatus('ok', '<strong>✓ Synthèse générée avec succès</strong><br>' + analyzedLabel(payload.analyzed));
+    }
+
+    async function generateSynthesis() {
+        const hadSheet = !sheet.hidden;
+        generateBtn.disabled = true;
+        document.getElementById('synthesis-regenerate').disabled = true;
+        sheet.hidden = true;
+        let step = 0;
+        setStatus('loading', steps[0]);
+        stopSteps();
+        stepTimer = setInterval(function () {
+            step = Math.min(step + 1, steps.length - 1);
+            if (statusBox.classList.contains('loading')) {
+                statusBox.textContent = steps[step];
+            }
+        }, 700);
+        try {
+            const body = new URLSearchParams();
+            body.set('date', generateBtn.dataset.date);
+            const response = await fetch(generateBtn.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': generateBtn.dataset.csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: body
+            });
+            const payload = await response.json();
+            stopSteps();
+            if (!response.ok || !payload.ok) {
+                sheet.hidden = !hadSheet;
+                setStatus('err', payload.error || "Impossible de générer la synthèse IA pour le moment. Le service d'IA est actuellement indisponible.");
+                return;
+            }
+            applyStats(payload.stats);
+            showSynthesis(payload);
+        } catch (error) {
+            stopSteps();
+            sheet.hidden = !hadSheet;
+            setStatus('err', "Impossible de générer la synthèse IA pour le moment. Le service d'IA est actuellement indisponible.");
+        } finally {
+            generateBtn.disabled = false;
+            document.getElementById('synthesis-regenerate').disabled = false;
+        }
+    }
+
+    generateBtn.addEventListener('click', generateSynthesis);
+    document.getElementById('synthesis-regenerate').addEventListener('click', generateSynthesis);
+    document.getElementById('synthesis-copy').addEventListener('click', async function () {
+        const text = source.value;
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            setStatus('ok', 'Synthèse copiée.');
+        } catch (error) {
+            source.hidden = false;
+            source.select();
+            document.execCommand('copy');
+            source.hidden = true;
+            setStatus('ok', 'Synthèse copiée.');
+        }
+    });
+    document.getElementById('synthesis-print').addEventListener('click', function () {
+        window.print();
+    });
+    document.getElementById('synthesis-download').addEventListener('click', function () {
+        const text = source.value;
+        if (!text) return;
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'synthese-equipe-' + generateBtn.dataset.date + '.txt';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+    });
+})();
+</script>
 {% endblock %}

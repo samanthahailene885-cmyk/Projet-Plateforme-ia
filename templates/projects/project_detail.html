@@ -1,144 +1,418 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ project.name }} - Plateforme de Gestion{% endblock %}
+{% block title %}{{ project.name }} - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pd { color: #1e293b; }
+    .pd-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .pd-search { flex: 1; display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e8edf5; border-radius: 12px; height: 42px; padding: 0 14px; }
+    .pd-search input { border: none; outline: none; width: 100%; background: transparent; font-size: 0.86rem; }
+    .pd-search i, .pd-date i { color: #94a3b8; }
+    .pd-tools { display: flex; align-items: center; gap: 10px; }
+    .pd-date, .pd-bell { display: inline-flex; align-items: center; gap: 8px; height: 42px; background: #fff; border: 1px solid #e8edf5; border-radius: 12px; color: #475569; text-decoration: none; font-size: 0.82rem; font-weight: 600; }
+    .pd-date { padding: 0 12px; white-space: nowrap; }
+    .pd-bell { width: 42px; justify-content: center; position: relative; }
+    .pd-bell span { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; }
+    .pd-user { display: flex; align-items: center; gap: 8px; }
+    .pd-avatar, .pd-mini {
+        width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+    }
+    .pd-user strong { display: block; font-size: 0.82rem; line-height: 1.15; }
+    .pd-user small { color: #94a3b8; font-size: 0.72rem; }
+    .pd-back { color: #64748b; text-decoration: none; font-size: 0.84rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .pd-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+    .pd-card { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .pd-hero { padding: 16px 18px 8px; margin-bottom: 12px; }
+    .pd-hero-top { display: flex; gap: 14px; align-items: flex-start; }
+    .pd-mark { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; flex-shrink: 0; background: {{ project.accent_color }}; }
+    .pd-hero h1 { margin: 4px 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.03em; }
+    .pd-hero .sub { margin: 0; color: #64748b; font-size: 0.84rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .pd-badge { display: inline-flex; border-radius: 999px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; }
+    .pd-badge.live { background: #dcfce7; color: #16a34a; }
+    .pd-badge.plan { background: #dbeafe; color: #2563eb; }
+    .pd-badge.hold { background: #fef3c7; color: #d97706; }
+    .pd-badge.late { background: #ffe4e8; color: #e11d48; }
+    .pd-progress { min-width: 180px; margin-left: auto; }
+    .pd-progress .row { display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-bottom: 6px; }
+    .pd-progress .row b { color: #1e293b; }
+    .pd-bar { height: 8px; background: #eef2ff; border-radius: 999px; overflow: hidden; }
+    .pd-bar span { display: block; height: 100%; background: #4f46e5; border-radius: 999px; width: {{ project.progress }}%; }
+    .pd-actions { display: flex; gap: 8px; }
+    .pd-btn { height: 36px; border-radius: 10px; border: 1px solid #e6ebf3; background: #fff; color: #334155; font-weight: 600; font-size: 0.82rem; padding: 0 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .pd-menu { position: relative; }
+    .pd-menu summary { list-style: none; width: 36px; height: 36px; border: 1px solid #e6ebf3; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
+    .pd-menu summary::-webkit-details-marker { display: none; }
+    .pd-menu div { position: absolute; right: 0; top: 40px; background: #fff; border: 1px solid #e8edf5; border-radius: 12px; min-width: 160px; z-index: 3; box-shadow: 0 10px 24px rgba(15,23,42,.08); padding: 6px; }
+    .pd-menu a, .pd-menu button { display: block; width: 100%; text-align: left; border: none; background: transparent; padding: 8px 10px; border-radius: 8px; color: #334155; font-weight: 600; font-size: 0.82rem; text-decoration: none; cursor: pointer; }
+    .pd-menu .danger { color: #e11d48; }
+    .pd-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+    .pd-meta small { display: block; color: #94a3b8; font-size: 0.72rem; }
+    .pd-meta strong { display: block; font-size: 0.84rem; }
+    .pd-meta em { font-style: normal; color: #94a3b8; font-size: 0.75rem; font-weight: 500; }
+    .pd-tabs { display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid #f1f5f9; margin-top: 8px; }
+    .pd-tabs a { text-decoration: none; color: #64748b; font-size: 0.84rem; font-weight: 600; padding: 12px 12px 10px; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+    .pd-tabs a.on { color: #4f46e5; border-bottom-color: #4f46e5; }
+    .pd-count { background: #fee2e2; color: #e11d48; border-radius: 999px; min-width: 18px; height: 18px; font-size: 0.68rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+    .pd-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 12px; margin: 12px 0; }
+    .pd-block { padding: 14px 16px; }
+    .pd-block h2 { margin: 0 0 8px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .pd-block h2 i { color: #6366f1; }
+    .pd-block p { margin: 0; color: #64748b; font-size: 0.84rem; line-height: 1.5; }
+    .pd-clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .pd-more { margin-top: 8px; border: none; background: transparent; color: #4f46e5; font-weight: 700; font-size: 0.8rem; padding: 0; cursor: pointer; }
+    .pd-ring-wrap { display: flex; align-items: center; gap: 12px; }
+    .pd-ring { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+    .pd-ring canvas { width: 132px !important; height: 132px !important; }
+    .pd-hole { position: absolute; inset: 28px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; }
+    .pd-ring.is-empty { border-radius: 50%; background: #e5e7eb; }
+    .pd-ring.is-empty canvas { display: none; }
+    .pd-legend { list-style: none; margin: 0; padding: 0; flex: 1; }
+    .pd-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569; padding: 3px 0; }
+    .pd-legend b { margin-left: auto; color: #1e293b; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.green { background: #22c55e; } .dot.blue { background: #3b82f6; } .dot.gray { background: #94a3b8; } .dot.red { background: #f43f5e; }
+    .pd-table-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 0; }
+    .pd-table-head h2 { margin: 0; font-size: 0.95rem; }
+    .pd-table-head a { color: #4f46e5; font-size: 0.8rem; font-weight: 700; text-decoration: none; }
+    table.pd-table { width: 100%; border-collapse: collapse; }
+    .pd-table th { text-align: left; font-size: 0.75rem; color: #94a3b8; font-weight: 600; padding: 10px 14px; }
+    .pd-table td { padding: 12px 14px; border-top: 1px solid #f4f7fb; font-size: 0.84rem; vertical-align: middle; }
+    .pd-task { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .pd-ico { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; }
+    .pd-ico.done { background: #dcfce7; color: #16a34a; }
+    .pd-ico.doing { background: #dbeafe; color: #2563eb; }
+    .pd-ico.wait { background: #f1f5f9; color: #64748b; }
+    .pd-ico.late { background: #ffe4e8; color: #e11d48; }
+    .pill { display: inline-flex; border-radius: 999px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; }
+    .pill.done { background: #dcfce7; color: #16a34a; }
+    .pill.doing { background: #dbeafe; color: #2563eb; }
+    .pill.wait { background: #f1f5f9; color: #64748b; }
+    .pill.late { background: #ffe4e8; color: #e11d48; }
+    .pill.high { background: #ffe4e8; color: #e11d48; }
+    .pill.medium { background: #ffedd5; color: #ea580c; }
+    .pill.low { background: #f1f5f9; color: #64748b; }
+    .pd-side { display: flex; flex-direction: column; gap: 12px; }
+    .pd-side h3 { margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .pd-side-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 8px; }
+    .pd-side-head a { color: #4f46e5; font-size: 0.78rem; font-weight: 700; text-decoration: none; }
+    .pd-member { display: flex; align-items: center; gap: 10px; padding: 8px 14px; text-decoration: none; color: inherit; }
+    .pd-member strong { display: block; font-size: 0.84rem; }
+    .pd-member small { color: #94a3b8; font-size: 0.72rem; }
+    .pd-role { margin-left: auto; background: #ede9fe; color: #6d28d9; border-radius: 999px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; }
+    .pd-date-row { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid #f4f7fb; font-size: 0.84rem; }
+    .pd-date-row span { color: #64748b; display: flex; align-items: center; gap: 8px; }
+    .pd-empty { color: #94a3b8; font-size: 0.84rem; padding: 4px 14px 14px; }
+    .pd-file { display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
+    .pd-help { background: linear-gradient(180deg, #f5f3ff, #eef2ff); border: 1px solid #e7e3ff; border-radius: 16px; padding: 16px; }
+    .pd-help h3 { color: #5b21b6; margin: 8px 0; }
+    .pd-help p { color: #7c6aa8; font-size: 0.8rem; margin: 0 0 12px; }
+    .pd-help a { display: inline-flex; background: #fff; border: 1px solid #ddd6fe; color: #4f46e5; text-decoration: none; border-radius: 10px; padding: 8px 12px; font-weight: 700; font-size: 0.82rem; }
+    .pd-comment { padding: 10px 0; border-top: 1px solid #f4f7fb; }
+    .pd-comment strong { display: block; font-size: 0.84rem; }
+    .pd-comment p { margin: 4px 0 0; color: #475569; font-size: 0.84rem; }
+    .c1 { background: #7c3aed; } .c2 { background: #db2777; } .c3 { background: #ea580c; } .c4 { background: #0d9488; } .c5 { background: #2563eb; } .c6 { background: #16a34a; }
+    @media (max-width: 1100px) {
+        .pd-layout, .pd-grid, .pd-meta { grid-template-columns: 1fr; }
+        .pd-progress { margin: 8px 0 0; width: 100%; }
+        .pd-date { display: none; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">{{ project.name }}</h2>
-    <div>
-        {% if user.is_admin %}
-        <a href="{% url 'projects:update' project.pk %}" class="btn btn-warning">
-            <i class="fas fa-edit me-2"></i>Modifier
-        </a>
-        <a href="{% url 'projects:delete' project.pk %}" class="btn btn-danger">
-            <i class="fas fa-trash me-2"></i>Supprimer
-        </a>
-        {% endif %}
-        <a href="{% url 'projects:list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Retour
-        </a>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Informations du projet</h5>
-            </div>
-            <div class="card-body">
-                <table class="table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Nom</strong></td>
-                            <td>{{ project.name }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Client</strong></td>
-                            <td>{{ project.client }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Description</strong></td>
-                            <td>{{ project.description|default:"Non renseignée" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Date de début</strong></td>
-                            <td>{{ project.start_date|date:"d/m/Y" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Date de fin</strong></td>
-                            <td>{{ project.end_date|date:"d/m/Y" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Statut</strong></td>
-                            <td>{{ project.get_status_display }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Priorité</strong></td>
-                            <td>{{ project.get_priority_display }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Budget</strong></td>
-                            <td>{{ project.budget|default:"Non renseigné" }} €</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Progression</strong></td>
-                            <td>
-                                <div class="progress" style="height: 25px;">
-                                    <div class="progress-bar" role="progressbar" style="width: {{ project.progress }}%;" aria-valuenow="{{ project.progress }}" aria-valuemin="0" aria-valuemax="100">
-                                        {{ project.progress }}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Créé le</strong></td>
-                            <td>{{ project.created_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Mis à jour le</strong></td>
-                            <td>{{ project.updated_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Employés assignés</h5>
-            </div>
-            <div class="card-body">
-                {% if project.assigned_employees.all %}
-                    <ul class="list-group">
-                        {% for employee in project.assigned_employees.all %}
-                        <li class="list-group-item d-flex align-items-center">
-                            {% if employee.user.photo %}
-                                <img src="{{ employee.user.photo.url }}" alt="{{ employee.full_name }}" class="rounded-circle me-2" width="40" height="40">
-                            {% else %}
-                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;">
-                                    <i class="fas fa-user text-muted"></i>
-                                </div>
-                            {% endif %}
-                            <div>
-                                <strong>{{ employee.full_name }}</strong>
-                                <br>
-                                <small class="text-muted">{{ employee.get_position_display }}</small>
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="text-muted">Aucun employé assigné à ce projet.</p>
-                {% endif %}
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Statistiques</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <strong>Jours restants:</strong>
-                    <span class="float-end">{{ project.days_remaining }} jours</span>
-                </div>
-                <div class="mb-3">
-                    <strong>Statut:</strong>
-                    {% if project.is_overdue %}
-                        <span class="badge bg-danger float-end">En retard</span>
-                    {% else %}
-                        <span class="badge bg-success float-end">À temps</span>
-                    {% endif %}
-                </div>
+<div class="pd">
+    <div class="pd-top">
+        <form class="pd-search" method="get" action="{% url 'dashboard:search' %}">
+            <i class="fas fa-search"></i>
+            <input type="search" name="q" placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche">
+        </form>
+        <div class="pd-tools">
+            <div class="pd-date"><i class="far fa-calendar"></i> {{ today_label }}</div>
+            <a class="pd-bell" href="{% url 'notifications:list' %}" aria-label="Notifications">
+                <i class="far fa-bell"></i>
+                {% if sidebar_unread_messages %}<span>{{ sidebar_unread_messages }}</span>{% endif %}
+            </a>
+            <div class="pd-user">
+                <span class="pd-avatar c1">{{ viewer_initials }}</span>
                 <div>
-                    <strong>Employés assignés:</strong>
-                    <span class="float-end">{{ project.assigned_employees.count }}</span>
+                    <strong>{{ viewer_name }}</strong>
+                    <small>{{ viewer_role }}</small>
                 </div>
             </div>
         </div>
     </div>
+
+    <a class="pd-back" href="{% url 'projects:list' %}"><i class="fas fa-arrow-left"></i> Retour aux projets</a>
+
+    <div class="pd-layout">
+        <div>
+            <section class="pd-card pd-hero">
+                <div class="pd-hero-top">
+                    <div class="pd-mark"><i class="fas fa-bullhorn"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        {% if project.is_overdue %}
+                        <span class="pd-badge late">En retard</span>
+                        {% elif project.status == 'completed' or project.status == 'in_progress' %}
+                        <span class="pd-badge live">{{ project.get_status_display }}</span>
+                        {% elif project.status == 'planning' %}
+                        <span class="pd-badge plan">{{ project.get_status_display }}</span>
+                        {% else %}
+                        <span class="pd-badge hold">{{ project.get_status_display }}</span>
+                        {% endif %}
+                        <h1>{{ project.name }}{% if project.client and project.client not in project.name %} – {{ project.client }}{% endif %}</h1>
+                        <p class="sub">{{ project.description|default:"Aucune description enregistrée." }}</p>
+                    </div>
+                    <div class="pd-progress">
+                        <div class="row"><span>Progression</span><b>{{ project.progress }}%</b></div>
+                        <div class="pd-bar"><span></span></div>
+                    </div>
+                    <div class="pd-actions">
+                        {% if user.is_admin %}
+                        <a class="pd-btn" href="{% url 'projects:update' project.pk %}"><i class="fas fa-pen"></i> Modifier</a>
+                        <details class="pd-menu">
+                            <summary aria-label="Actions"><i class="fas fa-ellipsis-vertical"></i></summary>
+                            <div>
+                                <a href="{% url 'projects:update' project.pk %}">Modifier le projet</a>
+                                <a class="danger" href="{% url 'projects:delete' project.pk %}">Supprimer</a>
+                            </div>
+                        </details>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="pd-meta">
+                    <div>
+                        <small>Responsable</small>
+                        {% if leader %}
+                        <strong>{{ leader.full_name }}</strong>
+                        <em>{{ leader.get_position_display }}</em>
+                        {% else %}
+                        <strong>Non désigné</strong>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <small>Équipe</small>
+                        <strong>{{ team|length }} membre{{ team|length|pluralize }}</strong>
+                    </div>
+                    <div>
+                        <small>Date de début</small>
+                        <strong>{{ project.start_date|date:"j F Y" }}</strong>
+                    </div>
+                    <div>
+                        <small>Date limite</small>
+                        <strong>{{ project.end_date|date:"j F Y" }}</strong>
+                    </div>
+                </div>
+                <nav class="pd-tabs">
+                    <a class="{% if tab == 'apercu' %}on{% endif %}" href="?onglet=apercu"><i class="far fa-file-alt"></i> Vue d'ensemble</a>
+                    <a class="{% if tab == 'taches' %}on{% endif %}" href="?onglet=taches"><i class="far fa-check-square"></i> Tâches {% if tasks %}<span class="pd-count">{{ tasks|length }}</span>{% endif %}</a>
+                    <a class="{% if tab == 'membres' %}on{% endif %}" href="?onglet=membres"><i class="fas fa-user-friends"></i> Membres</a>
+                    <a class="{% if tab == 'documents' %}on{% endif %}" href="?onglet=documents"><i class="far fa-folder"></i> Documents</a>
+                    <a class="{% if tab == 'commentaires' %}on{% endif %}" href="?onglet=commentaires"><i class="far fa-comment"></i> Commentaires</a>
+                </nav>
+            </section>
+
+            {% if tab == 'apercu' or tab == 'taches' %}
+            {% if tab == 'apercu' %}
+            <div class="pd-grid">
+                <section class="pd-card pd-block">
+                    <h2><i class="far fa-file-alt"></i> Description du projet</h2>
+                    <p id="pd-desc" class="pd-clamp">{{ project.description|default:"Aucune description enregistrée pour ce projet." }}</p>
+                    {% if project.description %}
+                    <button type="button" class="pd-more" id="pd-more" hidden>Voir plus</button>
+                    {% endif %}
+                </section>
+                <section class="pd-card pd-block">
+                    <h2><i class="fas fa-chart-pie"></i> Statut du projet</h2>
+                    <div class="pd-ring-wrap">
+                        <div class="pd-ring {% if not tasks %}is-empty{% endif %}">
+                            <canvas id="pdChart" width="132" height="132"
+                                data-done="{{ task_done|length }}"
+                                data-doing="{{ task_doing|length }}"
+                                data-waiting="{{ task_waiting|length }}"
+                                data-late="{{ task_late|length }}"></canvas>
+                            <div class="pd-hole">{{ project.progress }}%</div>
+                        </div>
+                        <ul class="pd-legend">
+                            <li><span class="dot green"></span> Tâches terminées <b>{{ task_done|length }}</b></li>
+                            <li><span class="dot blue"></span> Tâches en cours <b>{{ task_doing|length }}</b></li>
+                            <li><span class="dot gray"></span> Tâches non commencées <b>{{ task_waiting|length }}</b></li>
+                            <li><span class="dot red"></span> Tâches en retard <b>{{ task_late|length }}</b></li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+            {% endif %}
+
+            <section class="pd-card" style="margin-bottom:12px;">
+                <div class="pd-table-head">
+                    <h2>{% if tab == 'taches' %}Tâches du projet{% else %}Tâches récentes{% endif %}</h2>
+                    <span style="display:flex;gap:12px;align-items:center;">
+                        {% if user.is_admin %}
+                        <a href="{% url 'tasks:create' %}?project={{ project.pk }}">Nouvelle tâche</a>
+                        {% endif %}
+                        {% if tab != 'taches' %}<a href="?onglet=taches">Voir toutes les tâches →</a>{% endif %}
+                    </span>
+                </div>
+                {% if tab == 'taches' %}
+                <p style="margin:0 0 14px;color:#94A3B8;">
+                    Progression : <strong style="color:#F8FAFC;">{{ project.progress }} %</strong>
+                    · {{ tasks|length }} tâche{{ tasks|length|pluralize }}
+                    · {{ task_done|length }} terminée{{ task_done|length|pluralize }}
+                    · {{ task_doing|length }} en cours
+                    · {{ task_waiting|length }} à faire
+                    · {{ task_late|length }} en retard
+                </p>
+                {% endif %}
+                <div style="overflow-x:auto;">
+                    <table class="pd-table">
+                        <thead>
+                            <tr><th>Titre</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th>Priorité</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for task in shown_tasks %}
+                            <tr>
+                                <td>
+                                    <a class="pd-task" href="{% url 'tasks:detail' task.pk %}" style="text-decoration:none;color:inherit;">
+                                        <span class="pd-ico {% if task.is_overdue %}late{% elif task.status == 'completed' %}done{% elif task.status == 'in_progress' or task.status == 'review' %}doing{% else %}wait{% endif %}"><i class="fas fa-circle"></i></span>
+                                        {{ task.title }}
+                                    </a>
+                                </td>
+                                <td>{{ task.assigned_to.full_name|default:"Non assignée" }}</td>
+                                <td>{{ task.due_date|date:"j F Y"|default:"—" }}</td>
+                                <td>
+                                    {% if task.is_overdue %}<span class="pill late">En retard</span>
+                                    {% elif task.status == 'completed' %}<span class="pill done">Terminée</span>
+                                    {% elif task.status == 'in_progress' or task.status == 'review' %}<span class="pill doing">En cours</span>
+                                    {% elif task.status == 'not_done' %}<span class="pill late">Non réalisée</span>
+                                    {% else %}<span class="pill wait">Non commencée</span>{% endif %}
+                                </td>
+                                <td>
+                                    {% if task.priority == 'high' or task.priority == 'urgent' %}<span class="pill high">{{ task.get_priority_display }}</span>
+                                    {% elif task.priority == 'medium' %}<span class="pill medium">{{ task.get_priority_display }}</span>
+                                    {% else %}<span class="pill low">{{ task.get_priority_display }}</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="pd-empty">Aucune tâche enregistrée pour ce projet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if tab == 'membres' %}
+            <section class="pd-card" style="margin-bottom:12px;">
+                <div class="pd-side-head"><h3>Membres du projet</h3></div>
+                {% for member in team %}
+                <a class="pd-member" href="{% url 'employees:detail' member.pk %}">
+                    <span class="pd-mini c{{ forloop.counter|stringformat:"d"|slice:":1" }}">{{ member.user.first_name|slice:":1" }}{{ member.user.last_name|slice:":1" }}</span>
+                    <span><strong>{{ member.full_name }}</strong><small>{{ member.get_position_display }}</small></span>
+                    {% if leader and leader.pk == member.pk %}<span class="pd-role">Responsable</span>{% endif %}
+                </a>
+                {% empty %}
+                <p class="pd-empty">Aucun membre assigné.</p>
+                {% endfor %}
+            </section>
+            {% endif %}
+
+            {% if tab == 'documents' %}
+            <section class="pd-card pd-block" style="margin-bottom:12px;">
+                <h2><i class="far fa-folder"></i> Documents</h2>
+                <p>Aucun document n'est joint à ce projet.</p>
+            </section>
+            {% endif %}
+
+            {% if tab == 'commentaires' %}
+            <section class="pd-card pd-block" style="margin-bottom:12px;">
+                <h2><i class="far fa-comment"></i> Commentaires</h2>
+                {% for task in comments %}
+                <div class="pd-comment">
+                    <strong>{{ task.title }}{% if task.assigned_to %} · {{ task.assigned_to.full_name }}{% endif %}</strong>
+                    <p>{{ task.comments }}</p>
+                </div>
+                {% empty %}
+                <p>Aucune remarque enregistrée sur les tâches de ce projet.</p>
+                {% endfor %}
+            </section>
+            {% endif %}
+        </div>
+
+        <aside class="pd-side">
+            <section class="pd-card">
+                <div class="pd-side-head">
+                    <h3><i class="fas fa-user-friends"></i> Équipe du projet</h3>
+                    <a href="?onglet=membres">Voir tout</a>
+                </div>
+                {% for member in team|slice:":5" %}
+                <a class="pd-member" href="{% url 'employees:detail' member.pk %}">
+                    <span class="pd-mini c{{ forloop.counter }}">{{ member.user.first_name|slice:":1"|upper }}{{ member.user.last_name|slice:":1"|upper }}</span>
+                    <span>
+                        <strong>{{ member.full_name }}</strong>
+                        <small>{{ member.get_position_display }}</small>
+                    </span>
+                    {% if leader and leader.pk == member.pk %}<span class="pd-role">Responsable</span>{% endif %}
+                </a>
+                {% empty %}
+                <p class="pd-empty">Aucun membre assigné.</p>
+                {% endfor %}
+            </section>
+
+            <section class="pd-card" style="padding:14px;">
+                <h3 style="margin-bottom:8px;"><i class="far fa-calendar"></i> Dates importantes</h3>
+                <div class="pd-date-row"><span><i class="far fa-calendar"></i> Début du projet</span><b>{{ project.start_date|date:"j F Y" }}</b></div>
+                <div class="pd-date-row"><span><i class="far fa-calendar-check"></i> Échéance</span><b>{{ project.end_date|date:"j F Y" }}</b></div>
+                <div class="pd-date-row"><span><i class="far fa-clock"></i> Jours restants</span><b>{{ remaining_label }}</b></div>
+            </section>
+
+            <section class="pd-card">
+                <div class="pd-side-head">
+                    <h3><i class="far fa-folder"></i> Documents</h3>
+                    <a href="?onglet=documents">Voir tout</a>
+                </div>
+                <p class="pd-empty">Aucun document joint à ce projet.</p>
+            </section>
+
+            <section class="pd-help">
+                <div class="pd-mini c1"><i class="far fa-lightbulb"></i></div>
+                <h3>Besoin d'aide sur ce projet ?</h3>
+                <p>L'assistant IA peut vous aider à analyser les données et à répondre à vos questions.</p>
+                <a href="{% url 'decision_ai:assistant' %}">Poser une question →</a>
+            </section>
+        </aside>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var text = document.getElementById('pd-desc');
+    var button = document.getElementById('pd-more');
+    if (!text || !button) return;
+    if (text.scrollHeight > text.clientHeight + 2) button.hidden = false;
+    button.addEventListener('click', function () {
+        var clamped = text.classList.toggle('pd-clamp');
+        button.textContent = clamped ? 'Voir plus' : 'Voir moins';
+    });
+})();
+document.addEventListener('DOMContentLoaded', function () {
+    var canvas = document.getElementById('pdChart');
+    if (!canvas || typeof Chart === 'undefined' || canvas.parentElement.classList.contains('is-empty')) return;
+    var values = [
+        Number(canvas.dataset.done || 0),
+        Number(canvas.dataset.doing || 0),
+        Number(canvas.dataset.waiting || 0),
+        Number(canvas.dataset.late || 0)
+    ];
+    if (!values.reduce(function (a, b) { return a + b; }, 0)) return;
+    new Chart(canvas, {
+        type: 'doughnut',
+        data: { datasets: [{ data: values, backgroundColor: ['#22c55e', '#3b82f6', '#cbd5e1', '#f43f5e'], borderWidth: 0, spacing: 3, borderRadius: 6 }] },
+        options: { cutout: '72%', responsive: false, plugins: { legend: { display: false } } }
+    });
+});
+</script>
 {% endblock %}

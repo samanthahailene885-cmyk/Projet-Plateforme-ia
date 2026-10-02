@@ -154,13 +154,19 @@ MEDIA_ROOT = BASE_DIR / 'media'
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+AUTHENTICATION_BACKENDS = [
+    'authentication.backends.EmailOrUsernameModelBackend',
+]
+
 # Login URLs
 LOGIN_URL = 'authentication:login'
 LOGIN_REDIRECT_URL = 'authentication:home'
 LOGOUT_REDIRECT_URL = 'authentication:login'
 
-# OpenAI Configuration
+# OpenAI Configuration — la clé reste côté serveur, jamais dans les templates.
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+OPENAI_TIMEOUT = config('OPENAI_TIMEOUT', default=45, cast=int)
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'

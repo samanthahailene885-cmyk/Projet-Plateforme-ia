@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Données de démonstration - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    .demo-page { max-width: 820px; color: #1e293b; }
+    .demo-page h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 6px; }
+    .demo-page .lead { color: #64748b; font-size: 0.9rem; margin-bottom: 16px; }
+    .demo-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 14px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .demo-card h2 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .demo-grid label { display: block; font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+    .demo-grid select, .demo-note {
+        width: 100%;
+        border: 1px solid #e6ebf3;
+        border-radius: 10px;
+        height: 40px;
+        padding: 0 12px;
+        background: #fff;
+        color: #1e293b;
+    }
+    .demo-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .demo-go, .demo-reset {
+        border: none;
+        border-radius: 10px;
+        height: 40px;
+        padding: 0 16px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .demo-go { background: #4f46e5; color: #fff; }
+    .demo-go:disabled { opacity: 0.7; }
+    .demo-reset { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
+    .demo-check { display: flex; align-items: flex-start; gap: 8px; font-size: 0.84rem; color: #475569; margin-top: 10px; }
+    .demo-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+    .demo-stats span {
+        background: #f8fafc;
+        border: 1px solid #e8edf5;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .demo-warn { color: #7c6aa8; font-size: 0.82rem; line-height: 1.45; margin: 0; }
+    @media (max-width: 720px) { .demo-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="demo-page">
+    <h1>Générateur de données de démonstration</h1>
+    <p class="lead">Ces enregistrements servent à la soutenance. Ils ne remplacent pas les employés, projets ou activités réels, et peuvent être supprimés sans y toucher.</p>
+
+    <section class="demo-card">
+        <h2>Déjà en base</h2>
+        <div class="demo-stats">
+            <span>{{ counts.employees }} employés de démonstration</span>
+            <span>{{ counts.projects }} projets</span>
+            <span>{{ counts.tasks }} tâches</span>
+            <span>{{ counts.plans }} todo lists</span>
+            <span>{{ counts.reports }} rapports</span>
+            <span>{{ counts.permissions }} permissions</span>
+        </div>
+        <p class="demo-warn" style="margin-top:12px;">Mot de passe des comptes générés : <strong>{{ demo_password }}</strong>. Identifiant du type <strong>demo.prenom.nom</strong>.</p>
+    </section>
+
+    <section class="demo-card">
+        <h2>Générer les données</h2>
+        <form method="post" id="demo-generate">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="generate">
+            <div class="demo-grid">
+                <div>
+                    <label for="employees">Nombre d'employés</label>
+                    <select id="employees" name="employees">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="projects">Nombre de projets</label>
+                    <select id="projects" name="projects">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="8">8</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="tasks">Nombre de tâches</label>
+                    <select id="tasks" name="tasks">
+                        <option value="20">20</option>
+                        <option value="40" selected>40</option>
+                        <option value="80">80</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="days">Jours d'historique</label>
+                    <select id="days" name="days">
+                        <option value="3">3</option>
+                        <option value="7" selected>7</option>
+                        <option value="14">14</option>
+                    </select>
+                </div>
+            </div>
+            <div class="demo-actions">
+                <button class="demo-go" type="submit">Générer les données</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="demo-card">
+        <h2>Réinitialiser les données de démonstration</h2>
+        <p class="demo-warn">Seuls les comptes et projets marqués comme démonstration sont supprimés. Les employés déjà enregistrés par le responsable restent en place.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset">
+            <label class="demo-check">
+                <input type="checkbox" name="confirm" value="oui" required>
+                Je confirme la suppression des données de démonstration.
+            </label>
+            <div class="demo-actions">
+                <button class="demo-reset" type="submit">Réinitialiser les données de démonstration</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('demo-generate').addEventListener('submit', function () {
+    var button = this.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Génération en cours…';
+});
+</script>
+{% endblock %}

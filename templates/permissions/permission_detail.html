@@ -1,132 +1,168 @@
 {% extends 'base.html' %}
 
-{% block title %}Demande de permission - Plateforme de Gestion{% endblock %}
+{% block title %}Détail de la demande{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pd { color: #1e293b; padding-bottom: 28px; }
+    .pd-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .pd-title { display: flex; gap: 12px; align-items: flex-start; }
+    .pd-ico { width: 44px; height: 44px; border-radius: 14px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; flex-shrink: 0; }
+    .pd-title h1 { font-size: 1.45rem; font-weight: 750; margin: 0; letter-spacing: -.02em; }
+    .pd-title p { margin: 3px 0 0; color: #94a3b8; font-size: .86rem; }
+    .pd-back { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e6ebf3; color: #475569; text-decoration: none; border-radius: 12px; padding: 9px 14px; font-size: .84rem; font-weight: 650; }
+    .pd-back:hover { color: #4f46e5; }
+    .pd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+    .pd-card { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); padding: 18px; margin-bottom: 14px; }
+    .pd-person { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #f1f5f9; }
+    .pd-avatar { width: 52px; height: 52px; border-radius: 16px; background: #4f46e5; color: #fff; font-weight: 750; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .pd-person h2 { margin: 0; font-size: 1.05rem; font-weight: 750; }
+    .pd-person a { color: inherit; text-decoration: none; }
+    .pd-person a:hover { color: #4f46e5; }
+    .pd-person span { display: block; color: #94a3b8; font-size: .8rem; margin-top: 2px; }
+    .pd-badge { margin-left: auto; border-radius: 999px; padding: 6px 12px; font-size: .75rem; font-weight: 750; }
+    .pd-badge.pending { background: #fff4df; color: #d97706; }
+    .pd-badge.approved { background: #e7f8ee; color: #16a34a; }
+    .pd-badge.rejected { background: #fee8ee; color: #e11d48; }
+    .pd-badge.cancelled { background: #f1f5f9; color: #64748b; }
+    .pd-sheet { background: #fff; border: 1px solid #e8edf5; border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,.04); overflow: hidden; }
+    .pd-facts { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .pd-fact { padding: 12px 8px; border-bottom: 1px solid #f8fafc; }
+    .pd-fact:nth-child(odd) { padding-right: 18px; }
+    .pd-body { padding: 4px 20px 18px; border-top: 1px solid #f1f5f9; }
+    .pd-file { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; background: #eef2ff; color: #4f46e5; font-weight: 650; font-size: .84rem; text-decoration: none; border-radius: 10px; padding: 8px 12px; }
+    .pd-side { display: flex; flex-direction: column; gap: 14px; }
+    .pd-fact small { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .pd-fact strong { display: block; margin-top: 6px; font-size: .95rem; font-weight: 700; color: #1e293b; }
+    .pd-body h3 { margin: 14px 0 10px; font-size: .95rem; font-weight: 750; }
+    .pd-text { margin: 0; color: #475569; font-size: .9rem; line-height: 1.55; white-space: pre-wrap; }
+    .pd-meta { display: flex; flex-wrap: wrap; gap: 16px; color: #64748b; font-size: .8rem; }
+    .pd-file { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; color: #4f46e5; font-weight: 650; font-size: .84rem; text-decoration: none; }
+    .pd-status { text-align: center; padding: 8px 6px 4px; }
+    .pd-status-ring { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+    .pd-status-ring.pending { background: #fff4df; color: #d97706; }
+    .pd-status-ring.approved { background: #e7f8ee; color: #16a34a; }
+    .pd-status-ring.rejected { background: #fee8ee; color: #e11d48; }
+    .pd-status-ring.cancelled { background: #f1f5f9; color: #64748b; }
+    .pd-status h3 { margin: 0 0 6px; font-size: 1.15rem; }
+    .pd-status p { margin: 0; color: #94a3b8; font-size: .82rem; line-height: 1.45; }
+    .pd-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .pd-actions form { margin: 0; }
+    .pd-btn { width: 100%; border: none; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: .84rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+    .pd-decide { padding: 0; overflow: hidden; }
+    .pd-decide-head { padding: 16px 16px 12px; background: linear-gradient(180deg, #eef2ff, #fff); border-bottom: 1px solid #eef2f7; }
+    .pd-decide-head h3 { margin: 0; font-size: 1rem; }
+    .pd-decide-head p { margin: 4px 0 0; color: #64748b; font-size: .8rem; }
+    .pd-decide-body { padding: 14px 16px 16px; }
+    .pd-decide label { display: block; font-size: .72rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
+    .pd-decide textarea { width: 100%; border: 1px solid #e6ebf3; border-radius: 12px; padding: 10px 12px; font-size: .84rem; min-height: 84px; resize: vertical; margin-bottom: 12px; }
+    .pd-decide-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pd-btn.ok { background: #16a34a; color: #fff; box-shadow: 0 8px 16px rgba(22,163,74,.22); }
+    .pd-btn.no { background: #fff; color: #e11d48; border: 1px solid #fecdd3; }
+    .pd-btn.ok:hover { background: #15803d; }
+    .pd-btn.no:hover { background: #fff1f2; }
+    .pd-note { margin-top: 14px; background: #f8fafc; border-radius: 12px; padding: 12px; text-align: left; }
+    .pd-note small { color: #94a3b8; font-size: .72rem; font-weight: 700; text-transform: uppercase; }
+    .pd-note p { margin: 4px 0 0; color: #334155; font-size: .84rem; }
+    @media (max-width: 980px) { .pd-grid, .pd-facts { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Détail de la demande</h2>
-    <div>
-        {% if user.is_admin and permission.status == 'pending' %}
-        <a href="{% url 'permissions:approve' permission.pk %}" class="btn btn-success">
-            <i class="fas fa-check me-2"></i>Traiter la demande
-        </a>
-        {% endif %}
-        <a href="{% url 'permissions:list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Retour
-        </a>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Informations de la demande</h5>
-            </div>
-            <div class="card-body">
-                <table class="table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Employé</strong></td>
-                            <td><a href="{% url 'employees:detail' permission.employee.pk %}">{{ permission.employee.full_name }}</a></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Type</strong></td>
-                            <td>{{ permission.get_type_display }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Date de début</strong></td>
-                            <td>{{ permission.start_date|date:"d/m/Y" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Date de fin</strong></td>
-                            <td>{{ permission.end_date|date:"d/m/Y" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Durée</strong></td>
-                            <td>{{ permission.days_count }} jour(s)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Motif</strong></td>
-                            <td>{{ permission.motif_display }}</td>
-                        </tr>
-                        {% if permission.description %}
-                        <tr>
-                            <td><strong>Description</strong></td>
-                            <td>{{ permission.description }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if permission.attachment %}
-                        <tr>
-                            <td><strong>Justificatif</strong></td>
-                            <td><a href="{{ permission.attachment.url }}" target="_blank" rel="noopener">Télécharger le fichier</a></td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td><strong>Statut</strong></td>
-                            <td>
-                                {% if permission.status == 'pending' %}
-                                    <span class="badge bg-warning">En attente</span>
-                                {% elif permission.status == 'approved' %}
-                                    <span class="badge bg-success">Approuvé</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Refusé</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Commentaire administrateur</strong></td>
-                            <td>{{ permission.admin_comment|default:"Aucun commentaire" }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Créé le</strong></td>
-                            <td>{{ permission.created_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        {% if permission.decided_at %}
-                        <tr>
-                            <td><strong>Décision</strong></td>
-                            <td>{{ permission.decided_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td><strong>Demande faite à temps</strong></td>
-                            <td>
-                                {% if permission.is_requested_early %}
-                                    <span class="badge bg-success">Oui</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Non (moins de 3 jours)</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+<div class="pd">
+    <div class="pd-top">
+        <div class="pd-title">
+            <div class="pd-ico"><i class="far fa-calendar-check"></i></div>
+            <div>
+                <h1>Détail de la demande</h1>
+                <p>Demande du {{ permission.created_at|date:"d F Y" }} à {{ permission.created_at|date:"H:i" }}</p>
             </div>
         </div>
+        <a class="pd-back" href="{% url 'permissions:list' %}"><i class="fas fa-arrow-left"></i> Retour</a>
     </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Statut de la demande</h5>
-            </div>
-            <div class="card-body">
-                <div class="text-center py-3">
-                    {% if permission.status == 'pending' %}
-                        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
-                        <h4>En attente</h4>
-                        <p class="text-muted">Votre demande est en cours de traitement.</p>
-                    {% elif permission.status == 'approved' %}
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                        <h4>Approuvé</h4>
-                        <p class="text-muted">Votre demande a été approuvée.</p>
-                    {% else %}
-                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
-                        <h4>Refusé</h4>
-                        <p class="text-muted">Votre demande a été refusée.</p>
+
+    <div class="pd-grid">
+        <div>
+            <div class="pd-sheet">
+                <div class="pd-person">
+                    <div class="pd-avatar">{{ permission.employee.full_name|slice:":1" }}{{ permission.employee.user.last_name|slice:":1" }}</div>
+                    <div>
+                        <h2><a href="{% url 'employees:detail' permission.employee.pk %}">{{ permission.employee.full_name }}</a></h2>
+                        <span>{{ permission.employee.get_position_display }}</span>
+                    </div>
+                    <span class="pd-badge {{ permission.status }}">{{ permission.get_status_display }}</span>
+                </div>
+                <div class="pd-facts">
+                    <div class="pd-fact"><small><i class="far fa-file-alt"></i> Type</small><strong>{{ permission.get_type_display }}</strong></div>
+                    <div class="pd-fact"><small><i class="far fa-comment-dots"></i> Motif</small><strong>{{ permission.motif_display }}</strong></div>
+                    <div class="pd-fact"><small><i class="far fa-calendar"></i> Début</small><strong>{{ permission.start_date|date:"d F Y" }}</strong></div>
+                    <div class="pd-fact"><small><i class="far fa-calendar-check"></i> Fin</small><strong>{{ permission.end_date|date:"d F Y" }}</strong></div>
+                    <div class="pd-fact"><small><i class="far fa-clock"></i> Durée</small><strong>{{ permission.days_count }} jour{{ permission.days_count|pluralize }}</strong></div>
+                    <div class="pd-fact"><small><i class="fas fa-hourglass-half"></i> Délai</small><strong>{% if permission.is_requested_early %}Demandée à temps{% else %}Moins de 3 jours avant{% endif %}</strong></div>
+                </div>
+                <div class="pd-body">
+                    <h3>Description</h3>
+                    <p class="pd-text">{{ permission.description|default:"Aucune description." }}</p>
+                    {% if permission.attachment %}
+                    <a class="pd-file" href="{{ permission.attachment.url }}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> Voir le justificatif</a>
                     {% endif %}
+                    <div class="pd-meta" style="margin-top:14px;">
+                        <span>Créée le {{ permission.created_at|date:"d/m/Y à H:i" }}</span>
+                        {% if permission.decided_at %}<span>Décision le {{ permission.decided_at|date:"d/m/Y à H:i" }}</span>{% endif %}
+                    </div>
                 </div>
             </div>
         </div>
+
+        <aside class="pd-side">
+            {% if user.is_admin and permission.status == 'pending' %}
+            <div class="pd-card pd-decide">
+                <div class="pd-decide-head">
+                    <h3>Décision</h3>
+                    <p>Approuvez ou refusez la demande de {{ permission.employee.full_name }}.</p>
+                </div>
+                <form class="pd-decide-body" method="post" action="{% url 'permissions:approve' permission.pk %}">
+                    {% csrf_token %}
+                    <label for="admin_comment">Commentaire pour l'employé</label>
+                    <textarea id="admin_comment" name="admin_comment" placeholder="Ajoutez un mot, facultatif..."></textarea>
+                    <div class="pd-decide-actions">
+                        <button class="pd-btn ok" type="submit" name="status" value="approved"><i class="fas fa-check"></i> Approuver</button>
+                        <button class="pd-btn no" type="submit" name="status" value="rejected"><i class="fas fa-times"></i> Refuser</button>
+                    </div>
+                </form>
+            </div>
+            {% else %}
+            <div class="pd-card">
+                <div class="pd-status">
+                    <div class="pd-status-ring {{ permission.status }}">
+                        {% if permission.status == 'pending' %}<i class="far fa-clock"></i>
+                        {% elif permission.status == 'approved' %}<i class="fas fa-check"></i>
+                        {% elif permission.status == 'cancelled' %}<i class="fas fa-ban"></i>
+                        {% else %}<i class="fas fa-times"></i>{% endif %}
+                    </div>
+                    <h3>{{ permission.get_status_display }}</h3>
+                    <p>
+                        {% if permission.status == 'pending' %}Cette demande attend une décision.
+                        {% elif permission.status == 'approved' %}La demande a été approuvée.
+                        {% elif permission.status == 'cancelled' %}La demande a été annulée.
+                        {% else %}La demande a été refusée.
+                        {% endif %}
+                    </p>
+                </div>
+                {% if not user.is_admin and permission.status == 'pending' %}
+                <div class="pd-actions">
+                    <form method="post" action="{% url 'permissions:cancel' permission.pk %}">{% csrf_token %}
+                        <button class="pd-btn no" type="submit"><i class="fas fa-times"></i> Annuler la demande</button>
+                    </form>
+                </div>
+                {% endif %}
+                <div class="pd-note">
+                    <small>Commentaire</small>
+                    <p>{{ permission.admin_comment|default:"Aucun commentaire." }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </aside>
     </div>
 </div>
 {% endblock %}

@@ -13,47 +13,106 @@ class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
         fields = ['title', 'description', 'project', 'assigned_to', 'status',
-                  'priority', 'due_date', 'estimated_hours', 'actual_hours', 'comments']
+                  'priority', 'start_date', 'due_date', 'planned_date', 'estimated_hours', 'actual_hours', 'comments']
+        labels = {
+            'comments': 'Instructions',
+            'planned_date': 'Jour de la todo list',
+            'start_date': 'Date de début',
+            'assigned_to': 'Assigner à',
+            'description': 'Description',
+        }
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Entrez le titre de la tâche'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Décrivez la tâche'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ex. Analyse du site actuel',
+                'autocomplete': 'off',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Objectifs, livrable attendu, points d’attention…',
+            }),
             'project': forms.Select(attrs={'class': 'form-select'}),
             'assigned_to': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),
-            'due_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'estimated_hours': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5', 'placeholder': '0'}),
-            'actual_hours': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5', 'placeholder': '0'}),
-            'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Ajoutez des commentaires'}),
+            'start_date': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'due_date': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'planned_date': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'estimated_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.5',
+                'min': '0',
+                'placeholder': 'Ex. 4',
+            }),
+            'actual_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.5',
+                'min': '0',
+                'placeholder': 'Ex. 2.5',
+            }),
+            'comments': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Consigne, brief ou précision pour la personne assignée…',
+            }),
         }
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
         super().__init__(*args, **kwargs)
-        # Rendre le champ project optionnel s'il n'y a pas de projets
+        self.fields['priority'].choices = list(Task.PRIORITY_LABELS.items())
+        for name in ('start_date', 'due_date', 'planned_date'):
+            if name in self.fields:
+                self.fields[name].input_formats = ['%Y-%m-%d']
+        self.fields['project'].queryset = Project.objects.exclude(status='cancelled').order_by('name')
+        self.fields['project'].empty_label = 'Choisir un projet'
+        self.fields['assigned_to'].queryset = Employee.objects.select_related('user').exclude(
+            status='inactive'
+        ).order_by('user__first_name', 'user__last_name')
+        self.fields['assigned_to'].empty_label = 'Choisir un employé'
+        self.fields['assigned_to'].label_from_instance = lambda employee: employee.full_name
+
         if not self.fields['project'].queryset.exists():
             self.fields['project'].required = False
-            self.fields['project'].empty_label = "Aucun projet disponible"
-        # Rendre le champ assigned_to optionnel s'il n'y a pas d'employés
+            self.fields['project'].empty_label = 'Aucun projet disponible'
         if not self.fields['assigned_to'].queryset.exists():
             self.fields['assigned_to'].required = False
-            self.fields['assigned_to'].empty_label = "Aucun employé disponible"
-        
+            self.fields['assigned_to'].empty_label = 'Aucun employé disponible'
+
+        if user and not user.is_admin():
+            for name in ('project', 'assigned_to', 'priority', 'start_date', 'due_date', 'planned_date', 'estimated_hours'):
+                self.fields.pop(name, None)
+            self.fields['comments'].label = 'Remarque'
+            self.fields['comments'].widget.attrs['placeholder'] = 'Décrivez une difficulté, un blocage ou une précision…'
+
+        for field_name, field in self.fields.items():
+            if self.errors.get(field_name):
+                css = field.widget.attrs.get('class', '')
+                if 'is-invalid' not in css:
+                    field.widget.attrs['class'] = f'{css} is-invalid'.strip()
+
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
-            Field('title'),
-            Field('description'),
-            Field('project'),
-            Field('assigned_to'),
-            Field('status'),
-            Field('priority'),
-            Field('due_date'),
-            Field('estimated_hours'),
-            Field('actual_hours'),
-            Field('comments'),
+            *[Field(name) for name in self.fields],
             ButtonHolder(
                 Submit('submit', 'Enregistrer', css_class='btn btn-primary')
             )
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.user and self.user.is_admin():
+            if not cleaned.get('project'):
+                self.add_error('project', 'Choisissez le projet associé.')
+            if not cleaned.get('assigned_to'):
+                self.add_error('assigned_to', "Choisissez l'employé responsable.")
+        start = cleaned.get('start_date')
+        due = cleaned.get('due_date')
+        if start and due and due < start:
+            self.add_error('due_date', 'La date limite ne peut pas précéder la date de début.')
+        return cleaned
 
 
 class TaskSearchForm(forms.Form):

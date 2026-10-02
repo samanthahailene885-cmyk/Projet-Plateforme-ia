@@ -2,106 +2,483 @@
 
 {% block title %}Notifications - Plateforme de Gestion{% endblock %}
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Notifications</h2>
-    <button class="btn btn-primary" onclick="markAllAsRead()">
-        <i class="fas fa-check-double me-2"></i>Tout marquer comme lu
-    </button>
-</div>
+{% block extra_css %}
+<style>
+    .notif-page {
+        margin: 0;
+        padding: 0 0 24px;
+        background: #f4f6fb;
+        min-height: calc(100vh - 0px);
+        color: #1e293b;
+    }
+    .notif-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+    .notif-hello {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+    }
+    .notif-menu-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    .notif-hello h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+    .notif-role {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        margin-top: 2px;
+    }
+    .notif-role i { color: #f59e0b; font-size: 0.7rem; }
+    .notif-top-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .notif-date {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #64748b;
+        font-size: 0.85rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .notif-bell {
+        position: relative;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #e8edf5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        text-decoration: none;
+    }
+    .notif-bell-dot {
+        position: absolute;
+        top: 7px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #ef4444;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+    .notif-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #4f46e5;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.78rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.02em;
+    }
+    .notif-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 18px;
+        align-items: start;
+    }
+    .notif-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .notif-head-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #eef2ff;
+        color: #4f46e5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2px;
+    }
+    .notif-head h1 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+    .notif-head p {
+        margin: 2px 0 0;
+        color: #94a3b8;
+        font-size: 0.86rem;
+    }
+    .notif-panel {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+    }
+    .notif-filters {
+        display: flex;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid #eef2f7;
+        overflow-x: auto;
+    }
+    .notif-filters a {
+        flex: 0 0 auto;
+        border: 1px solid #e6ebf3;
+        background: #fff;
+        color: #64748b;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .notif-filters a.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+    }
+    .notif-filters a i { font-size: 0.72rem; }
+    .notif-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 18px;
+        border-bottom: 1px solid #f1f5f9;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+    }
+    .notif-row:last-child { border-bottom: none; }
+    .notif-row:hover { background: #fafbff; }
+    .notif-ico {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 0.95rem;
+    }
+    .notif-ico.blue { background: #e8f0fe; color: #3b82f6; }
+    .notif-ico.green { background: #e7f8ee; color: #22c55e; }
+    .notif-ico.amber { background: #fff4df; color: #f59e0b; }
+    .notif-ico.violet { background: #f1e9ff; color: #8b5cf6; }
+    .notif-ico.red { background: #fee8e8; color: #ef4444; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-body h3 {
+        font-size: 0.92rem;
+        font-weight: 700;
+        margin: 0 0 3px;
+    }
+    .notif-body p {
+        margin: 0 0 8px;
+        color: #64748b;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+    .notif-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+    .notif-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #94a3b8;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        margin-left: 8px;
+    }
+    .notif-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+    }
+    .notif-dot.read { background: transparent; }
+    .notif-empty {
+        text-align: center;
+        padding: 56px 20px;
+        color: #94a3b8;
+    }
+    .notif-side { display: flex; flex-direction: column; gap: 14px; }
+    .notif-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 12px;
+        padding: 10px 14px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .notif-search i { color: #94a3b8; font-size: 0.85rem; }
+    .notif-search input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 0.84rem;
+        background: transparent;
+        color: #1e293b;
+    }
+    .side-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .side-card h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin: 0 0 12px;
+    }
+    .stat-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+    }
+    .stat-line + .stat-line { border-top: 1px solid #f1f5f9; }
+    .stat-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #475569;
+        font-size: 0.86rem;
+        font-weight: 500;
+    }
+    .stat-bubble {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+    .stat-bubble.red { background: #fee8e8; color: #ef4444; }
+    .stat-bubble.blue { background: #e8f0fe; color: #3b82f6; }
+    .stat-bubble.violet { background: #f1e9ff; color: #8b5cf6; }
+    .stat-num { font-weight: 700; color: #1e293b; }
+    .quick-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 12px;
+        padding: 12px 14px;
+        text-decoration: none;
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .quick-link:last-child { margin-bottom: 0; }
+    .quick-link span { flex: 1; }
+    .quick-link i.arrow { font-size: 0.7rem; opacity: 0.7; }
+    .quick-link.violet { background: #f3e8ff; color: #7c3aed; }
+    .quick-link.blue { background: #e8f1ff; color: #3b82f6; }
+    .quick-link.green { background: #e7f8ee; color: #16a34a; }
+    .quick-link.rose { background: #fee8ee; color: #e11d48; }
+    .info-card {
+        background: #f4f0ff;
+        border: 1px solid #ebe4ff;
+        border-radius: 16px;
+        padding: 16px;
+    }
+    .info-card h4 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #6d28d9;
+        font-size: 0.92rem;
+        font-weight: 700;
+        margin: 0 0 6px;
+    }
+    .info-card p {
+        margin: 0;
+        color: #7c6aa8;
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+    @media (max-width: 1100px) {
+        .notif-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+        .notif-date { display: none; }
+        .notif-hello h2 { font-size: 1rem; }
+    }
+</style>
+{% endblock %}
 
-<div class="card">
-    <div class="card-body">
-        {% if notifications %}
-        <div class="list-group">
-            {% for notification in notifications %}
-            <div class="list-group-item {% if not notification.is_read %}bg-light{% endif %}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between">
-                            <h6 class="mb-1">
-                                {% if notification.notification_type == 'info' %}
-                                    <i class="fas fa-info-circle text-primary me-2"></i>
-                                {% elif notification.notification_type == 'success' %}
-                                    <i class="fas fa-check-circle text-success me-2"></i>
-                                {% elif notification.notification_type == 'warning' %}
-                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                                {% else %}
-                                    <i class="fas fa-exclamation-circle text-danger me-2"></i>
-                                {% endif %}
-                                {{ notification.title }}
-                            </h6>
-                            <small class="text-muted">{{ notification.created_at|date:"d/m/Y H:i" }}</small>
-                        </div>
-                        <p class="mb-2">{{ notification.message }}</p>
-                        {% if notification.link %}
-                        <a href="{{ notification.link }}" class="btn btn-sm btn-outline-primary">Voir</a>
-                        {% endif %}
-                    </div>
-                    {% if not notification.is_read %}
-                    <button class="btn btn-sm btn-outline-success ms-2" onclick="markAsRead({{ notification.pk }})">
-                        <i class="fas fa-check"></i>
-                    </button>
-                    {% endif %}
+{% block content %}
+<div class="notif-page">
+    <div class="notif-topbar">
+        <div class="notif-hello">
+            <button type="button" class="notif-menu-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
+            <div>
+                <h2>Bonjour, {{ user.first_name }} {{ user.last_name }}</h2>
+                {% if user.is_admin %}
+                <div class="notif-role"><i class="fas fa-crown"></i> Responsable de l'agence</div>
+                {% else %}
+                <div class="notif-role"><i class="fas fa-user"></i> {% if user.employee_profile %}{{ user.employee_profile.get_position_display }}{% else %}Employé{% endif %}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="notif-top-actions">
+            <div class="notif-date"><i class="far fa-calendar"></i> {{ today_label }}</div>
+            <a class="notif-bell" href="{% url 'notifications:list' %}" aria-label="Notifications">
+                <i class="far fa-bell"></i>
+                {% if unread_count %}<span class="notif-bell-dot"></span>{% endif %}
+            </a>
+            <div class="notif-avatar" title="{{ user.get_full_name }}">{{ initials }}</div>
+        </div>
+    </div>
+
+    <div class="notif-layout">
+        <div>
+            <div class="notif-head">
+                <div class="notif-head-icon"><i class="far fa-bell"></i></div>
+                <div>
+                    <h1>Notifications</h1>
+                    <p>{% if user.is_admin %}Retrouvez ici toutes les notifications de votre agence.{% else %}Retrouvez ici toutes vos notifications.{% endif %}</p>
                 </div>
             </div>
-            {% endfor %}
+
+            <div class="notif-panel">
+                <div class="notif-filters">
+                    {% for key, label in filters %}
+                    <a href="{% url 'notifications:list' %}{% if key %}?filtre={{ key }}{% if query %}&q={{ query|urlencode }}{% endif %}{% elif query %}?q={{ query|urlencode }}{% endif %}"
+                       class="{% if active_filter == key %}active{% endif %}">
+                        {% if key == '' %}<i class="fas fa-border-all"></i>{% endif %}
+                        {% if key == 'demandes' %}<i class="far fa-file-alt"></i>{% endif %}
+                        {% if key == 'todo' %}<i class="fas fa-list-ul"></i>{% endif %}
+                        {% if key == 'rapports' %}<i class="far fa-file"></i>{% endif %}
+                        {% if key == 'activites' %}<i class="fas fa-chart-line"></i>{% endif %}
+                        {% if key == 'projets' %}<i class="far fa-folder"></i>{% endif %}
+                        {% if key == 'systeme' %}<i class="fas fa-cog"></i>{% endif %}
+                        {{ label }}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                {% if notifications %}
+                    {% for notification in notifications %}
+                    <a class="notif-row" href="{{ notification.link|default:'#' }}" data-id="{{ notification.pk }}" {% if not notification.link %}onclick="return false;"{% endif %}>
+                        <span class="notif-ico {{ notification.tone }}"><i class="fas {{ notification.icon }}"></i></span>
+                        <span class="notif-body">
+                            <h3>{{ notification.title }}</h3>
+                            <p>{{ notification.message }}</p>
+                            <span class="notif-chip"><i class="far fa-circle" style="font-size:.45rem;"></i> {{ notification.chip }}</span>
+                        </span>
+                        <span class="notif-meta">
+                            {{ notification.when }}
+                            {% if not notification.is_read %}<span class="notif-dot"></span>{% endif %}
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                <div class="notif-empty">
+                    <i class="far fa-bell-slash fa-2x"></i>
+                    <p class="mt-3 mb-0">Aucune notification{% if query %} pour « {{ query }} »{% elif active_filter %} dans ce filtre{% endif %}.</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
-            <p class="text-muted">Aucune notification.</p>
-        </div>
-        {% endif %}
+
+        <aside class="notif-side">
+            <form class="notif-search" method="get" action="{% url 'notifications:list' %}">
+                {% if active_filter %}<input type="hidden" name="filtre" value="{{ active_filter }}">{% endif %}
+                <i class="fas fa-search"></i>
+                <input type="search" name="q" value="{{ query }}" placeholder="Rechercher une notification..." aria-label="Rechercher une notification">
+            </form>
+
+            <div class="side-card">
+                <h4>Résumé des notifications</h4>
+                <div class="stat-line">
+                    <span class="stat-label"><span class="stat-bubble red"><i class="far fa-bell"></i></span> Non lues</span>
+                    <span class="stat-num">{{ unread_count }}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label"><span class="stat-bubble blue"><i class="far fa-bell"></i></span> Aujourd'hui</span>
+                    <span class="stat-num">{{ today_count }}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label"><span class="stat-bubble violet"><i class="far fa-bell"></i></span> Cette semaine</span>
+                    <span class="stat-num">{{ week_count }}</span>
+                </div>
+            </div>
+
+            <div class="side-card">
+                <h4>Actions rapides</h4>
+                {% if user.is_admin %}
+                <a class="quick-link violet" href="{% url 'decision_ai:delay_detection' %}"><i class="far fa-bell"></i><span>Voir toutes les alertes</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link blue" href="{% url 'permissions:list' %}"><i class="far fa-calendar-check"></i><span>Gérer les permissions</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link green" href="{% url 'reports:list' %}"><i class="far fa-file-alt"></i><span>Consulter les rapports</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link rose" href="{% url 'employees:list' %}"><i class="fas fa-user"></i><span>Voir les employés</span><i class="fas fa-chevron-right arrow"></i></a>
+                {% else %}
+                <a class="quick-link violet" href="{% url 'tasks:daily' %}"><i class="fas fa-list-ul"></i><span>Ma Todo List</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link blue" href="{% url 'permissions:list' %}"><i class="far fa-calendar-check"></i><span>Mes permissions</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link green" href="{% url 'reports:create' %}"><i class="far fa-file-alt"></i><span>Mon rapport</span><i class="fas fa-chevron-right arrow"></i></a>
+                <a class="quick-link rose" href="{% url 'projects:list' %}"><i class="far fa-folder"></i><span>Mes projets</span><i class="fas fa-chevron-right arrow"></i></a>
+                {% endif %}
+            </div>
+
+            <div class="info-card">
+                <h4><i class="far fa-lightbulb"></i> Restez informé !</h4>
+                <p>{% if user.is_admin %}Les notifications vous permettent de suivre en temps réel l'activité de votre agence.{% else %}Les notifications vous permettent de suivre en temps réel vos tâches, rapports et permissions.{% endif %}</p>
+            </div>
+        </aside>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function markAsRead(pk) {
-    fetch(`/notifications/mark-read/${pk}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            location.reload();
-        }
+document.querySelectorAll('.notif-row[data-id]').forEach(function (row) {
+    row.addEventListener('click', function () {
+        const id = row.getAttribute('data-id');
+        const token = (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1];
+        if (!token || !id) return;
+        fetch('/notifications/mark-read/' + id + '/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': decodeURIComponent(token) }
+        });
     });
-}
-
-function markAllAsRead() {
-    fetch('/notifications/mark-all-read/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            location.reload();
-        }
-    });
-}
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
+});
 </script>
 {% endblock %}

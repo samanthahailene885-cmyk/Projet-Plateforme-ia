@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+
+{% block title %}Plan de travail du jour - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    .plan-page { max-width: 920px; margin: 0 auto 40px; }
+    .plan-toolbar {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+        margin-bottom: 18px;
+    }
+    .plan-toolbar form { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+    .plan-toolbar .form-control, .plan-toolbar .form-select { max-width: 220px; }
+
+    .plan-sheet {
+        position: relative;
+        background: #fff;
+        border-radius: 18px;
+        padding: 42px 46px 36px;
+        margin-bottom: 28px;
+        overflow: hidden;
+        box-shadow: 0 18px 50px rgba(15, 60, 30, .08);
+        color: #173224;
+        font-family: Inter, "Segoe UI", sans-serif;
+    }
+    .plan-leaf {
+        position: absolute; pointer-events: none; z-index: 0;
+    }
+    .plan-leaf.tl { top: -8px; left: -6px; width: 150px; }
+    .plan-leaf.br { right: -10px; bottom: -8px; width: 170px; }
+    .plan-dots {
+        position: absolute; width: 74px; height: 54px;
+        background-image: radial-gradient(#1f8a43 1.6px, transparent 1.7px);
+        background-size: 12px 12px; opacity: .85; pointer-events: none;
+    }
+    .plan-dots.tr { top: 28px; right: 36px; }
+    .plan-dots.bl { left: 34px; bottom: 78px; width: 58px; }
+
+    .plan-sheet > *:not(.plan-leaf):not(.plan-dots) { position: relative; z-index: 1; }
+    .plan-title {
+        margin: 8px 0 0;
+        text-align: center;
+        font-family: Poppins, Inter, sans-serif;
+        font-weight: 800;
+        font-size: 3rem;
+        letter-spacing: .04em;
+        color: #178a3d;
+        line-height: 1;
+    }
+    .plan-kicker {
+        display: flex; align-items: center; justify-content: center; gap: 14px;
+        margin: 10px 0 26px;
+        color: #178a3d;
+        font-weight: 700;
+        letter-spacing: .16em;
+        font-size: .78rem;
+    }
+    .plan-kicker span { width: 54px; height: 3px; background: #178a3d; border-radius: 4px; }
+
+    .plan-meta {
+        display: grid;
+        grid-template-columns: 1.1fr 1.3fr .9fr;
+        border: 1.5px solid #d7eadc;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 22px;
+        background: #fff;
+    }
+    .plan-meta-cell {
+        display: flex; gap: 10px; align-items: flex-start;
+        padding: 14px 16px;
+        border-right: 1.5px solid #d7eadc;
+    }
+    .plan-meta-cell:last-child { border-right: none; }
+    .plan-meta-icon {
+        width: 34px; height: 34px; border-radius: 10px;
+        background: #e8f6ec; color: #178a3d;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .plan-meta-label {
+        display: block; font-size: .68rem; letter-spacing: .08em;
+        color: #7d8f84; font-weight: 700;
+    }
+    .plan-meta-value { display: block; font-weight: 700; color: #1d3b2a; line-height: 1.35; font-size: .92rem; }
+    .plan-meta textarea, .plan-meta input[type="text"] {
+        width: 100%; border: none; resize: none; padding: 0; margin-top: 2px;
+        font-weight: 700; color: #1d3b2a; background: transparent; font-size: .92rem;
+    }
+    .plan-meta textarea:focus, .plan-meta input[type="text"]:focus { outline: none; }
+    .plan-name-sub { font-weight: 800; letter-spacing: .04em; }
+
+    .plan-block {
+        border: 1.5px solid #e3f0e6;
+        border-radius: 18px;
+        padding: 16px 18px 8px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 24px rgba(23, 138, 61, .04);
+        background: #fff;
+    }
+    .plan-block-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .plan-num {
+        width: 42px; height: 42px; border-radius: 12px; background: #178a3d; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-family: Poppins, sans-serif; font-weight: 700; flex-shrink: 0;
+    }
+    .plan-block-icon { color: #178a3d; font-size: 1.05rem; }
+    .plan-block h2 {
+        margin: 0; font-size: .95rem; font-weight: 800; letter-spacing: .04em; color: #163224;
+    }
+    .plan-leader {
+        flex: 1; border-bottom: 2px dotted #b7d7c0; height: 0; min-width: 24px;
+    }
+    .plan-ribbon {
+        width: 34px; height: 42px; background: #178a3d; color: #fff;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+        display: flex; align-items: flex-start; justify-content: center; padding-top: 8px;
+        flex-shrink: 0;
+    }
+    .plan-line {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 11px 4px;
+        border-bottom: 1.5px dotted #d5e7da;
+    }
+    .plan-line:last-child { border-bottom: none; }
+    .plan-check {
+        width: 18px; height: 18px; margin-top: 2px; border: 2px solid #178a3d; border-radius: 3px;
+        background: #fff; color: #178a3d; display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0; padding: 0; cursor: pointer; font-size: .65rem;
+    }
+    .plan-check.is-done { background: #178a3d; color: #fff; }
+    .plan-check:disabled { cursor: default; }
+    .plan-line-text { flex: 1; color: #24382c; font-size: .95rem; }
+    .plan-line-text.is-done { color: #6d7f74; text-decoration: line-through; }
+    .plan-status { display: block; font-size: .72rem; color: #178a3d; font-weight: 700; }
+    .plan-bullet {
+        width: 12px; height: 12px; border-radius: 50%; background: #d9f0e0; margin-top: 5px; flex-shrink: 0;
+    }
+    .plan-line form { margin: 0; }
+    .plan-remove {
+        border: none; background: transparent; color: #9bb0a2; font-size: .75rem; padding: 0;
+    }
+    .plan-remove:hover { color: #b91c1c; }
+
+    .plan-sign {
+        text-align: right;
+        font-family: "Great Vibes", cursive;
+        font-size: 2.1rem;
+        color: #178a3d;
+        margin: 18px 8px 0;
+        line-height: 1;
+    }
+    .plan-editor {
+        background: #f4fbf6; border: 1px dashed #b7d7c0; border-radius: 14px; padding: 14px 16px; margin-top: -8px;
+    }
+    .plan-editor h3 { font-size: .95rem; margin: 0 0 10px; color: #176b34; }
+    .plan-empty { text-align: center; color: #6d7f74; padding: 28px 8px; }
+
+    @media (max-width: 768px) {
+        .plan-sheet { padding: 28px 16px 24px; }
+        .plan-title { font-size: 2.1rem; }
+        .plan-meta { grid-template-columns: 1fr; }
+        .plan-meta-cell { border-right: none; border-bottom: 1.5px solid #d7eadc; }
+        .plan-kicker span { width: 24px; }
+        .plan-dots, .plan-leaf { display: none; }
+    }
+    @media print {
+        .sidebar, .plan-toolbar, .plan-editor, .alert, .sidebar-help { display: none !important; }
+        .plan-sheet { box-shadow: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plan-page">
+    <div class="plan-toolbar">
+        <a class="btn btn-outline-success btn-sm" href="?date={{ prev_day|date:'Y-m-d' }}{% if selected_employee %}&employee={{ selected_employee.pk }}{% endif %}">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        <form method="get">
+            <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control" onchange="this.form.submit()" aria-label="Date du plan">
+            {% if employees %}
+            <select name="employee" class="form-select" onchange="this.form.submit()" aria-label="Employé">
+                <option value="">Tous les employés</option>
+                {% for employee in employees %}
+                <option value="{{ employee.pk }}" {% if selected_employee and selected_employee.pk == employee.pk %}selected{% endif %}>{{ employee.full_name }}</option>
+                {% endfor %}
+            </select>
+            <select name="position" class="form-select" onchange="this.form.submit()" aria-label="Poste">
+                <option value="">Tous les postes</option>
+                {% for value, label in position_choices %}
+                <option value="{{ value }}" {% if position == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="form-select" onchange="this.form.submit()" aria-label="Statut">
+                <option value="">Tous les statuts</option>
+                <option value="todo" {% if status_filter == 'todo' %}selected{% endif %}>Non commencée</option>
+                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>En cours</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Terminée</option>
+                <option value="not_done" {% if status_filter == 'not_done' %}selected{% endif %}>Non réalisée</option>
+            </select>
+            {% endif %}
+        </form>
+        <a class="btn btn-outline-success btn-sm" href="?date={{ next_day|date:'Y-m-d' }}{% if selected_employee %}&employee={{ selected_employee.pk }}{% endif %}">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        <button type="button" class="btn btn-success btn-sm ms-auto" onclick="window.print()">
+            <i class="fas fa-print me-1"></i> Imprimer
+        </button>
+    </div>
+
+    {% if missing_employees %}
+    <div class="alert alert-light border mb-3">
+        <strong>Sans todo list pour cette date.</strong>
+        Ce n'est pas une absence.
+        {% for employee in missing_employees %}
+        <a href="?date={{ day|date:'Y-m-d' }}&employee={{ employee.pk }}">{{ employee.full_name }}</a>{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not sheets %}
+    <div class="plan-sheet">
+        <p class="plan-empty mb-0">Aucun plan de travail pour cette date.</p>
+    </div>
+    {% endif %}
+
+    {% for sheet in sheets %}
+    <article class="plan-sheet">
+        <svg class="plan-leaf tl" viewBox="0 0 160 120" aria-hidden="true">
+            <path d="M0 0h120C70 20 40 70 10 120H0V0z" fill="#146c34"/>
+            <path d="M0 0h78C48 28 22 62 0 92V0z" fill="#1f8f45"/>
+        </svg>
+        <svg class="plan-leaf br" viewBox="0 0 180 140" aria-hidden="true">
+            <path d="M180 140H40c40-18 78-58 140-140v140z" fill="#146c34"/>
+            <path d="M180 140h-70c28-24 52-62 70-98v98z" fill="#1f8f45"/>
+        </svg>
+        <div class="plan-dots tr"></div>
+        <div class="plan-dots bl"></div>
+
+        <h1 class="plan-title">TO DO LIST</h1>
+        <div class="plan-kicker"><span></span> PLAN DE TRAVAIL DU JOUR <span></span></div>
+
+        <div class="plan-meta">
+            <div class="plan-meta-cell">
+                <div class="plan-meta-icon"><i class="fas fa-calendar-days"></i></div>
+                <div>
+                    <span class="plan-meta-label">DATE</span>
+                    <span class="plan-meta-value">{{ formatted_day }}</span>
+                </div>
+            </div>
+            <div class="plan-meta-cell">
+                <div class="plan-meta-icon"><i class="fas fa-bullseye"></i></div>
+                <div style="flex:1;">
+                    <span class="plan-meta-label">OBJECTIF DU JOUR</span>
+                    {% if can_edit %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="objective">
+                        <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                        <textarea name="objective" rows="2" maxlength="220" placeholder="Décrivez l'objectif du jour" aria-label="Objectif du jour">{{ sheet.objective }}</textarea>
+                        <button type="submit" class="btn btn-link btn-sm p-0 text-success">Enregistrer</button>
+                    </form>
+                    {% else %}
+                    <span class="plan-meta-value">{{ sheet.objective|default:"Non renseigné" }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="plan-meta-cell">
+                <div class="plan-meta-icon"><i class="fas fa-user"></i></div>
+                <div>
+                    <span class="plan-meta-label">{{ sheet.position }}</span>
+                    <span class="plan-meta-value">{{ sheet.first_name }}<br><span class="plan-name-sub">{{ sheet.last_name }}</span></span>
+                </div>
+            </div>
+        </div>
+
+        {% if sheet.blocks %}
+            {% for block in sheet.blocks %}
+            <section class="plan-block">
+                <div class="plan-block-head">
+                    <div class="plan-num">{{ block.number }}</div>
+                    <i class="fas {{ block.icon }} plan-block-icon"></i>
+                    <h2>{{ block.title }}</h2>
+                    <div class="plan-leader"></div>
+                    <div class="plan-ribbon"><i class="fas {{ block.ribbon }}"></i></div>
+                </div>
+                {% for task in block.items %}
+                <div class="plan-line">
+                    {% if can_edit %}
+                    <form method="post" action="{% url 'tasks:set_status' task.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="silent" value="1">
+                        <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <input type="hidden" name="status" value="{% if task.status == 'completed' %}todo{% else %}completed{% endif %}">
+                        <button type="submit" class="plan-check {% if task.status == 'completed' %}is-done{% endif %}" aria-label="Marquer {{ task.title }}">
+                            {% if task.status == 'completed' %}<i class="fas fa-check"></i>{% endif %}
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="plan-check {% if task.status == 'completed' %}is-done{% endif %}" aria-hidden="true">
+                        {% if task.status == 'completed' %}<i class="fas fa-check"></i>{% endif %}
+                    </span>
+                    {% endif %}
+                    <div class="plan-line-text {% if task.status == 'completed' %}is-done{% endif %}">
+                        {{ task.title }}
+                        {% if task.status == 'in_progress' or task.status == 'review' %}
+                        <span class="plan-status">En cours</span>
+                        {% elif task.status == 'not_done' %}
+                        <span class="plan-status">Non réalisée</span>
+                        {% elif task.comments %}
+                        <span class="plan-status">{{ task.comments|truncatechars:80 }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="plan-bullet"></span>
+                    {% if can_edit %}
+                    <a class="plan-remove" href="{% url 'tasks:delete' task.pk %}?next={{ request.get_full_path|urlencode }}" title="Supprimer">Supprimer</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if can_edit %}
+                <form method="post" class="d-flex gap-2 align-items-center pb-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_item">
+                    <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+                    <input type="hidden" name="block_title" value="{{ block.raw_title }}">
+                    {% if my_projects %}
+                    <select name="project" class="form-select form-select-sm" style="max-width: 180px;" aria-label="Projet">
+                        <option value="">Sans projet</option>
+                        {% for project in my_projects %}
+                        <option value="{{ project.pk }}">{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                    <input type="text" name="title" class="form-control form-control-sm" placeholder="Ajouter une ligne dans ce bloc" maxlength="200">
+                    <button type="submit" class="btn btn-sm btn-outline-success">Ajouter</button>
+                </form>
+                {% endif %}
+            </section>
+            {% endfor %}
+        {% else %}
+            <p class="plan-empty">Aucune activité sur ce plan pour le moment.</p>
+        {% endif %}
+
+        <p class="plan-sign">{{ sheet.signature }}</p>
+    </article>
+
+    {% if can_edit %}
+    <div class="plan-editor">
+        <h3>Ajouter un bloc au plan</h3>
+        <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_block">
+            <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+            <div class="col-md-3">
+                <input type="text" name="block_title" class="form-control" placeholder="Titre du bloc" maxlength="120" required>
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="title" class="form-control" placeholder="Première ligne à cocher" maxlength="200" required>
+            </div>
+            <div class="col-md-3">
+                <select name="project" class="form-select" aria-label="Projet">
+                    <option value="">Sans projet</option>
+                    {% for project in my_projects %}
+                    <option value="{{ project.pk }}">{{ project.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success w-100">Ajouter</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

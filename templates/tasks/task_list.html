@@ -1,173 +1,211 @@
 {% extends 'base.html' %}
 
-{% block title %}Tâches - Plateforme de Gestion{% endblock %}
+{% block title %}{% if is_admin_view %}Tâches{% else %}Mes tâches{% endif %} - RAC'IN{% endblock %}
 
 {% block extra_css %}
 <style>
-    html, body {
-        overflow-x: hidden;
+    .tb-page { max-width: 1180px; margin: 0 auto; padding: 4px 4px 36px; }
+    .tb-head, .tb-filters, .tb-kpis { margin-bottom: 16px; }
+    .tb-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+    .tb-kicker { margin: 0 0 4px; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: #7DD3FC; font-weight: 700; }
+    .tb-head h1 { margin: 0 0 4px; font-size: 1.7rem; font-weight: 700; letter-spacing: -.03em; }
+    .tb-head p { margin: 0; color: #94A3B8; font-size: .92rem; }
+    .tb-new {
+        display: inline-flex; align-items: center; gap: 8px; background: #2563EB; color: #fff !important;
+        text-decoration: none; border-radius: 12px; padding: 11px 16px; font-weight: 650; font-size: .9rem;
+        box-shadow: 0 8px 18px rgba(37,99,235,.28);
     }
-    .compact-form .form-control,
-    .compact-form .form-select {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
+    .tb-new:hover { background: #1D4ED8; }
+    .tb-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .tb-kpi {
+        display: block; text-decoration: none; background: #0A2142; border: 1px solid #173B69; border-radius: 14px;
+        padding: 14px 16px; color: inherit;
     }
-    .compact-table th,
-    .compact-table td {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.5rem;
-        vertical-align: middle;
+    .tb-kpi strong { display: block; font-size: 1.45rem; letter-spacing: -.03em; margin-top: 4px; }
+    .tb-kpi span { color: #94A3B8; font-size: .78rem; font-weight: 600; }
+    .tb-kpi.on, .tb-kpi:hover { border-color: #2563EB; }
+    .tb-filters {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
+        background: #0A2142; border: 1px solid #173B69; border-radius: 16px; padding: 14px;
     }
-    .compact-table .badge {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
+    .tb-filters > div { flex: 1 1 150px; }
+    .tb-filters > div:first-child { flex: 2 1 240px; }
+    .tb-filters label { display: block; margin-bottom: 6px; color: #94A3B8; font-size: .72rem; font-weight: 650; }
+    .tb-filters input, .tb-filters select {
+        width: 100%; min-height: 40px; background: #071A33; color: #F8FAFC; border: 1px solid #173B69; border-radius: 10px; padding: 8px 10px;
     }
-    .page-title {
-        font-size: 1.1rem;
-        font-weight: 600;
+    .tb-go, .tb-reset {
+        min-height: 40px; border-radius: 10px; padding: 0 14px; font-weight: 650; font-size: .84rem; text-decoration: none;
+        display: inline-flex; align-items: center; justify-content: center;
     }
-    .btn-compact {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-    }
-    .card-compact {
-        padding: 0.75rem;
-    }
-    .btn-sm {
-        padding: 0.2rem 0.4rem;
-        font-size: 0.75rem;
+    .tb-go { background: #2563EB; color: #fff; border: 0; }
+    .tb-reset { color: #E2E8F0 !important; border: 1px solid #173B69; }
+    .tb-table-wrap { background: #0A2142; border: 1px solid #173B69; border-radius: 16px; overflow: auto; }
+    .tb-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    .tb-table th { text-align: left; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: #94A3B8; padding: 14px 16px; border-bottom: 1px solid #173B69; }
+    .tb-table td { padding: 14px 16px; border-bottom: 1px solid rgba(23,59,105,.75); vertical-align: middle; }
+    .tb-table tr:last-child td { border-bottom: 0; }
+    .tb-table a.tb-title { color: #F8FAFC; font-weight: 650; text-decoration: none; }
+    .tb-table a.tb-title:hover { color: #7DD3FC; }
+    .tb-sub { display: block; margin-top: 3px; color: #94A3B8; font-size: .75rem; }
+    .tb-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-size: .72rem; font-weight: 700; }
+    .tb-badge.todo, .tb-badge.low { background: rgba(56,189,248,.14); color: #7DD3FC; }
+    .tb-badge.progress, .tb-badge.medium { background: rgba(37,99,235,.2); color: #93C5FD; }
+    .tb-badge.review { background: rgba(124,58,237,.2); color: #C4B5FD; }
+    .tb-badge.done { background: rgba(16,185,129,.16); color: #6EE7B7; }
+    .tb-badge.late, .tb-badge.urgent, .tb-badge.high { background: rgba(239,68,68,.16); color: #FCA5A5; }
+    .tb-badge.high { background: rgba(245,158,11,.16); color: #FCD34D; }
+    .tb-badge.muted { background: rgba(148,163,184,.14); color: #CBD5E1; }
+    .tb-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .tb-actions a { color: #7DD3FC; font-size: .8rem; font-weight: 650; text-decoration: none; }
+    .tb-empty { padding: 36px 16px; text-align: center; color: #94A3B8; }
+    .tb-pages { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .tb-pages a, .tb-pages span { min-width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #173B69; color: #F8FAFC; text-decoration: none; }
+    .tb-pages .on { background: #2563EB; border-color: #2563EB; }
+    @media (max-width: 980px) {
+        .tb-kpis, .tb-filters { grid-template-columns: 1fr 1fr; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0 page-title">Gestion des Tâches</h2>
-    <a href="{% url 'tasks:create' %}" class="btn btn-primary btn-compact">
-        <i class="fas fa-plus me-1"></i>Ajouter une tâche
-    </a>
-</div>
-
-<div class="card mb-3">
-    <div class="card-body card-compact">
-        <form method="get" class="row g-2 compact-form">
-            <div class="col-md-3">
-                {{ form.search }}
-            </div>
-            <div class="col-md-2">
-                {{ form.project }}
-            </div>
-            <div class="col-md-2">
-                {{ form.status }}
-            </div>
-            <div class="col-md-2">
-                {{ form.priority }}
-            </div>
-            <div class="col-md-2">
-                {{ form.assigned_to }}
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary w-100 btn-compact">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-body card-compact">
-        {% if tasks %}
-        <div class="table-responsive">
-            <table class="table table-hover compact-table">
-                <thead>
-                    <tr>
-                        <th>Titre</th>
-                        <th>Projet</th>
-                        <th>Assigné à</th>
-                        <th>Statut</th>
-                        <th>Priorité</th>
-                        <th>Date limite</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in tasks %}
-                    <tr>
-                        <td>
-                            <strong>{{ task.title }}</strong>
-                            {% if task.is_overdue %}
-                                <span class="badge bg-danger ms-1">En retard</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ task.project.name }}</td>
-                        <td>
-                            {% if task.assigned_to %}
-                                {{ task.assigned_to.full_name }}
-                            {% else %}
-                                <span class="text-muted">Non assigné</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if task.status == 'todo' %}
-                                <span class="badge bg-secondary">À faire</span>
-                            {% elif task.status == 'in_progress' %}
-                                <span class="badge bg-primary">En cours</span>
-                            {% elif task.status == 'review' %}
-                                <span class="badge bg-info">En révision</span>
-                            {% elif task.status == 'completed' %}
-                                <span class="badge bg-success">Terminé</span>
-                            {% else %}
-                                <span class="badge bg-danger">Annulé</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if task.priority == 'low' %}
-                                <span class="badge bg-info">Faible</span>
-                            {% elif task.priority == 'medium' %}
-                                <span class="badge bg-primary">Moyen</span>
-                            {% elif task.priority == 'high' %}
-                                <span class="badge bg-warning">Haute</span>
-                            {% else %}
-                                <span class="badge bg-danger">Urgent</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ task.due_date|date:"d/m/Y"|default:"-" }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if task.status != 'completed' %}
-                                <form action="{% url 'tasks:complete' task.pk %}" method="post" style="display: inline;">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-success" title="Marquer comme terminé">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                                <a href="{% url 'tasks:update' task.pk %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'tasks:delete' task.pk %}" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="tb-page">
+    <div class="tb-head">
+        <div>
+            <p class="tb-kicker">{% if is_admin_view %}Espace responsable{% else %}Mon espace{% endif %}</p>
+            <h1>{% if is_admin_view %}Tâches{% else %}Mes tâches{% endif %}</h1>
+            <p>{% if is_admin_view %}Gérez et attribuez les tâches de votre équipe{% else %}Les tâches qui vous ont été attribuées{% endif %}</p>
         </div>
-        {% else %}
-        <div class="text-center py-4">
-            <i class="fas fa-tasks fa-2x text-muted mb-2"></i>
-            <p class="text-muted mb-2" style="font-size: 0.9rem;">Aucune tâche trouvée.</p>
-            <a href="{% url 'tasks:create' %}" class="btn btn-primary btn-compact">
-                <i class="fas fa-plus me-1"></i>Ajouter la première tâche
-            </a>
-        </div>
+        {% if is_admin_view %}
+        <a class="tb-new" href="{% url 'tasks:create' %}"><i class="fas fa-plus"></i> Nouvelle tâche</a>
         {% endif %}
     </div>
+
+    <div class="tb-kpis">
+        <a class="tb-kpi {% if tab == 'all' %}on{% endif %}" href="{% url 'tasks:list' %}"><span>Total des tâches</span><strong>{{ count_all }}</strong></a>
+        <a class="tb-kpi {% if tab == 'todo' %}on{% endif %}" href="{% url 'tasks:list' %}?tab=todo"><span>À faire</span><strong>{{ count_todo }}</strong></a>
+        <a class="tb-kpi {% if tab == 'in_progress' %}on{% endif %}" href="{% url 'tasks:list' %}?tab=in_progress"><span>En cours</span><strong>{{ count_in_progress }}</strong></a>
+        <a class="tb-kpi {% if tab == 'overdue' %}on{% endif %}" href="{% url 'tasks:list' %}?tab=overdue"><span>En retard</span><strong>{{ count_overdue }}</strong></a>
+        <a class="tb-kpi {% if tab == 'completed' %}on{% endif %}" href="{% url 'tasks:list' %}?tab=completed"><span>Terminées</span><strong>{{ count_completed }}</strong></a>
+    </div>
+
+    <form class="tb-filters" method="get">
+        <div>
+            <label for="task-search">Recherche</label>
+            <input id="task-search" type="search" name="search" value="{{ search_query }}" placeholder="Titre, description, instruction">
+        </div>
+        <div>
+            <label for="task-project">Projet</label>
+            <select id="task-project" name="project">
+                <option value="">Tous les projets</option>
+                {% for project in projects %}
+                <option value="{{ project.pk }}" {% if project_filter == project.pk|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if is_admin_view %}
+        <div>
+            <label for="task-employee">Employé</label>
+            <select id="task-employee" name="assigned_to">
+                <option value="">Tous les employés</option>
+                {% for employee in employees %}
+                <option value="{{ employee.pk }}" {% if assigned_filter == employee.pk|stringformat:"s" %}selected{% endif %}>{{ employee.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div>
+            <label for="task-status">Statut</label>
+            <select id="task-status" name="tab">
+                <option value="all" {% if tab == 'all' %}selected{% endif %}>Tous</option>
+                {% for code, label in statuses %}
+                <option value="{{ code }}" {% if tab == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+                <option value="overdue" {% if tab == 'overdue' %}selected{% endif %}>En retard</option>
+            </select>
+        </div>
+        <div>
+            <label for="task-priority">Priorité</label>
+            <select id="task-priority" name="priority">
+                <option value="">Toutes</option>
+                {% for code, label in priorities %}
+                <option value="{{ code }}" {% if priority_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button class="tb-go" type="submit">Filtrer</button>
+            <a class="tb-reset" href="{% url 'tasks:list' %}">Réinitialiser</a>
+        </div>
+    </form>
+
+    <div class="tb-table-wrap">
+        <table class="tb-table">
+            <thead>
+                <tr>
+                    <th>Tâche</th>
+                    <th>Projet</th>
+                    <th>Employé</th>
+                    <th>Priorité</th>
+                    <th>Échéance</th>
+                    <th>Statut</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>
+                        <a class="tb-title" href="{% url 'tasks:detail' task.pk %}">{{ task.title }}</a>
+                        {% if task.document_count %}
+                        <span class="tb-sub"><i class="fas fa-paperclip"></i> {{ task.document_count }} document{{ task.document_count|pluralize }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ task.project.name|default:"—" }}</td>
+                    <td>{{ task.assigned_to.full_name|default:"Non assignée" }}</td>
+                    <td><span class="tb-badge {{ task.priority }}">{{ task.priority_label }}</span></td>
+                    <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
+                    <td>
+                        {% if task.is_overdue %}
+                        <span class="tb-badge late">En retard</span>
+                        {% elif task.status == 'completed' %}
+                        <span class="tb-badge done">Terminée</span>
+                        {% elif task.status == 'in_progress' %}
+                        <span class="tb-badge progress">En cours</span>
+                        {% elif task.status == 'review' %}
+                        <span class="tb-badge review">En révision</span>
+                        {% elif task.status == 'todo' %}
+                        <span class="tb-badge todo">À faire</span>
+                        {% elif task.status == 'cancelled' %}
+                        <span class="tb-badge muted">Annulée</span>
+                        {% else %}
+                        <span class="tb-badge late">Non réalisée</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="tb-actions">
+                            <a href="{% url 'tasks:detail' task.pk %}">Voir</a>
+                            <a href="{% url 'tasks:update' task.pk %}">{% if is_admin_view %}Modifier{% else %}Statut{% endif %}</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td class="tb-empty" colspan="7">Aucune tâche ne correspond à ces filtres.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="tb-pages">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if page_qs %}&{{ page_qs }}{% endif %}">‹</a>
+        {% endif %}
+        <span class="on">{{ page_obj.number }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if page_qs %}&{{ page_qs }}{% endif %}">›</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -15,6 +15,7 @@
                 
                 <form method="post">
                     {% csrf_token %}
+                    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-secondary">
                             <i class="fas fa-times me-2"></i>Annuler

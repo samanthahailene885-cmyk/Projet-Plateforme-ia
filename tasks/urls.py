@@ -5,9 +5,13 @@ app_name = 'tasks'
 
 urlpatterns = [
     path('', views.task_list, name='list'),
+    path('todo/', views.daily_todo, name='daily'),
     path('create/', views.task_create, name='create'),
     path('<int:pk>/', views.task_detail, name='detail'),
     path('<int:pk>/update/', views.task_update, name='update'),
     path('<int:pk>/delete/', views.task_delete, name='delete'),
+path('<int:pk>/documents/<int:document_id>/', views.task_document, name='document'),
+    path('<int:pk>/documents/<int:document_id>/delete/', views.task_document_delete, name='document_delete'),
     path('<int:pk>/complete/', views.task_complete, name='complete'),
+    path('<int:pk>/status/', views.task_set_status, name='set_status'),
 ]

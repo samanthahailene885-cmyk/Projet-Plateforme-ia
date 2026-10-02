@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Rapport d'équipe - RAC'IN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .team-page { margin: -16px; padding: 28px; background: #f6f8fc; min-height: 100vh; color: #18254a; }
+    .team-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+    .team-title { display: flex; align-items: center; gap: 14px; }
+    .team-mark { width: 48px; height: 48px; border-radius: 14px; background: #5146e5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .team-title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+    .team-title p { margin: 4px 0 0; color: #7180a5; font-size: 14px; }
+    .team-actions { display: flex; gap: 8px; }
+    .team-actions a, .team-actions button {
+        height: 42px; border-radius: 10px; padding: 0 16px; font-weight: 600; font-size: 14px;
+        display: inline-flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer;
+    }
+    .team-back { border: 1px solid #e4e8f2; background: #fff; color: #334155; }
+    .team-print { border: none; background: linear-gradient(135deg, #4f46e5, #673de6); color: #fff; box-shadow: 0 6px 16px rgba(79,70,229,.2); }
+    .team-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    .team-kpi { background: #fff; border: 1px solid #edf0f7; border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 12px rgba(28,40,80,.04); }
+    .team-ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .team-ico.purple { background: #efedff; color: #584be7; }
+    .team-ico.green { background: #e5f8ef; color: #139a6a; }
+    .team-ico.blue { background: #eaf1ff; color: #3976e8; }
+    .team-ico.amber { background: #fff2dc; color: #d97706; }
+    .team-kpi h4 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #526184; }
+    .team-kpi strong { display: block; font-size: 26px; line-height: 1; color: #17244b; }
+    .team-kpi span { display: block; margin-top: 4px; font-size: 11px; color: #8a96b4; }
+    .team-section { margin-bottom: 18px; }
+    .team-section h2 { margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+    .team-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .team-card { background: #fff; border: 1px solid #edf0f7; border-radius: 16px; padding: 18px; box-shadow: 0 3px 12px rgba(28,40,80,.04); display: flex; flex-direction: column; gap: 12px; }
+    .team-card header { display: flex; align-items: center; gap: 12px; }
+    .team-avatar { width: 42px; height: 42px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .team-card h3 { margin: 0; font-size: 15px; }
+    .team-card small { color: #8994b0; font-size: 12px; }
+    .pill { margin-left: auto; border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill.ok { background: #e5f8ef; color: #139a6a; }
+    .pill.wait { background: #eef2ff; color: #4f46e5; }
+    .team-body { margin: 0; color: #334155; font-size: 14px; line-height: 1.55; background: #f8fafc; border-radius: 12px; padding: 12px 14px; }
+    .team-card a { color: #5146e5; font-size: 13px; font-weight: 700; text-decoration: none; }
+    .team-empty { background: #fff; border: 1px solid #edf0f7; border-radius: 16px; padding: 18px; box-shadow: 0 3px 12px rgba(28,40,80,.04); }
+    .team-empty p { margin: 0 0 12px; color: #7180a5; font-size: 13px; }
+    .team-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .team-chip { display: inline-flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #eef2f7; border-radius: 999px; padding: 6px 12px 6px 6px; font-size: 13px; font-weight: 600; }
+    .team-chip i { width: 28px; height: 28px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-style: normal; font-size: 10px; }
+    @media (max-width: 1100px) {
+        .team-kpis, .team-grid { grid-template-columns: 1fr; }
+    }
+    @media print {
+        .racin-sidebar, .team-actions, .team-empty { display: none !important; }
+        .team-page { margin: 0; background: #fff; padding: 0; }
+        .team-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="team-page">
+    <div class="team-head">
+        <div class="team-title">
+            <div class="team-mark"><i class="far fa-file-alt"></i></div>
+            <div>
+                <h1>Rapport journalier de l'équipe</h1>
+                <p>{{ day_label }} · {{ submitted_count }} rapport{{ submitted_count|pluralize }} soumis sur {{ people_count }} employé{{ people_count|pluralize }}</p>
+            </div>
+        </div>
+        <div class="team-actions">
+            <a class="team-back" href="{% url 'reports:list' %}?date={{ day|date:'Y-m-d' }}"><i class="fas fa-arrow-left"></i> Retour</a>
+            <button class="team-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Imprimer</button>
+        </div>
+    </div>
+
+    <div class="team-kpis">
+        <div class="team-kpi">
+            <div class="team-ico purple"><i class="fas fa-users"></i></div>
+            <div><h4>Employés analysés</h4><strong>{{ people_count }}</strong><span>équipe du jour</span></div>
+        </div>
+        <div class="team-kpi">
+            <div class="team-ico green"><i class="far fa-file"></i></div>
+            <div><h4>Rapports soumis</h4><strong>{{ submitted_count }}</strong><span>textes envoyés</span></div>
+        </div>
+        <div class="team-kpi">
+            <div class="team-ico blue"><i class="fas fa-list-ul"></i></div>
+            <div><h4>Activités sans rapport</h4><strong>{{ activity_count }}</strong><span>todo list renseignée</span></div>
+        </div>
+        <div class="team-kpi">
+            <div class="team-ico amber"><i class="far fa-clock"></i></div>
+            <div><h4>Sans todo list</h4><strong>{{ empty_count }}</strong><span>ce n'est pas une absence</span></div>
+        </div>
+    </div>
+
+    <section class="team-section">
+        <h2>Rapports du jour</h2>
+        <div class="team-grid">
+            {% for section in sections %}
+            {% if section.state != 'Sans activité' %}
+            <article class="team-card">
+                <header>
+                    <span class="team-avatar" style="background:{{ section.color }}">{{ section.initials }}</span>
+                    <div>
+                        <h3>{{ section.name }}</h3>
+                        <small>{{ section.role }}</small>
+                    </div>
+                    {% if section.state == 'Soumis' %}
+                    <span class="pill ok">Soumis</span>
+                    {% else %}
+                    <span class="pill wait">Activités enregistrées</span>
+                    {% endif %}
+                </header>
+                {% for bullet in section.bullets %}
+                <p class="team-body">{{ bullet }}</p>
+                {% endfor %}
+                {% if section.report %}
+                <a href="{% url 'reports:detail' section.report.pk %}">Voir le rapport envoyé →</a>
+                {% endif %}
+            </article>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if empty_count %}
+    <section class="team-empty">
+        <h2 style="margin:0 0 6px;font-size:16px;">Sans activité enregistrée</h2>
+        <p>Aucune activité enregistrée pour cette date. Une todo list manquante n'est pas une absence.</p>
+        <div class="team-chips">
+            {% for section in sections %}
+            {% if section.state == 'Sans activité' %}
+            <span class="team-chip"><i style="background:{{ section.color }}">{{ section.initials }}</i>{{ section.name }}</span>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

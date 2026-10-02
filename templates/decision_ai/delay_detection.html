@@ -1,65 +1,846 @@
 {% extends 'base.html' %}
 
-{% block title %}Détection des Retards - Plateforme de Gestion{% endblock %}
+{% block title %}Centre d'alertes - WorkFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ac-page {
+        color: #1e293b;
+        padding: 4px 6px 20px;
+    }
+    .ac-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 292px;
+        gap: 16px;
+        align-items: start;
+    }
+    .ac-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    .ac-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+    }
+    .ac-bell {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #eef2ff;
+        color: #4f46e5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+    }
+    .ac-title h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: #1e1b4b;
+        line-height: 1.15;
+    }
+    .ac-title p {
+        margin: 4px 0 0;
+        color: #94a3b8;
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+    .ac-readall {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e6ebf3;
+        background: #fff;
+        color: #334155;
+        border-radius: 12px;
+        padding: 9px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .ac-readall:hover { background: #f8fafc; }
+    .ac-readall i { color: #22c55e; font-size: 0.85rem; }
+
+    .ac-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .ac-kpi {
+        position: relative;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        padding: 14px 28px 14px 14px;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        min-height: 108px;
+    }
+    .ac-kpi:hover { border-color: #d6def0; color: inherit; }
+    .ac-kpi.is-on {
+        border-color: #c7d2fe;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+    .ac-kpi-ico {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+    }
+    .ac-kpi-ico.red { background: #fee2e2; color: #ef4444; }
+    .ac-kpi-ico.orange { background: #ffedd5; color: #f97316; }
+    .ac-kpi-ico.blue { background: #dbeafe; color: #3b82f6; }
+    .ac-kpi-ico.green { background: #dcfce7; color: #22c55e; }
+    .ac-kpi-label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.25;
+    }
+    .ac-kpi strong {
+        display: block;
+        margin: 2px 0 2px;
+        font-size: 1.65rem;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        font-weight: 700;
+    }
+    .ac-kpi-hint {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        line-height: 1.3;
+    }
+    .ac-kpi-go {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #cbd5e1;
+        font-size: 0.72rem;
+    }
+
+    .ac-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .ac-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px 8px;
+    }
+    .ac-toolbar h2 {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+    .ac-toolbar-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+    .ac-chip,
+    .ac-select {
+        border: 1px solid #e6ebf3;
+        background: #fff;
+        border-radius: 10px;
+        color: #334155;
+        font-size: 0.8rem;
+        font-weight: 600;
+        height: 36px;
+    }
+    .ac-select {
+        padding: 0 28px 0 12px;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        cursor: pointer;
+    }
+    .ac-select.slim { max-width: 180px; }
+    .ac-chip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .ac-chip i { color: #64748b; font-size: 0.8rem; }
+    .ac-chip .chev { font-size: 0.65rem; color: #94a3b8; }
+    .ac-chip input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+    }
+    .ac-table-wrap { overflow-x: auto; }
+    .ac-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 860px;
+    }
+    .ac-table th {
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        padding: 8px 14px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        white-space: nowrap;
+    }
+    .ac-table th.act,
+    .ac-table td.act { text-align: center; width: 52px; }
+    .ac-table td {
+        padding: 14px;
+        border-bottom: 1px solid #f4f7fb;
+        vertical-align: middle;
+        font-size: 0.84rem;
+    }
+    .ac-table tbody tr:hover td { background: #fafbff; }
+    .ac-table tbody tr:last-child td { border-bottom: none; }
+    .ac-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .ac-type-ico {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        flex-shrink: 0;
+    }
+    .ac-type-ico.red { background: #fee2e2; color: #ef4444; }
+    .ac-type-ico.orange { background: #ffedd5; color: #f97316; }
+    .ac-type-ico.blue { background: #dbeafe; color: #3b82f6; }
+    .ac-type-ico.green { background: #dcfce7; color: #22c55e; }
+    .ac-type-ico.violet { background: #ede9fe; color: #8b5cf6; }
+    .ac-type-ico svg { width: 13px; height: 13px; display: block; }
+    .ac-task {
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .ac-desc {
+        color: #64748b;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .ac-who { font-weight: 700; color: #1e293b; line-height: 1.25; }
+    .ac-role { color: #94a3b8; font-size: 0.75rem; margin-top: 2px; }
+    .ac-when { color: #64748b; font-size: 0.8rem; white-space: nowrap; line-height: 1.35; }
+    .ac-status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .ac-status.rose { background: #ffe4e8; color: #f43f5e; }
+    .ac-status.orange { background: #ffedd5; color: #f97316; }
+    .ac-status.amber { background: #fef3c7; color: #d97706; }
+    .ac-status.green { background: #dcfce7; color: #16a34a; }
+    .ac-empty {
+        text-align: center;
+        color: #94a3b8;
+        padding: 42px 16px !important;
+    }
+    .ac-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px 14px;
+        color: #94a3b8;
+        font-size: 0.78rem;
+    }
+    .ac-pages { display: flex; align-items: center; gap: 6px; }
+    .ac-pagebtn {
+        min-width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.8rem;
+        background: transparent;
+    }
+    .ac-pagebtn:hover { background: #f8fafc; color: #334155; }
+    .ac-pagebtn.is-on { background: #4f46e5; color: #fff; }
+    .ac-pagebtn.is-off { opacity: 0.35; pointer-events: none; }
+
+    .ac-menu { position: relative; }
+    .ac-menu summary {
+        list-style: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #94a3b8;
+    }
+    .ac-menu summary::-webkit-details-marker { display: none; }
+    .ac-menu summary:hover { background: #f1f5f9; color: #475569; }
+    .ac-menu-pop {
+        position: absolute;
+        right: 0;
+        top: 32px;
+        z-index: 5;
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+        min-width: 190px;
+        padding: 6px;
+    }
+    .ac-menu-pop a,
+    .ac-menu-pop button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: none;
+        background: transparent;
+        color: #334155;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 8px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .ac-menu-pop a:hover,
+    .ac-menu-pop button:hover { background: #f8fafc; }
+
+    .ac-side { display: flex; flex-direction: column; gap: 14px; }
+    .ac-side-card { padding: 16px; }
+    .ac-side-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 14px;
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+    .ac-side-card h3 i { color: #6366f1; font-size: 0.85rem; }
+    .ac-field { margin-bottom: 12px; }
+    .ac-field label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #64748b;
+    }
+    .ac-select.block { width: 100%; }
+    .ac-date {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e6ebf3;
+        border-radius: 10px;
+        height: 40px;
+        padding: 0 12px;
+        color: #94a3b8;
+        font-size: 0.82rem;
+        background: #fff;
+    }
+    .ac-date.has-value { color: #334155; font-weight: 600; }
+    .ac-date input[type="date"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+    }
+    .ac-date-x {
+        position: relative;
+        z-index: 1;
+        margin-left: auto;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+    .ac-reset {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid #e6ebf3;
+        color: #6366f1;
+        text-decoration: none;
+        font-size: 0.84rem;
+        font-weight: 700;
+        background: #fff;
+    }
+    .ac-reset:hover { background: #f8fafc; }
+
+    .ac-chart-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .ac-ring {
+        position: relative;
+        width: 132px;
+        height: 132px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    .ac-ring canvas { width: 132px !important; height: 132px !important; }
+    .ac-hole {
+        position: absolute;
+        inset: 28px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .ac-hole strong {
+        font-size: 1.55rem;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+    }
+    .ac-hole span { color: #94a3b8; font-size: 0.75rem; margin-top: 2px; }
+    .ac-ring.is-empty {
+        border-radius: 50%;
+        background: #e5e7eb;
+    }
+    .ac-ring.is-empty canvas { display: none; }
+    .ac-legend { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; }
+    .ac-legend li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        font-size: 0.84rem;
+        color: #475569;
+    }
+    .ac-legend b { margin-left: auto; color: #1e293b; font-weight: 700; }
+    .ac-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .ac-dot.red { background: #f43f5e; }
+    .ac-dot.orange { background: #fb923c; }
+    .ac-dot.blue { background: #60a5fa; }
+    .ac-dot.green { background: #34d399; }
+
+    .ac-help {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, #f5f3ff 0%, #eef2ff 100%);
+        border: 1px solid #e7e3ff;
+        border-radius: 16px;
+        padding: 16px 16px 108px;
+        min-height: 230px;
+    }
+    .ac-help-ico {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #ede9fe;
+        color: #7c3aed;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+    }
+    .ac-help h3 {
+        margin: 0 0 6px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #5b21b6;
+    }
+    .ac-help p {
+        margin: 0 0 10px;
+        color: #7c6aa8;
+        font-size: 0.8rem;
+        line-height: 1.45;
+        max-width: 230px;
+    }
+    .ac-help a {
+        color: #4f46e5;
+        font-weight: 700;
+        font-size: 0.82rem;
+        text-decoration: none;
+    }
+    .ac-help a:hover { text-decoration: underline; }
+    .ac-robot {
+        position: absolute;
+        right: -6px;
+        bottom: -8px;
+        width: 168px;
+        height: 112px;
+        pointer-events: none;
+    }
+
+    @media (max-width: 1200px) {
+        .ac-layout { grid-template-columns: 1fr; }
+        .ac-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+        .ac-head { flex-direction: column; }
+        .ac-kpis { grid-template-columns: 1fr; }
+        .ac-toolbar { flex-direction: column; align-items: stretch; }
+        .ac-toolbar-controls { flex-wrap: wrap; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Détection des Retards</h2>
-    <a href="{% url 'decision_ai:assistant' %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Retour à l'assistant
-    </a>
-</div>
+<div class="ac-page">
+    <div class="ac-layout">
+        <div>
+            <header class="ac-head">
+                <div class="ac-title">
+                    <div class="ac-bell"><i class="fas fa-bell"></i></div>
+                    <div>
+                        <h1>Centre d'alertes</h1>
+                        <p>Restez informé des événements importants et des points d'attention de votre agence.</p>
+                    </div>
+                </div>
+                <form method="post" action="{% url 'decision_ai:delay_detection' %}{% if current_query %}?{{ current_query }}{% endif %}">
+                    {% csrf_token %}
+                    <button class="ac-readall" type="submit" name="action" value="mark_all">
+                        <i class="fas fa-check"></i> Marquer tout comme lu
+                    </button>
+                </form>
+            </header>
 
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Projets à risque de retard</h5>
-    </div>
-    <div class="card-body">
-        {% if at_risk_projects %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Projet</th>
-                        <th>Client</th>
-                        <th>Progression</th>
-                        <th>Jours restants</th>
-                        <th>Niveau de risque</th>
-                        <th>Raison</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in at_risk_projects %}
-                    <tr>
-                        <td><strong>{{ item.project.name }}</strong></td>
-                        <td>{{ item.project.client }}</td>
-                        <td>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar" role="progressbar" style="width: {{ item.project.progress }}%;" aria-valuenow="{{ item.project.progress }}" aria-valuemin="0" aria-valuemax="100">
-                                    {{ item.project.progress }}%
-                                </div>
-                            </div>
-                        </td>
-                        <td>{{ item.days_remaining }} jours</td>
-                        <td>
-                            {% if item.risk_level == 'high' %}
-                                <span class="badge bg-danger">Élevé</span>
-                            {% else %}
-                                <span class="badge bg-warning">Moyen</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.reason }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <section class="ac-card" style="margin-bottom:14px;padding:16px 18px;">
+                <h2 style="margin:0 0 8px;font-size:1rem;">Points de vigilance</h2>
+                <p style="margin:0;white-space:pre-wrap;color:#475569;font-size:.9rem;">{{ vigilance }}</p>
+            </section>
+
+            <div class="ac-kpis">
+                <a class="ac-kpi {% if gravite == 'critique' %}is-on{% endif %}" href="{% url 'decision_ai:delay_detection' %}{% if kpi_links.critique %}?{{ kpi_links.critique }}{% endif %}">
+                    <span class="ac-kpi-ico red"><i class="fas fa-bell"></i></span>
+                    <span>
+                        <span class="ac-kpi-label">Alertes critiques</span>
+                        <strong>{{ counts.critique }}</strong>
+                        <span class="ac-kpi-hint">requièrent une attention immédiate</span>
+                    </span>
+                    <i class="fas fa-chevron-right ac-kpi-go"></i>
+                </a>
+                <a class="ac-kpi {% if gravite == 'importante' %}is-on{% endif %}" href="{% url 'decision_ai:delay_detection' %}{% if kpi_links.importante %}?{{ kpi_links.importante }}{% endif %}">
+                    <span class="ac-kpi-ico orange"><i class="fas fa-exclamation"></i></span>
+                    <span>
+                        <span class="ac-kpi-label">Alertes importantes</span>
+                        <strong>{{ counts.importante }}</strong>
+                        <span class="ac-kpi-hint">à traiter sous peu</span>
+                    </span>
+                    <i class="fas fa-chevron-right ac-kpi-go"></i>
+                </a>
+                <a class="ac-kpi {% if gravite == 'info' %}is-on{% endif %}" href="{% url 'decision_ai:delay_detection' %}{% if kpi_links.info %}?{{ kpi_links.info }}{% endif %}">
+                    <span class="ac-kpi-ico blue"><i class="fas fa-info"></i></span>
+                    <span>
+                        <span class="ac-kpi-label">Infos</span>
+                        <strong>{{ counts.info }}</strong>
+                        <span class="ac-kpi-hint">informations générales</span>
+                    </span>
+                    <i class="fas fa-chevron-right ac-kpi-go"></i>
+                </a>
+                <a class="ac-kpi {% if gravite == 'resolu' %}is-on{% endif %}" href="{% url 'decision_ai:delay_detection' %}{% if kpi_links.resolu %}?{{ kpi_links.resolu }}{% endif %}">
+                    <span class="ac-kpi-ico green"><i class="fas fa-check"></i></span>
+                    <span>
+                        <span class="ac-kpi-label">Résolues</span>
+                        <strong>{{ counts.resolu }}</strong>
+                        <span class="ac-kpi-hint">cette semaine</span>
+                    </span>
+                    <i class="fas fa-chevron-right ac-kpi-go"></i>
+                </a>
+            </div>
+
+            <section class="ac-card">
+                <div class="ac-toolbar">
+                    <h2>Liste des alertes</h2>
+                    <form class="ac-toolbar-controls" method="get">
+                        {% if alert_type %}<input type="hidden" name="type" value="{{ alert_type }}">{% endif %}
+                        {% if statut %}<input type="hidden" name="statut" value="{{ statut }}">{% endif %}
+                        <select class="ac-select slim" name="gravite" aria-label="Toutes les alertes" onchange="this.form.submit()">
+                            {% for key, label in gravites %}
+                            <option value="{{ key }}" {% if gravite == key %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="ac-chip">
+                            <i class="far fa-calendar"></i>
+                            <span>{{ selected_short }}</span>
+                            <i class="fas fa-chevron-down chev"></i>
+                            <input type="date" name="date" value="{{ selected_iso }}" aria-label="Date des alertes" onchange="this.form.submit()">
+                        </label>
+                    </form>
+                </div>
+
+                <div class="ac-table-wrap">
+                    <table class="ac-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Titre</th>
+                                <th>Description</th>
+                                <th>Émetteur</th>
+                                <th>Date</th>
+                                <th>Statut</th>
+                                <th class="act">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in page_obj %}
+                            <tr>
+                                <td>
+                                    <span class="ac-type">
+                                        <span class="ac-type-ico {{ row.tone }}">
+                                            {% if row.icon == 'spark' %}
+                                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2l1.7 6.4L20.2 10 13.7 11.6 12 18l-1.7-6.4L3.8 10l6.5-1.4L12 2.2z"/></svg>
+                                            {% elif row.icon == 'check' %}
+                                            <i class="fas fa-check"></i>
+                                            {% elif row.icon == 'info' %}
+                                            <i class="fas fa-info"></i>
+                                            {% else %}
+                                            <i class="fas fa-exclamation"></i>
+                                            {% endif %}
+                                        </span>
+                                        {{ row.type_label }}
+                                    </span>
+                                </td>
+                                <td class="ac-task">{{ row.title }}</td>
+                                <td><div class="ac-desc">{{ row.description }}</div></td>
+                                <td>
+                                    <div class="ac-who">{{ row.emitter }}</div>
+                                    {% if row.role %}<div class="ac-role">({{ row.role }})</div>{% endif %}
+                                </td>
+                                <td class="ac-when">{{ row.date_label }}</td>
+                                <td><span class="ac-status {{ row.status_tone }}">{{ row.status_label }}</span></td>
+                                <td class="act">
+                                    <details class="ac-menu">
+                                        <summary aria-label="Actions"><i class="fas fa-ellipsis-vertical"></i></summary>
+                                        <div class="ac-menu-pop">
+                                            {% if row.url %}<a href="{{ row.url }}">Ouvrir le détail</a>{% endif %}
+                                            <form method="post" action="{% url 'decision_ai:delay_detection' %}{% if current_query %}?{{ current_query }}{% endif %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="key" value="{{ row.key }}">
+                                                <button type="submit" name="action" value="toggle">
+                                                    {% if row.status_key == 'resolu' %}Marquer comme non résolu{% else %}Marquer comme résolu{% endif %}
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td class="ac-empty" colspan="7">Aucune alerte pour ces filtres.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ac-foot">
+                    <span>Affichage de {{ range_start }} à {{ range_end }} sur {{ total }} alerte{{ total|pluralize }}</span>
+                    <div class="ac-pages">
+                        {% if page_obj.has_previous %}
+                        <a class="ac-pagebtn" href="?{{ filter_query }}{% if filter_query %}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="fas fa-chevron-left"></i></a>
+                        {% else %}
+                        <span class="ac-pagebtn is-off" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
+                        {% endif %}
+                        {% for num in page_numbers %}
+                        <a class="ac-pagebtn {% if num == page_obj.number %}is-on{% endif %}" href="?{{ filter_query }}{% if filter_query %}&{% endif %}page={{ num }}">{{ num }}</a>
+                        {% endfor %}
+                        {% if page_obj.has_next %}
+                        <a class="ac-pagebtn" href="?{{ filter_query }}{% if filter_query %}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="fas fa-chevron-right"></i></a>
+                        {% else %}
+                        <span class="ac-pagebtn is-off" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-            <p class="text-muted">Aucun projet à risque de retard détecté.</p>
-        </div>
-        {% endif %}
+
+        <aside class="ac-side">
+            <form class="ac-card ac-side-card" method="get">
+                {% if gravite %}<input type="hidden" name="gravite" value="{{ gravite }}">{% endif %}
+                <h3><i class="fas fa-filter"></i> Filtres</h3>
+                <div class="ac-field">
+                    <label for="alert-type">Type d'alerte</label>
+                    <select class="ac-select block" id="alert-type" name="type" onchange="this.form.submit()">
+                        <option value="">Tous les types</option>
+                        {% for key, label in alert_types %}
+                        <option value="{{ key }}" {% if alert_type == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ac-field">
+                    <label for="alert-status">Statut</label>
+                    <select class="ac-select block" id="alert-status" name="statut" onchange="this.form.submit()">
+                        <option value="">Tous les statuts</option>
+                        {% for key, label in alert_statuses %}
+                        <option value="{{ key }}" {% if statut == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ac-field">
+                    <label for="alert-date">Date</label>
+                    <div class="ac-date {% if date_filtered %}has-value{% endif %}">
+                        <i class="far fa-calendar"></i>
+                        <span>{% if date_filtered %}{{ selected_short }}{% else %}Sélectionner une date{% endif %}</span>
+                        {% if date_filtered %}
+                        <a class="ac-date-x" href="{% url 'decision_ai:delay_detection' %}?{% if alert_type %}type={{ alert_type }}&{% endif %}{% if statut %}statut={{ statut }}&{% endif %}{% if gravite %}gravite={{ gravite }}{% endif %}" aria-label="Effacer la date">&times;</a>
+                        {% endif %}
+                        <input id="alert-date" type="date" name="date" value="{% if date_filtered %}{{ selected_iso }}{% endif %}" onchange="this.form.submit()">
+                    </div>
+                </div>
+                <a class="ac-reset" href="{% url 'decision_ai:delay_detection' %}"><i class="fas fa-rotate-left"></i> Réinitialiser</a>
+            </form>
+
+            <section class="ac-card ac-side-card">
+                <h3>Répartition des alertes</h3>
+                <div class="ac-chart-row">
+                <div class="ac-ring {% if chart_total == 0 %}is-empty{% endif %}">
+                    <canvas id="acChart" width="132" height="132"
+                        data-critique="{{ counts.critique }}"
+                        data-importante="{{ counts.importante }}"
+                        data-info="{{ counts.info }}"
+                        data-resolu="{{ counts.resolu }}"></canvas>
+                    <div class="ac-hole">
+                        <strong>{{ chart_total }}</strong>
+                        <span>total</span>
+                    </div>
+                </div>
+                <ul class="ac-legend">
+                    <li><span class="ac-dot red"></span> Critiques <b>{{ counts.critique }}</b></li>
+                    <li><span class="ac-dot orange"></span> Importants <b>{{ counts.importante }}</b></li>
+                    <li><span class="ac-dot blue"></span> Infos <b>{{ counts.info }}</b></li>
+                    <li><span class="ac-dot green"></span> Résolues <b>{{ counts.resolu }}</b></li>
+                </ul>
+                </div>
+            </section>
+
+            <section class="ac-help">
+                <div class="ac-help-ico"><i class="far fa-lightbulb"></i></div>
+                <h3>Besoin d'une information ?</h3>
+                <p>Vous pouvez utiliser l'Assistant IA pour obtenir des réponses rapides sur vos alertes et vos données.</p>
+                <a href="{% url 'decision_ai:assistant' %}">Accéder à l'assistant →</a>
+                <svg class="ac-robot" viewBox="0 0 180 120" aria-hidden="true">
+                    <rect x="6" y="34" rx="16" width="58" height="36" fill="#ddd6fe"/>
+                    <circle cx="24" cy="52" r="3.2" fill="#7c3aed"/>
+                    <circle cx="35" cy="52" r="3.2" fill="#7c3aed"/>
+                    <circle cx="46" cy="52" r="3.2" fill="#7c3aed"/>
+                    <rect x="38" y="8" rx="14" width="46" height="30" fill="#c4b5fd"/>
+                    <circle cx="54" cy="23" r="2.6" fill="#6d28d9"/>
+                    <circle cx="66" cy="23" r="2.6" fill="#6d28d9"/>
+                    <rect x="108" y="40" rx="24" width="62" height="68" fill="#6366f1"/>
+                    <rect x="118" y="18" rx="16" width="42" height="32" fill="#818cf8"/>
+                    <circle cx="132" cy="34" r="4" fill="#fff"/>
+                    <circle cx="148" cy="34" r="4" fill="#fff"/>
+                    <circle cx="133" cy="35" r="1.6" fill="#312e81"/>
+                    <circle cx="149" cy="35" r="1.6" fill="#312e81"/>
+                    <rect x="128" y="64" rx="5" width="22" height="8" fill="#c7d2fe"/>
+                    <circle cx="124" cy="96" r="6" fill="#818cf8"/>
+                    <circle cx="154" cy="96" r="6" fill="#818cf8"/>
+                </svg>
+            </section>
+        </aside>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var canvas = document.getElementById('acChart');
+    if (canvas && typeof Chart !== 'undefined' && !canvas.parentElement.classList.contains('is-empty')) {
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Critiques', 'Importants', 'Infos', 'Résolues'],
+                datasets: [{
+                    data: [
+                        Number(canvas.dataset.critique || 0),
+                        Number(canvas.dataset.importante || 0),
+                        Number(canvas.dataset.info || 0),
+                        Number(canvas.dataset.resolu || 0)
+                    ],
+                    backgroundColor: ['#f43f5e', '#fb923c', '#60a5fa', '#34d399'],
+                    borderWidth: 0,
+                    spacing: 4,
+                    borderRadius: 8,
+                    hoverOffset: 2
+                }]
+            },
+            options: {
+                cutout: '72%',
+                responsive: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+    document.querySelectorAll('.ac-menu').forEach(function (menu) {
+        menu.addEventListener('toggle', function () {
+            var pop = menu.querySelector('.ac-menu-pop');
+            if (!menu.open || !pop) return;
+            var rect = menu.querySelector('summary').getBoundingClientRect();
+            pop.style.position = 'fixed';
+            pop.style.top = (rect.bottom + 6) + 'px';
+            pop.style.left = Math.max(8, rect.right - 190) + 'px';
+            pop.style.right = 'auto';
+        });
+    });
+    document.addEventListener('click', function (event) {
+        document.querySelectorAll('.ac-menu[open]').forEach(function (menu) {
+            if (!menu.contains(event.target)) menu.removeAttribute('open');
+        });
+    });
+});
+</script>
 {% endblock %}

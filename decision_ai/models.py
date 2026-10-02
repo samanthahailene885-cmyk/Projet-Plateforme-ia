@@ -24,6 +24,11 @@ class AISummary(models.Model):
         max_length=50,
         verbose_name=_('Type de résumé')
     )
+    reference_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name=_('Date concernée')
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,

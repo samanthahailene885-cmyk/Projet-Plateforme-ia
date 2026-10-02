@@ -1,110 +1,381 @@
 {% extends 'base.html' %}
 
-{% block title %}Employés - Plateforme de Gestion{% endblock %}
+{% block title %}Employés - RAC'IN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .emp-page { margin: -16px; min-height: 100vh; background: #f4f6fb; }
+    .emp-topbar {
+        height: 72px;
+        background: #fff;
+        border-bottom: 1px solid #e8edf5;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 22px;
+    }
+    .emp-search {
+        flex: 1;
+        max-width: 560px;
+        margin: 0 auto;
+        position: relative;
+    }
+    .emp-search i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+    .emp-search input, .emp-mini input, .emp-select {
+        width: 100%;
+        border: 1px solid #e6ebf2;
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 10px 12px 10px 38px;
+        font-size: 0.86rem;
+        color: #0f172a;
+        outline: none;
+    }
+    .emp-select { padding-left: 12px; background: #fff; }
+    .emp-top-actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+    .emp-bell {
+        width: 38px; height: 38px; border-radius: 12px; border: 1px solid #e6ebf2;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #475569; text-decoration: none; position: relative; background: #fff;
+    }
+    .emp-bell span {
+        position: absolute; top: 8px; right: 8px; width: 8px; height: 8px;
+        background: #ef4444; border-radius: 50%; border: 2px solid #fff;
+    }
+    .emp-date { color: #64748b; font-size: 0.84rem; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .emp-user { display: flex; align-items: center; gap: 10px; }
+    .emp-user strong { display: block; font-size: 0.86rem; color: #0f172a; line-height: 1.1; }
+    .emp-user small { color: #64748b; font-size: 0.74rem; }
+    .emp-avatar, .row-avatar {
+        width: 38px; height: 38px; border-radius: 50%; color: #fff;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 0.75rem; font-weight: 700; flex-shrink: 0; overflow: hidden;
+    }
+    .emp-avatar { background: #5b4dff; }
+    .row-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .emp-wrap { padding: 22px 24px 28px; }
+    .emp-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    .emp-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 292px;
+        gap: 16px;
+        align-items: start;
+    }
+    .emp-title { display: flex; gap: 12px; align-items: flex-start; }
+    .emp-title-icon {
+        width: 42px; height: 42px; border-radius: 14px; background: #efeaff; color: #6d4aff;
+        display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    }
+    .emp-title h1 { margin: 0; font-size: 1.55rem; font-weight: 750; letter-spacing: -0.03em; }
+    .emp-title p { margin: 2px 0 0; color: #64748b; font-size: 0.88rem; }
+    .emp-add {
+        background: #5b4dff; color: #fff; text-decoration: none; border-radius: 12px;
+        padding: 12px 16px; font-weight: 650; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 8px;
+        box-shadow: 0 8px 18px rgba(91, 77, 255, .22); flex-shrink: 0; white-space: nowrap;
+    }
+    .emp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .emp-kpi {
+        background: #fff; border: 1px solid #e8edf5; border-radius: 16px; padding: 16px;
+        display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;
+        min-height: 92px; min-width: 0; overflow: hidden;
+    }
+    .emp-kpi i.chev { margin-left: auto; color: #cbd5e1; font-size: 0.72rem; flex-shrink: 0; }
+    .kpi-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .kpi-icon.violet { background: #efeaff; color: #6d4aff; }
+    .kpi-icon.green { background: #e8f9ef; color: #16a34a; }
+    .kpi-icon.orange { background: #fff1e6; color: #f97316; }
+    .kpi-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .kpi-text em { font-style: normal; color: #64748b; font-size: 0.78rem; font-weight: 600; line-height: 1.2; }
+    .kpi-text b { font-size: 1.35rem; line-height: 1; color: #0f172a; }
+    .kpi-text span { color: #94a3b8; font-size: 0.72rem; }
+    .emp-card { background: #fff; border: 1px solid #e8edf5; border-radius: 18px; padding: 16px; min-width: 0; overflow: hidden; }
+    .emp-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; min-width: 0; }
+    .emp-tools .emp-search { margin: 0; max-width: none; flex: 1; min-width: 140px; }
+    .emp-tools .emp-select { width: auto; flex: 0 1 150px; min-width: 0; }
+    .emp-reset { color: #5b4dff; text-decoration: none; font-size: 0.82rem; font-weight: 650; white-space: nowrap; flex-shrink: 0; }
+    .emp-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .emp-table th { text-align: left; font-size: 0.75rem; color: #94a3b8; font-weight: 600; padding: 12px 8px; white-space: nowrap; }
+    .emp-table td { padding: 14px 8px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 0.84rem; overflow: hidden; }
+    .emp-table th:nth-child(1), .emp-table td:nth-child(1) { width: 28%; }
+    .emp-table th:nth-child(7), .emp-table td:nth-child(7) { width: 84px; white-space: nowrap; }
+    .emp-table td.clip { white-space: nowrap; text-overflow: ellipsis; }
+    .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .who > div { min-width: 0; }
+    .who strong, .who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .who strong { font-size: 0.86rem; color: #0f172a; }
+    .who small { color: #94a3b8; font-size: 0.75rem; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 0.75rem; font-weight: 650; white-space: nowrap; max-width: 100%; }
+    .pill.active { background: #e8f9ef; color: #15803d; }
+    .pill.absent, .pill.empty { background: #fee2e2; color: #dc2626; }
+    .pill.leave, .pill.progress { background: #fff1e6; color: #ea580c; }
+    .pill.other { background: #f1f5f9; color: #64748b; }
+    .pill.filled { background: #e8f9ef; color: #15803d; }
+    .act { width: 32px; height: 32px; border-radius: 10px; border: 1px solid #e6ebf2; background: #fff; color: #64748b; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    .emp-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 6px 2px; color: #94a3b8; font-size: 0.8rem; }
+    .pages a, .pages span { min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; text-decoration: none; color: #64748b; }
+    .pages .on { background: #5b4dff; color: #fff; }
+    .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .side h3 { font-size: 0.95rem; margin: 0 0 12px; display: flex; align-items: center; }
+    .vue-row { display: flex; align-items: center; gap: 12px; }
+    .donut-wrap { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+    .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
+    .donut-center b { font-size: 1.35rem; line-height: 1; color: #0f172a; }
+    .donut-center span { color: #64748b; font-size: 0.72rem; }
+    .legend { display: flex; flex-direction: column; gap: 10px; font-size: 0.78rem; color: #475569; flex: 1; min-width: 0; }
+    .legend div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .legend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .legend b { margin-left: auto; color: #0f172a; flex-shrink: 0; }
+    .side label { display: block; font-size: 0.75rem; color: #64748b; margin: 10px 0 6px; font-weight: 600; }
+    .side .emp-select, .emp-mini input { width: 100%; box-sizing: border-box; }
+    .help-card {
+        background: linear-gradient(180deg, #f5f3ff, #fff); border: 1px solid #e8edf5; border-radius: 18px; padding: 16px;
+    }
+    .help-card h3 { margin-bottom: 4px; }
+    .help-card p { color: #64748b; font-size: 0.8rem; margin: 0; }
+    @media (max-width: 1100px) {
+        .emp-grid, .emp-kpis { grid-template-columns: 1fr; }
+        .emp-tools { flex-wrap: wrap; }
+        .emp-date { display: none; }
+        .emp-head { align-items: flex-start; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Gestion des Employés</h2>
-    <a href="{% url 'employees:create' %}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Ajouter un employé
-    </a>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
-                {{ form.search }}
-            </div>
-            <div class="col-md-3">
-                {{ form.position }}
-            </div>
-            <div class="col-md-3">
-                {{ form.status }}
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-search me-2"></i>Filtrer
-                </button>
-            </div>
+<div class="emp-page">
+    <div class="emp-topbar">
+        <form class="emp-search" method="get" id="emp-filters">
+            <i class="fas fa-search"></i>
+            <input id="emp-top-search" type="search" value="{{ search_query }}" placeholder="Rechercher un employé, un projet, une tâche...">
         </form>
+        <div class="emp-top-actions">
+            <a class="emp-bell" href="{% url 'notifications:list' %}" title="Notifications"><i class="far fa-bell"></i><span></span></a>
+            <div class="emp-date"><i class="far fa-calendar"></i> {{ today_label }}</div>
+            <div class="emp-user">
+                <span class="emp-avatar">{{ admin_initials }}</span>
+                <div>
+                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                    <small>Responsable</small>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-body">
-        {% if employees %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Photo</th>
-                        <th>Nom complet</th>
-                        <th>Email</th>
-                        <th>Poste</th>
-                        <th>Département</th>
-                        <th>Statut</th>
-                        <th>Date d'embauche</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for employee in employees %}
-                    <tr>
-                        <td>
-                            {% if employee.user.photo %}
-                                <img src="{{ employee.user.photo.url }}" alt="{{ employee.full_name }}" class="rounded-circle" width="40" height="40">
-                            {% else %}
-                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    <i class="fas fa-user text-muted"></i>
+    <div class="emp-wrap">
+        <div class="emp-head">
+            <div class="emp-title">
+                <div class="emp-title-icon"><i class="fas fa-user-friends"></i></div>
+                <div>
+                    <h1>Employés</h1>
+                    <p>Gérez les membres de votre équipe et suivez leur activité.</p>
+                </div>
+            </div>
+            <a class="emp-add" href="{% url 'employees:create' %}"><i class="fas fa-plus"></i> Ajouter un employé</a>
+        </div>
+
+        <div class="emp-grid">
+        <div>
+            <div class="emp-kpis">
+                <a class="emp-kpi" href="{% url 'employees:list' %}"><span class="kpi-icon violet"><i class="fas fa-users"></i></span><span class="kpi-text"><em>Effectif total</em><b>{{ stats.total }}</b><span>employés</span></span><i class="fas fa-chevron-right chev"></i></a>
+                <a class="emp-kpi" href="?presence=active"><span class="kpi-icon green"><i class="fas fa-user-check"></i></span><span class="kpi-text"><em>Présents aujourd'hui</em><b>{{ stats.present }}</b><span>employés</span></span><i class="fas fa-chevron-right chev"></i></a>
+                <a class="emp-kpi" href="?presence=absent"><span class="kpi-icon orange"><i class="far fa-clock"></i></span><span class="kpi-text"><em>Absents aujourd'hui</em><b>{{ stats.absent }}</b><span>employés</span></span><i class="fas fa-chevron-right chev"></i></a>
+                <a class="emp-kpi" href="{% url 'employees:list' %}"><span class="kpi-icon violet"><i class="fas fa-user-plus"></i></span><span class="kpi-text"><em>Nouveaux ce mois</em><b>{{ stats.new_month }}</b><span>employé{{ stats.new_month|pluralize }}</span></span><i class="fas fa-chevron-right chev"></i></a>
+            </div>
+
+            <div class="emp-card">
+                <div class="emp-tools">
+                    <div class="emp-search">
+                        <i class="fas fa-search"></i>
+                        <input id="emp-table-search" form="emp-filters" type="search" name="search" value="{{ search_query }}" placeholder="Rechercher un employé...">
+                    </div>
+                    <select class="emp-select" form="emp-filters" name="service" onchange="document.getElementById('emp-filters').submit()">
+                        <option value="">Tous les services</option>
+                        {% for service in services %}
+                        <option value="{{ service }}" {% if service_filter == service %}selected{% endif %}>{{ service }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="emp-select" form="emp-filters" name="position" onchange="document.getElementById('emp-filters').submit()">
+                        <option value="">Tous les postes</option>
+                        {% for value, label in positions %}
+                        <option value="{{ value }}" {% if position_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="emp-select" form="emp-filters" name="presence" onchange="document.getElementById('emp-filters').submit()">
+                        <option value="">Tous les statuts</option>
+                        <option value="active" {% if presence_filter == 'active' %}selected{% endif %}>Actif</option>
+                        <option value="absent" {% if presence_filter == 'absent' %}selected{% endif %}>Absent</option>
+                        <option value="leave" {% if presence_filter == 'leave' %}selected{% endif %}>En congé</option>
+                        <option value="other" {% if presence_filter == 'other' %}selected{% endif %}>Inactif</option>
+                    </select>
+                    <a class="emp-reset" href="{% url 'employees:list' %}"><i class="fas fa-rotate-left"></i> Réinitialiser</a>
+                </div>
+
+                {% if employees %}
+                <table class="emp-table">
+                    <thead>
+                        <tr>
+                            <th>Employé</th>
+                            <th>Poste</th>
+                            <th>Service</th>
+                            <th>Statut</th>
+                            <th>Todo List du jour</th>
+                            <th>Dernière activité</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                        <tr>
+                            <td>
+                                <div class="who">
+                                    <span class="row-avatar" style="background: {{ employee.avatar_color }}">
+                                        {% if employee.user.photo %}<img src="{{ employee.user.photo.url }}" alt="">{% else %}{{ employee.initials }}{% endif %}
+                                    </span>
+                                    <div>
+                                        <strong>{{ employee.full_name }}</strong>
+                                        <small>{{ employee.email|default:employee.user.username }}</small>
+                                    </div>
                                 </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <strong>{{ employee.full_name }}</strong>
-                            <br>
-                            <small class="text-muted">@{{ employee.user.username }}</small>
-                        </td>
-                        <td>{{ employee.email }}</td>
-                        <td>{{ employee.get_position_display }}</td>
-                        <td>{{ employee.department|default:"-" }}</td>
-                        <td>
-                            {% if employee.status == 'active' %}
-                                <span class="badge bg-success">Actif</span>
-                            {% elif employee.status == 'inactive' %}
-                                <span class="badge bg-danger">Inactif</span>
+                            </td>
+                            <td class="clip">{{ employee.get_position_display }}</td>
+                            <td class="clip">{{ employee.service_label }}</td>
+                            <td><span class="pill {{ employee.presence_key }}">{{ employee.presence_label }}</span></td>
+                            <td>
+                                <span class="pill {{ employee.todo_key }}">
+                                    {% if employee.todo_key == 'filled' %}<i class="fas fa-check"></i>
+                                    {% elif employee.todo_key == 'progress' %}<i class="far fa-clock"></i>
+                                    {% else %}<i class="fas fa-circle"></i>{% endif %}
+                                    {{ employee.todo_label }}
+                                </span>
+                            </td>
+                            <td>{{ employee.activity_label }}</td>
+                            <td>
+                                <a class="act" href="{% url 'employees:detail' employee.pk %}" title="Voir"><i class="far fa-eye"></i></a>
+                                <a class="act" href="{% url 'employees:update' employee.pk %}" title="Modifier"><i class="fas fa-ellipsis"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="emp-foot">
+                    <span>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }} employé{{ page_obj.paginator.count|pluralize }}</span>
+                    <div class="pages">
+                        {% for number in page_obj.paginator.page_range %}
+                            {% if page_obj.number == number %}
+                            <span class="on">{{ number }}</span>
                             {% else %}
-                                <span class="badge bg-warning">En congé</span>
+                            <a href="?{{ querystring }}&page={{ number }}">{{ number }}</a>
                             {% endif %}
-                        </td>
-                        <td>{{ employee.hire_date|date:"d/m/Y" }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'employees:detail' employee.pk %}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'employees:update' employee.pk %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'employees:delete' employee.pk %}" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">Aucun employé ne correspond à ces filtres.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <aside class="side">
+            <div class="emp-card">
+                <h3><i class="fas fa-user" style="color:#6d4aff;margin-right:6px"></i>Vue rapide</h3>
+                <div class="vue-row">
+                    <div class="donut-wrap">
+                        <canvas id="empDonut"></canvas>
+                        <div class="donut-center"><b>{{ stats.total }}</b><span>employés</span></div>
+                    </div>
+                    <div class="legend">
+                        <div><i style="background:#14b8a6"></i><span>Actifs</span><b>{{ stats.present }}</b></div>
+                        <div><i style="background:#f97316"></i><span>Absents</span><b>{{ stats.absent }}</b></div>
+                        <div><i style="background:#ef4444"></i><span>En congé</span><b>{{ stats.leave }}</b></div>
+                        <div><i style="background:#a78bfa"></i><span>Autres</span><b>{{ stats.other }}</b></div>
+                    </div>
+                </div>
+            </div>
+            <div class="emp-card">
+                <h3><i class="fas fa-filter" style="color:#6d4aff;margin-right:6px"></i>Filtres</h3>
+                <label>Service</label>
+                <select class="emp-select" onchange="document.querySelector('#emp-filters [name=service]').value=this.value; document.getElementById('emp-filters').submit()">
+                    <option value="">Tous les services</option>
+                    {% for service in services %}
+                    <option value="{{ service }}" {% if service_filter == service %}selected{% endif %}>{{ service }}</option>
                     {% endfor %}
-                </tbody>
-            </table>
+                </select>
+                <label>Poste</label>
+                <select class="emp-select" onchange="document.querySelector('#emp-filters [name=position]').value=this.value; document.getElementById('emp-filters').submit()">
+                    <option value="">Tous les postes</option>
+                    {% for value, label in positions %}
+                    <option value="{{ value }}" {% if position_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <label>Statut</label>
+                <select class="emp-select" onchange="document.querySelector('#emp-filters [name=presence]').value=this.value; document.getElementById('emp-filters').submit()">
+                    <option value="">Tous les statuts</option>
+                    <option value="active" {% if presence_filter == 'active' %}selected{% endif %}>Actif</option>
+                    <option value="absent" {% if presence_filter == 'absent' %}selected{% endif %}>Absent</option>
+                    <option value="leave" {% if presence_filter == 'leave' %}selected{% endif %}>En congé</option>
+                    <option value="other" {% if presence_filter == 'other' %}selected{% endif %}>Inactif</option>
+                </select>
+                <label>Rechercher</label>
+                <div class="emp-mini" style="position:relative">
+                    <input id="emp-side-search" type="search" value="{{ search_query }}" placeholder="Nom, prénom ou email..." style="padding-left:12px">
+                </div>
+            </div>
+            <div class="help-card">
+                <h3><i class="far fa-lightbulb" style="color:#6d4aff"></i> Besoin d'une information ?</h3>
+                <p>Cliquez sur un employé pour voir son profil, ses activités et ses rapports.</p>
+            </div>
+        </aside>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-users fa-3x text-muted mb-3"></i>
-            <p class="text-muted">Aucun employé trouvé.</p>
-            <a href="{% url 'employees:create' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Ajouter le premier employé
-            </a>
-        </div>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var tableSearch = document.getElementById('emp-table-search');
+    var topSearch = document.getElementById('emp-top-search');
+    var sideSearch = document.getElementById('emp-side-search');
+    function bind(source) {
+        if (!source || !tableSearch) return;
+        source.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            tableSearch.value = source.value;
+            document.getElementById('emp-filters').submit();
+        });
+    }
+    bind(topSearch);
+    bind(sideSearch);
+    var el = document.getElementById('empDonut');
+    if (!el || typeof Chart === 'undefined') return;
+    var values = [{{ stats.present }}, {{ stats.absent }}, {{ stats.leave }}, {{ stats.other }}];
+    var empty = values.every(function (n) { return n === 0; });
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels: ['Actifs', 'Absents', 'En congé', 'Autres'],
+            datasets: [{
+                data: empty ? [1] : values,
+                backgroundColor: empty ? ['#e2e8f0'] : ['#14b8a6', '#f97316', '#ef4444', '#a78bfa'],
+                borderWidth: 0
+            }]
+        },
+        options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: !empty } }, maintainAspectRatio: false }
+    });
+})();
+</script>
 {% endblock %}

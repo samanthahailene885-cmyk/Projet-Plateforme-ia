@@ -1,261 +1,223 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ title }} - Plateforme de Gestion{% endblock %}
+{% block title %}{{ title }} - RAC'IN{% endblock %}
 
 {% block extra_css %}
 <style>
-    .form-label {
-        font-weight: 500;
-        color: var(--dark-color);
-        margin-bottom: 0.5rem;
+    .tf-page { max-width: 860px; margin: 0 auto; padding: 4px 4px 40px; }
+    .tf-head { margin-bottom: 18px; }
+    .tf-kicker { margin: 0 0 4px; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: #7DD3FC; font-weight: 700; }
+    .tf-head h1 { margin: 0 0 6px; font-size: 1.7rem; font-weight: 700; letter-spacing: -.03em; }
+    .tf-head p { margin: 0; color: #94A3B8; }
+    .tf-card { background: #0A2142; border: 1px solid #173B69; border-radius: 18px; padding: 22px; }
+    .tf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .tf-grid .span-2 { grid-column: 1 / -1; }
+    .tf-card label { display: block; margin-bottom: 6px; color: #CBD5E1; font-size: .8rem; font-weight: 650; }
+    .tf-card .form-control, .tf-card .form-select, .tf-card textarea, .tf-card select, .tf-card input[type="date"], .tf-card input[type="text"], .tf-card input[type="number"] {
+        width: 100%; min-height: 44px; background: #071A33 !important; color: #F8FAFC !important;
+        border: 1px solid #173B69 !important; border-radius: 12px !important; padding: 10px 12px;
     }
-    .form-control,
-    .form-select {
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 0.625rem 0.875rem;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
+    .tf-card textarea { min-height: 110px; }
+    .tf-error { margin: 6px 0 0; color: #FCA5A5; font-size: .75rem; }
+    .tf-drop {
+        margin-top: 8px; border: 1px dashed #2563EB; border-radius: 14px; background: rgba(37,99,235,.08);
+        padding: 22px 16px; text-align: center; color: #DBEAFE; cursor: pointer;
     }
-    .form-control:focus,
-    .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    .tf-drop strong { display: block; margin-bottom: 4px; }
+    .tf-drop small, .tf-note { color: #94A3B8; font-size: .78rem; }
+    .tf-drop input { display: none; }
+    .tf-files { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .tf-files li, .tf-doc {
+        display: flex; align-items: center; gap: 12px; background: #071A33; border: 1px solid #173B69; border-radius: 12px; padding: 10px 12px;
     }
-    .form-control::placeholder {
-        color: #9CA3AF;
+    .tf-files li span, .tf-doc span { flex: 1; min-width: 0; }
+    .tf-files button, .tf-doc button {
+        border: 0; background: transparent; color: #FCA5A5; cursor: pointer;
     }
-    .btn-primary {
-        background-color: var(--primary-color);
-        border: none;
-        padding: 0.625rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.2s ease;
+    .tf-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .tf-cancel, .tf-save {
+        min-height: 44px; border-radius: 12px; padding: 0 16px; display: inline-flex; align-items: center; font-weight: 650; text-decoration: none;
     }
-    .btn-primary:hover {
-        background-color: var(--secondary-color);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    }
-    .btn-secondary {
-        background-color: white;
-        border: 1px solid var(--border-color);
-        color: var(--dark-color);
-        padding: 0.625rem 1.25rem;
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    .btn-secondary:hover {
-        background-color: #F1F5F9;
-        border-color: var(--border-color);
-    }
-    .card {
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    .card-header {
-        background-color: white;
-        border-bottom: 1px solid var(--border-color);
-        padding: 1rem 1.5rem;
-        font-weight: 600;
-        color: var(--dark-color);
-    }
-    .card-body {
-        padding: 1.5rem;
-    }
-    .form-section {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .form-section:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
-    .section-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--dark-color);
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-    }
-    .section-title i {
-        margin-right: 0.5rem;
-        color: var(--primary-color);
-    }
+    .tf-cancel { border: 1px solid #173B69; color: #E2E8F0 !important; }
+    .tf-save { border: 0; background: #2563EB; color: #fff; }
+    .tf-section { margin-top: 18px; padding-top: 8px; }
+    .tf-section h2 { margin: 0 0 6px; font-size: 1rem; }
+    @media (max-width: 760px) { .tf-grid { grid-template-columns: 1fr; } .tf-grid .span-2 { grid-column: auto; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0" style="font-size: 1.5rem; font-weight: 600; color: var(--dark-color);">{{ title }}</h2>
-    <a href="{% url 'tasks:list' %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Retour
-    </a>
-</div>
-
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-tasks me-2" style="color: var(--primary-color);"></i>
-                Informations de la tâche
+<div class="tf-page">
+    <div class="tf-head">
+        <p class="tf-kicker">Attribution</p>
+        <h1>{{ title }}</h1>
+        <p>{% if is_admin_view %}La tâche sera visible dans l'espace de l'employé choisi.{% else %}Mettez à jour le statut et vos remarques.{% endif %}</p>
+    </div>
+    <form class="tf-card" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <p class="tf-error">{{ form.non_field_errors }}</p>
+        {% endif %}
+        <div class="tf-grid">
+            <div class="span-2">
+                <label for="{{ form.title.id_for_label }}">Titre de la tâche</label>
+                {{ form.title }}
+                {% if form.title.errors %}<p class="tf-error">{{ form.title.errors|striptags }}</p>{% endif %}
             </div>
-            <div class="card-body">
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    
-                    <div class="form-section">
-                        <div class="section-title">
-                            <i class="fas fa-info-circle"></i>
-                            Informations générales
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
-                                {{ form.title }}
-                                {% if form.title.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.title.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-12 mb-3">
-                                <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
-                                {{ form.description }}
-                                {% if form.description.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.description.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="section-title">
-                            <i class="fas fa-project-diagram"></i>
-                            Assignation
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.project.id_for_label }}" class="form-label">{{ form.project.label }}</label>
-                                {{ form.project }}
-                                {% if form.project.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.project.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.assigned_to.id_for_label }}" class="form-label">{{ form.assigned_to.label }}</label>
-                                {{ form.assigned_to }}
-                                {% if form.assigned_to.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.assigned_to.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="section-title">
-                            <i class="fas fa-flag"></i>
-                            Statut et priorité
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
-                                {{ form.status }}
-                                {% if form.status.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.status.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.priority.id_for_label }}" class="form-label">{{ form.priority.label }}</label>
-                                {{ form.priority }}
-                                {% if form.priority.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.priority.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="section-title">
-                            <i class="fas fa-calendar"></i>
-                            Délais et heures
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.due_date.id_for_label }}" class="form-label">{{ form.due_date.label }}</label>
-                                {{ form.due_date }}
-                                {% if form.due_date.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.due_date.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.estimated_hours.id_for_label }}" class="form-label">{{ form.estimated_hours.label }}</label>
-                                {{ form.estimated_hours }}
-                                {% if form.estimated_hours.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.estimated_hours.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.actual_hours.id_for_label }}" class="form-label">{{ form.actual_hours.label }}</label>
-                                {{ form.actual_hours }}
-                                {% if form.actual_hours.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.actual_hours.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="section-title">
-                            <i class="fas fa-comment"></i>
-                            Commentaires
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="{{ form.comments.id_for_label }}" class="form-label">{{ form.comments.label }}</label>
-                                {{ form.comments }}
-                                {% if form.comments.errors %}
-                                    <div class="text-danger" style="font-size: 0.85rem; margin-top: 0.25rem;">
-                                        {{ form.comments.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-2 mt-4">
-                        <a href="{% url 'tasks:list' %}" class="btn btn-secondary">
-                            <i class="fas fa-times me-2"></i>Annuler
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Enregistrer
-                        </button>
-                    </div>
-                </form>
+            {% if form.project %}
+            <div>
+                <label for="{{ form.project.id_for_label }}">Projet</label>
+                {{ form.project }}
+                {% if form.project.errors %}<p class="tf-error">{{ form.project.errors|striptags }}</p>{% endif %}
+            </div>
+            {% endif %}
+            {% if form.assigned_to %}
+            <div>
+                <label for="{{ form.assigned_to.id_for_label }}">Assigner à</label>
+                {{ form.assigned_to }}
+                {% if form.assigned_to.errors %}<p class="tf-error">{{ form.assigned_to.errors|striptags }}</p>{% endif %}
+            </div>
+            {% endif %}
+            <div class="span-2">
+                <label for="{{ form.description.id_for_label }}">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}<p class="tf-error">{{ form.description.errors|striptags }}</p>{% endif %}
+            </div>
+            {% if form.priority %}
+            <div>
+                <label for="{{ form.priority.id_for_label }}">Priorité</label>
+                {{ form.priority }}
+            </div>
+            {% endif %}
+            <div>
+                <label for="{{ form.status.id_for_label }}">Statut</label>
+                {{ form.status }}
+            </div>
+            {% if form.start_date %}
+            <div>
+                <label for="{{ form.start_date.id_for_label }}">Date de début</label>
+                {{ form.start_date }}
+            </div>
+            {% endif %}
+            {% if form.due_date %}
+            <div>
+                <label for="{{ form.due_date.id_for_label }}">Date limite</label>
+                {{ form.due_date }}
+                {% if form.due_date.errors %}<p class="tf-error">{{ form.due_date.errors|striptags }}</p>{% endif %}
+            </div>
+            {% endif %}
+            {% if form.planned_date %}
+            <div>
+                <label for="{{ form.planned_date.id_for_label }}">Jour de la todo list</label>
+                {{ form.planned_date }}
+            </div>
+            {% endif %}
+            {% if form.estimated_hours %}
+            <div>
+                <label for="{{ form.estimated_hours.id_for_label }}">Heures estimées</label>
+                {{ form.estimated_hours }}
+            </div>
+            {% endif %}
+            {% if form.actual_hours %}
+            <div>
+                <label for="{{ form.actual_hours.id_for_label }}">Heures réelles</label>
+                {{ form.actual_hours }}
+            </div>
+            {% endif %}
+            <div class="span-2">
+                <label for="{{ form.comments.id_for_label }}">{% if is_admin_view %}Instructions du responsable{% else %}Remarque{% endif %}</label>
+                {{ form.comments }}
             </div>
         </div>
-    </div>
+
+        {% if is_admin_view %}
+        <div class="tf-section">
+            <h2><i class="fas fa-paperclip"></i> Documents à transmettre</h2>
+            <p class="tf-note">PDF uniquement, 10 Mo maximum par fichier. Cahier des charges, brief, consignes ou maquette.</p>
+            <label class="tf-drop" id="pdf-drop" for="pdf-input">
+                <strong>Glissez-déposez votre PDF ici ou cliquez pour sélectionner un fichier</strong>
+                <small>Vous pouvez en ajouter plusieurs.</small>
+                <input id="pdf-input" type="file" name="documents" accept="application/pdf,.pdf" multiple>
+            </label>
+            <ul class="tf-files" id="pdf-list"></ul>
+            {% if documents %}
+            <div class="tf-files">
+                {% for document in documents %}
+                <div class="tf-doc">
+                    <i class="fas fa-file-pdf" style="color:#FCA5A5;"></i>
+                    <span>{{ document.original_name }}<small class="tf-note" style="display:block;">{{ document.size_label }}</small></span>
+                    <button form="delete-doc-{{ document.pk }}" type="submit" aria-label="Retirer {{ document.original_name }}"><i class="fas fa-trash"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="tf-actions">
+            <a class="tf-cancel" href="{% if task %}{% url 'tasks:detail' task.pk %}{% else %}{% url 'tasks:list' %}{% endif %}">Annuler</a>
+            <button class="tf-save" type="submit">{% if task %}Enregistrer{% else %}Créer la tâche{% endif %}</button>
+        </div>
+    </form>
+    {% if is_admin_view and documents %}
+        {% for document in documents %}
+        <form id="delete-doc-{{ document.pk }}" method="post" action="{% url 'tasks:document_delete' task.pk document.pk %}">{% csrf_token %}</form>
+        {% endfor %}
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if is_admin_view %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var input = document.getElementById('pdf-input');
+    var list = document.getElementById('pdf-list');
+    var drop = document.getElementById('pdf-drop');
+    if (!input || !list) return;
+    var store = new DataTransfer();
+
+    function render() {
+        list.innerHTML = '';
+        Array.from(store.files).forEach(function (file, index) {
+            var item = document.createElement('li');
+            var size = file.size < 1048576 ? (file.size / 1024).toFixed(1) + ' Ko' : (file.size / 1048576).toFixed(1) + ' Mo';
+            item.innerHTML = '<i class="fas fa-file-pdf" style="color:#FCA5A5"></i><span>' + file.name + '<small class="tf-note" style="display:block;">' + size + '</small></span>';
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = '<i class="fas fa-times"></i>';
+            button.setAttribute('aria-label', 'Retirer ' + file.name);
+            button.addEventListener('click', function () {
+                var next = new DataTransfer();
+                Array.from(store.files).forEach(function (current, currentIndex) {
+                    if (currentIndex !== index) next.items.add(current);
+                });
+                store = next;
+                input.files = store.files;
+                render();
+            });
+            item.appendChild(button);
+            list.appendChild(item);
+        });
+    }
+
+    input.addEventListener('change', function () {
+        Array.from(input.files).forEach(function (file) { store.items.add(file); });
+        input.files = store.files;
+        render();
+    });
+    ['dragover', 'dragenter'].forEach(function (name) {
+        drop.addEventListener(name, function (event) { event.preventDefault(); });
+    });
+    drop.addEventListener('drop', function (event) {
+        event.preventDefault();
+        Array.from(event.dataTransfer.files || []).forEach(function (file) {
+            if (file.name.toLowerCase().endsWith('.pdf')) store.items.add(file);
+        });
+        input.files = store.files;
+        render();
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

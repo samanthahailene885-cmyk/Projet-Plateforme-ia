@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rapport de {{ reading.name }} - WorkFlow{% endblock %}
+
+{% block extra_css %}
+{% include 'reports/_journal_css.html' %}
+<style>
+    .reader-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        max-width: 760px;
+    }
+    .reader-bar h1 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0;
+        color: #14151C;
+    }
+    .reader-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reader-bar">
+    <h1>Rapport journalier</h1>
+    <div class="reader-actions">
+        <a href="{% url 'reports:list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+        <a href="{% url 'reports:pdf' report.pk %}" class="btn btn-outline-primary">
+            <i class="fas fa-file-pdf me-2"></i>Télécharger le PDF
+        </a>
+    </div>
+</div>
+
+{% include 'reports/_journal.html' with journal_date=reading.date_label journal_name=reading.name bullets=reading.bullets editable=False %}
+{% endblock %}

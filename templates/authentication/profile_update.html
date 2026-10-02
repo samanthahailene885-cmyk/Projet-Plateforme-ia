@@ -1,25 +1,474 @@
 {% extends 'base.html' %}
 
-{% block title %}Modifier le Profil - Plateforme de Gestion{% endblock %}
+{% block title %}Modifier mon profil - RAC'IN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-page {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 6px 6px 36px;
+    }
+    .settings-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+    .settings-kicker {
+        margin: 0 0 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #7DD3FC;
+    }
+    .settings-head h1 {
+        margin: 0 0 6px;
+        font-size: 1.7rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+    }
+    .settings-head p {
+        margin: 0;
+        max-width: 520px;
+        color: #94A3B8;
+        font-size: 0.92rem;
+        line-height: 1.5;
+    }
+    .settings-layout {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+    }
+    .identity-card,
+    .settings-section {
+        background: #0A2142;
+        border: 1px solid #173B69;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+    }
+    .identity-card {
+        position: sticky;
+        top: 84px;
+        padding: 28px 22px 22px;
+        text-align: center;
+        overflow: hidden;
+    }
+    .identity-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        height: 92px;
+        background: linear-gradient(135deg, rgba(37, 99, 235, .45), rgba(56, 189, 248, .18) 55%, rgba(124, 58, 237, .28));
+    }
+    .avatar-ring {
+        position: relative;
+        width: 112px;
+        height: 112px;
+        margin: 28px auto 14px;
+        padding: 3px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #38BDF8, #2563EB 60%, #7C3AED);
+        box-shadow: 0 10px 24px rgba(37, 99, 235, .35);
+    }
+    .avatar-ring img,
+    .avatar-fallback {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #071A33;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #fff;
+    }
+    .identity-card h2 {
+        margin: 0 0 8px;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+    .role-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, .18);
+        color: #BFDBFE;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .identity-meta {
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+        text-align: left;
+    }
+    .identity-meta li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        padding: 10px 0;
+        border-top: 1px solid rgba(23, 59, 105, .9);
+        color: #CBD5E1;
+        font-size: 0.82rem;
+    }
+    .identity-meta li span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .identity-meta i {
+        width: 16px;
+        color: #38BDF8;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .completion {
+        margin-top: 16px;
+        text-align: left;
+    }
+    .completion-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 0.75rem;
+        color: #94A3B8;
+    }
+    .completion-label strong { color: #F8FAFC; }
+    .completion-track {
+        height: 6px;
+        border-radius: 999px;
+        background: #071A33;
+        overflow: hidden;
+    }
+    .completion-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #2563EB, #38BDF8);
+    }
+    .photo-actions {
+        margin-top: 16px;
+    }
+    .photo-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+    .photo-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px dashed #2563EB;
+        background: rgba(37, 99, 235, .12);
+        color: #DBEAFE;
+        font-size: 0.84rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .photo-btn:hover { background: rgba(37, 99, 235, .22); }
+    .photo-hint, .photo-name {
+        margin: 8px 0 0;
+        font-size: 0.72rem;
+        color: #94A3B8;
+    }
+    .settings-main { display: flex; flex-direction: column; gap: 16px; }
+    .settings-section { padding: 22px 22px 8px; }
+    .section-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .section-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, .16);
+        color: #93C5FD;
+        flex-shrink: 0;
+    }
+    .section-head h3 {
+        margin: 0 0 2px;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    .section-head p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #94A3B8;
+    }
+    .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 16px;
+    }
+    .field-grid .span-2 { grid-column: 1 / -1; }
+    .settings-page .field label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #CBD5E1;
+    }
+    .settings-page .form-control,
+    .settings-page .form-select {
+        min-height: 44px;
+        padding: 10px 12px;
+        background: #071A33 !important;
+        color: #F8FAFC !important;
+        border: 1px solid #173B69 !important;
+        border-radius: 12px !important;
+    }
+    .settings-page textarea.form-control { min-height: 72px; resize: vertical; }
+    .settings-page textarea.field-bio { min-height: 120px; }
+    .settings-page .form-control:focus,
+    .settings-page .form-select:focus {
+        border-color: #2563EB !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .28);
+    }
+    .settings-page input[type="date"] { color-scheme: dark; }
+    .field.is-invalid .form-control,
+    .field.is-invalid .form-select { border-color: #EF4444 !important; }
+    .field-error {
+        margin: 6px 0 0;
+        color: #FCA5A5;
+        font-size: 0.75rem;
+    }
+    .form-alert {
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(239, 68, 68, .12);
+        border: 1px solid rgba(239, 68, 68, .35);
+        color: #FECACA;
+        font-size: 0.85rem;
+    }
+    .settings-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 6px 2px 8px;
+    }
+    .btn-settings-ghost,
+    .btn-settings-save {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 12px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .btn-settings-ghost {
+        background: transparent;
+        color: #E2E8F0 !important;
+        border: 1px solid #173B69;
+    }
+    .btn-settings-ghost:hover { border-color: #38BDF8; color: #fff !important; }
+    .btn-settings-save {
+        background: #2563EB;
+        color: #fff !important;
+        border: 0;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, .28);
+    }
+    .btn-settings-save:hover { background: #1D4ED8; }
+    @media (max-width: 900px) {
+        .settings-layout, .field-grid { grid-template-columns: 1fr; }
+        .field-grid .span-2 { grid-column: auto; }
+        .identity-card { position: static; }
+        .settings-head, .settings-actions { flex-direction: column; align-items: stretch; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Modifier mon profil</h5>
-            </div>
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    {{ form.as_p }}
-                </form>
-                
-                <a href="{% url 'authentication:profile' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Retour
-                </a>
-            </div>
+<div class="settings-page">
+    <div class="settings-head">
+        <div>
+            <p class="settings-kicker">Paramètres du compte</p>
+            <h1>Modifier mon profil</h1>
+            <p>Ces informations apparaissent sur votre fiche et dans les échanges avec l'équipe.</p>
         </div>
     </div>
+
+    <form method="post" enctype="multipart/form-data" class="settings-layout">
+        {% csrf_token %}
+
+        <aside class="identity-card">
+            <div class="avatar-ring">
+                {% if user.photo %}
+                <img id="avatar-preview" src="{{ user.photo.url }}" alt="Photo de {{ user.get_full_name|default:user.username }}">
+                <span id="avatar-fallback" class="avatar-fallback" hidden>{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</span>
+                {% else %}
+                <img id="avatar-preview" alt="" hidden>
+                <span id="avatar-fallback" class="avatar-fallback">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</span>
+                {% endif %}
+            </div>
+            <h2>{{ user.get_full_name|default:user.username }}</h2>
+            <span class="role-pill"><i class="fas fa-briefcase"></i> {{ position_label }}</span>
+
+            <ul class="identity-meta">
+                <li><i class="fas fa-envelope"></i> <span title="{{ user.email }}">{{ user.email|default:"E-mail non renseigné" }}</span></li>
+                <li><i class="fas fa-phone"></i> <span>{{ user.phone|default:"Téléphone non renseigné" }}</span></li>
+            </ul>
+
+            <div class="completion">
+                <div class="completion-label">
+                    <span>Profil complété</span>
+                    <strong>{{ profile_completion }}%</strong>
+                </div>
+                <div class="completion-track" aria-hidden="true">
+                    <span style="width: {{ profile_completion }}%;"></span>
+                </div>
+            </div>
+
+            <div class="photo-actions">
+                {{ form.photo }}
+                <label class="photo-btn" for="{{ form.photo.id_for_label }}">
+                    <i class="fas fa-camera"></i> Changer la photo
+                </label>
+                <p class="photo-name" id="photo-name"></p>
+                <p class="photo-hint">JPG ou PNG, de préférence carrée.</p>
+                {% if form.photo.errors %}
+                <p class="field-error">{{ form.photo.errors|striptags }}</p>
+                {% endif %}
+            </div>
+        </aside>
+
+        <div class="settings-main">
+            {% if form.non_field_errors %}
+            <div class="form-alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <section class="settings-section">
+                <div class="section-head">
+                    <div class="section-icon"><i class="fas fa-user"></i></div>
+                    <div>
+                        <h3>Identité</h3>
+                        <p>Le nom affiché sur votre espace et vos documents.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field {% if form.first_name.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<p class="field-error">{{ form.first_name.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div class="field {% if form.last_name.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<p class="field-error">{{ form.last_name.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div class="field {% if form.gender.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}<p class="field-error">{{ form.gender.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div class="field {% if form.birth_date.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.birth_date.id_for_label }}">{{ form.birth_date.label }}</label>
+                        {{ form.birth_date }}
+                        {% if form.birth_date.errors %}<p class="field-error">{{ form.birth_date.errors|striptags }}</p>{% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <div class="section-head">
+                    <div class="section-icon"><i class="fas fa-address-book"></i></div>
+                    <div>
+                        <h3>Coordonnées</h3>
+                        <p>Comment l'équipe peut vous joindre.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field {% if form.email.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<p class="field-error">{{ form.email.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div class="field {% if form.phone.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<p class="field-error">{{ form.phone.errors|striptags }}</p>{% endif %}
+                    </div>
+                    <div class="field span-2 {% if form.address.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.address.id_for_label }}">{{ form.address.label }}</label>
+                        {{ form.address }}
+                        {% if form.address.errors %}<p class="field-error">{{ form.address.errors|striptags }}</p>{% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <div class="section-head">
+                    <div class="section-icon"><i class="fas fa-align-left"></i></div>
+                    <div>
+                        <h3>Présentation</h3>
+                        <p>Un court texte visible sur votre profil.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field span-2 {% if form.bio.errors %}is-invalid{% endif %}">
+                        <label for="{{ form.bio.id_for_label }}">{{ form.bio.label }}</label>
+                        {{ form.bio }}
+                        {% if form.bio.errors %}<p class="field-error">{{ form.bio.errors|striptags }}</p>{% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <div class="settings-actions">
+                <a class="btn-settings-ghost" href="{% url 'authentication:profile' %}">Annuler</a>
+                <button class="btn-settings-save" type="submit">
+                    <i class="fas fa-check"></i> Enregistrer les modifications
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var input = document.getElementById('{{ form.photo.id_for_label }}');
+    var preview = document.getElementById('avatar-preview');
+    var fallback = document.getElementById('avatar-fallback');
+    var name = document.getElementById('photo-name');
+    if (!input || !preview) return;
+    input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+        if (fallback) fallback.hidden = true;
+        if (name) name.textContent = file.name;
+    });
+});
+</script>
 {% endblock %}

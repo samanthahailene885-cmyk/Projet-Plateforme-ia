@@ -1,827 +1,548 @@
 {% extends 'base.html' %}
 
-{% block title %}Tableau de bord - WorkFlow{% endblock %}
+{% block title %}Tableau de bord - RAC'IN{% endblock %}
+{% block body_class %}dash-dark{% endblock %}
+
+{% block sidebar_card %}
+<div class="racin-ai">
+    <div class="racin-ai-icon"><i class="fas fa-robot"></i></div>
+    <h6>Assistant IA</h6>
+    <p>Posez vos questions et obtenez des analyses basées sur les données de votre plateforme.</p>
+    <a class="racin-ai-btn" href="{% url 'decision_ai:assistant' %}">Ouvrir l'assistant →</a>
+    <a class="racin-logout" href="{% url 'authentication:logout' %}">Déconnexion</a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <style>
-    :root {
-        --wf-accent: #2563eb;
-        --wf-accent-light: #eff6ff;
-        --wf-green: #22c55e;
-        --wf-green-light: #dcfce7;
-        --wf-orange: #f97316;
-        --wf-orange-light: #ffedd5;
-        --wf-red: #ef4444;
-        --wf-red-light: #fee2e2;
-        --wf-yellow: #eab308;
-        --wf-yellow-light: #fef9c3;
-        --wf-bg: #f1f5f9;
-        --wf-card: #ffffff;
-        --wf-text: #1e293b;
-        --wf-text-muted: #64748b;
-        --wf-border: #e2e8f0;
-    }
+    body.dash-dark { background: #06152F; color: #F5F7FA; }
+    body.dash-dark .racin-content { background: #06152F; color: #F5F7FA; padding: 18px 22px 32px; }
+    body.dash-dark .sidebar-racin { background: #041126; }
+    body.dash-dark .sidebar-racin .nav-link.active { background: #2563EB; box-shadow: none; }
+    body.dash-dark.dash-collapsed .sidebar-racin { transform: translateX(-105%); }
+    body.dash-dark.dash-collapsed .app-row > .racin-content,
+    body.dash-dark.dash-collapsed .racin-content { margin-left: 0; width: 100%; max-width: 100%; }
 
-    .dash-page { padding: 0 4px 32px; }
-
-    /* ── Header ── */
-    .dash-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 16px;
+    .sup-top, .sup-title-row, .sup-kpis, .sup-grid, .sup-bottom { margin-bottom: 16px; }
+    .sup-top, .sup-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .sup-search {
+        display: flex; align-items: center; gap: 10px; flex: 1; max-width: 520px;
+        background: #0A2142; border: 1px solid #173B69; border-radius: 10px; padding: 0 14px; height: 42px;
     }
-    .dash-title {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--wf-text);
-        margin: 0 0 4px;
-        letter-spacing: -0.02em;
+    .sup-search input { flex: 1; background: transparent; border: 0; outline: 0; color: #F5F7FA; font-size: 14px; }
+    .sup-search input::placeholder { color: #8FA8C7; }
+    .sup-search i, .sup-muted { color: #8FA8C7; }
+    .sup-tools { display: flex; align-items: center; gap: 10px; }
+    .sup-chip, .sup-icon-btn, .sup-select, .sup-date {
+        background: #0A2142; border: 1px solid #173B69; color: #F5F7FA; border-radius: 10px; height: 42px;
     }
-    .dash-subtitle {
-        font-size: 0.875rem;
-        color: var(--wf-text-muted);
-        margin: 0;
+    .sup-chip { display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; }
+    .sup-icon-btn {
+        width: 42px; display: inline-flex; align-items: center; justify-content: center; position: relative;
+        color: #F5F7FA; text-decoration: none;
     }
-    .dash-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
+    .sup-badge {
+        position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; border-radius: 99px;
+        background: #EF4444; color: white; font-size: 10px; display: flex; align-items: center; justify-content: center;
     }
-    .dash-search {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--wf-card);
-        border: 1px solid var(--wf-border);
-        border-radius: 10px;
-        padding: 8px 14px;
-        min-width: 260px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    .sup-user { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+    .sup-avatar {
+        width: 38px; height: 38px; border-radius: 50%; background: #2563EB; display: flex; align-items: center;
+        justify-content: center; font-weight: 700; font-size: 13px;
     }
-    .dash-search input {
-        border: none;
-        outline: none;
-        font-size: 0.85rem;
-        width: 100%;
-        background: transparent;
-        color: var(--wf-text);
+    .sup-user strong { display: block; font-size: 13px; }
+    .sup-user span { display: block; color: #8FA8C7; font-size: 11px; }
+    .sup-title-row h1 { margin: 0; font-size: 24px; font-weight: 700; }
+    .sup-title-row p { margin: 4px 0 0; color: #8FA8C7; font-size: 14px; }
+    .sup-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .sup-date, .sup-select { padding: 0 12px; font-size: 13px; }
+    .sup-ai {
+        border: 0; height: 42px; padding: 0 16px; border-radius: 10px; color: white; font-weight: 700; cursor: pointer;
+        background: linear-gradient(90deg, #2563EB, #7C3AED);
     }
-    .dash-search i { color: var(--wf-text-muted); font-size: 0.85rem; }
-    .dash-date-picker {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--wf-card);
-        border: 1px solid var(--wf-border);
-        border-radius: 10px;
-        padding: 8px 14px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: var(--wf-text);
-        box-shadow: 0 1px 3px rgba(0,0,0,.04);
-        white-space: nowrap;
+    .sup-ai:disabled { opacity: .7; cursor: wait; }
+    .sup-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .sup-kpi {
+        background: #0A2142; border: 1px solid #173B69; border-radius: 14px; padding: 14px 16px;
+        text-decoration: none; color: inherit; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+        display: flex; align-items: center; gap: 12px; min-height: 92px;
     }
-    .dash-notif-btn {
-        position: relative;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        border: 1px solid var(--wf-border);
-        background: var(--wf-card);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--wf-text-muted);
-        text-decoration: none;
-        box-shadow: 0 1px 3px rgba(0,0,0,.04);
-        transition: background .15s;
+    .sup-kpi:hover { border-color: #2563EB; color: inherit; }
+    .sup-kpi h3 { margin: 0 0 4px; font-size: 13px; color: #94A3B8; font-weight: 600; }
+    .sup-kpi strong { font-size: 26px; line-height: 1; font-weight: 700; }
+    .sup-kpi-total { color: #94A3B8; font-size: 16px; font-weight: 600; }
+    .sup-trend { margin: 6px 0 0; font-size: 12px; font-weight: 600; }
+    .trend-up { color: #10B981; }
+    .trend-down { color: #EF4444; }
+    .trend-flat { color: #94A3B8; }
+    .sup-ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; font-size: 16px; }
+    .ico-blue { background: rgba(37,99,235,.18); color: #38BDF8; }
+    .ico-violet { background: rgba(124,58,237,.18); color: #A78BFA; }
+    .ico-green { background: rgba(16,185,129,.18); color: #10B981; }
+    .ico-orange { background: rgba(245,158,11,.18); color: #F59E0B; }
+    .ico-red { background: rgba(239,68,68,.18); color: #EF4444; }
+    .sup-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(260px, .85fr); gap: 12px; align-items: stretch; }
+    .sup-grid > div { display: flex; min-width: 0; }
+    .sup-grid > div > .sup-card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .sup-mid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(220px, .8fr) minmax(260px, 1.05fr); gap: 12px; margin-bottom: 16px; align-items: stretch; }
+    .task-watch { grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); }
+    .state-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .state-row a { text-decoration: none; background: #071A33; border: 1px solid #173B69; border-radius: 12px; padding: 12px 8px; text-align: center; color: #F8FAFC; }
+    .state-row b { display: block; font-size: 1.25rem; }
+    .state-row span { color: #94A3B8; font-size: 12px; }
+    .sup-card { background: #0A2142; border: 1px solid #173B69; border-radius: 12px; padding: 16px 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }
+    .sup-card h2 { margin: 0; font-size: 16px; font-weight: 700; }
+    .sup-card .sub { margin: 4px 0 12px; color: #8FA8C7; font-size: 12px; }
+    .sup-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .sup-link { color: #38BDF8; font-size: 12px; text-decoration: none; font-weight: 600; }
+    .sup-chart { position: relative; height: 260px; width: 100%; max-width: 100%; }
+    .sup-chart canvas { max-width: 100% !important; }
+    .sup-chart.donut { height: 168px; width: 168px; margin: 0 auto; }
+    .sup-empty { color: #8FA8C7; font-size: 13px; padding: 28px 8px; text-align: center; }
+    .sup-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font-size: 12px; color: #8FA8C7; }
+    .sup-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .sup-donut-layout { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+    .sup-card, .sup-grid, .sup-mid, .sup-kpis, .sup-bottom, .sup-title-row { min-width: 0; }
+    .bar-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sup-donut-legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+    .sup-donut-legend div { display: flex; justify-content: space-between; gap: 8px; }
+    .sup-bottom { display: grid; grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr); gap: 12px; align-items: stretch; }
+    .attn { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(23,59,105,.7); text-decoration: none; color: #F8FAFC; }
+    .attn:last-of-type { border-bottom: 0; }
+    .attn-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .attn-ico.red { background: rgba(239,68,68,.16); color: #FCA5A5; }
+    .attn-ico.orange { background: rgba(245,158,11,.16); color: #FCD34D; }
+    .attn-ico.blue { background: rgba(56,189,248,.16); color: #7DD3FC; }
+    .attn span { flex: 1; font-size: 14px; }
+    .attn i.fa-chevron-right { color: #94A3B8; font-size: 12px; }
+    .feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(23,59,105,.7); text-decoration: none; color: #F8FAFC; }
+    .feed-item:last-child { border-bottom: 0; }
+    body.dash-dark .racin-content .feed-item,
+    body.dash-dark .racin-content .feed-item strong,
+    body.dash-dark .racin-content .attn,
+    body.dash-dark .racin-content .attn strong { color: #F8FAFC; }
+    .feed-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex: none; }
+    .feed-main { flex: 1; min-width: 0; }
+    .feed-main strong { display: block; font-size: 13px; }
+    .feed-main span { display: block; color: #94A3B8; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .feed-side { text-align: right; flex: none; }
+    .feed-side small { display: block; color: #94A3B8; font-size: 11px; margin-bottom: 4px; }
+    .sup-band-copy .sup-ai { margin-top: 12px; }
+    .sup-band-copy h2 { margin: 0 0 6px; font-size: 16px; }
+    .sup-band-copy p, .sup-band-note p { margin: 0; color: #94A3B8; font-size: 13px; line-height: 1.5; }
+    .sup-band-icon { width: 48px; height: 48px; border-radius: 14px; background: rgba(37,99,235,.2); color: #38BDF8; display: flex; align-items: center; justify-content: center; font-size: 20px; flex: none; }
+    .sup-band-ai, .sup-band-note { display: flex; gap: 14px; align-items: flex-start; }
+    .sup-band-note { flex-direction: column; gap: 8px; }
+    .bar-row { display: grid; grid-template-columns: minmax(90px, 1.1fr) minmax(0, 2fr) 28px; gap: 10px; align-items: center; margin: 10px 0; font-size: 13px; }
+    .bar-track { height: 8px; border-radius: 99px; background: #071A33; overflow: hidden; }
+    .bar-track span { display: block; height: 100%; border-radius: 99px; background: #2563EB; }
+    .bar-row b { text-align: right; font-size: 13px; }
+    .sup-table-wrap { overflow-x: auto; }
+    .sup-table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    .sup-table th { text-align: left; font-size: 11px; color: #8FA8C7; font-weight: 600; padding: 8px; border-bottom: 1px solid #173B69; }
+    .sup-table td { padding: 12px 8px; border-bottom: 1px solid rgba(23,59,105,.7); font-size: 13px; vertical-align: middle; }
+    .sup-table a { color: #F5F7FA; text-decoration: none; }
+    .sup-pill { display: inline-flex; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; }
+    .st-done { background: rgba(16,185,129,.16); color: #10B981; }
+    .st-progress { background: rgba(245,158,11,.16); color: #F59E0B; }
+    .st-todo { background: rgba(56,189,248,.16); color: #38BDF8; }
+    .st-wait { background: rgba(124,58,237,.16); color: #C4B5FD; }
+    .st-late { background: rgba(239,68,68,.16); color: #FCA5A5; }
+    .sup-alert { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid rgba(23,59,105,.7); text-decoration: none; color: inherit; }
+    .sup-alert:last-child { border-bottom: 0; }
+    .sup-alert strong { display: block; font-size: 13px; }
+    .sup-alert p { margin: 2px 0 0; color: #8FA8C7; font-size: 12px; }
+    .sup-alert small { color: #8FA8C7; }
+    .lvl-high { color: #EF4444; }
+    .lvl-medium { color: #F59E0B; }
+    .lvl-low { color: #38BDF8; }
+    .sup-status { margin-top: 12px; border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+    .sup-status.loading { background: #0D2850; color: #38BDF8; }
+    .sup-status.err { background: rgba(239,68,68,.12); color: #FCA5A5; }
+    .sup-status.ok { background: rgba(16,185,129,.12); color: #6EE7B7; }
+    .sup-sheet { margin-top: 14px; background: #071A33; border: 1px solid #173B69; border-radius: 12px; padding: 18px; }
+    .sup-sheet h3 { margin: 16px 0 6px; font-size: 15px; }
+    .sup-sheet p { margin: 0 0 8px; line-height: 1.6; color: #E5EDF7; }
+    .sup-sheet-kicker { color: #A78BFA; font-weight: 800; letter-spacing: .04em; font-size: 12px; }
+    @media (max-width: 1100px) {
+        .sup-grid, .sup-mid, .sup-bottom, .sup-donut-layout, .state-row { grid-template-columns: 1fr; }
     }
-    .dash-notif-btn:hover { background: var(--wf-bg); color: var(--wf-accent); }
-    .dash-notif-badge {
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        background: var(--wf-red);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* ── KPI Cards ── */
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 14px;
-        margin-bottom: 20px;
-    }
-    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 768px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-    .kpi-card {
-        background: var(--wf-card);
-        border: 1px solid var(--wf-border);
-        border-radius: 12px;
-        padding: 16px 18px;
-        box-shadow: 0 1px 4px rgba(0,0,0,.04);
-    }
-    .kpi-card-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 10px;
-    }
-    .kpi-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-    }
-    .kpi-icon.blue { background: var(--wf-accent-light); color: var(--wf-accent); }
-    .kpi-icon.green { background: var(--wf-green-light); color: var(--wf-green); }
-    .kpi-icon.orange { background: var(--wf-orange-light); color: var(--wf-orange); }
-    .kpi-icon.purple { background: #f3e8ff; color: #9333ea; }
-    .kpi-icon.red { background: var(--wf-red-light); color: var(--wf-red); }
-    .kpi-label { font-size: 0.78rem; color: var(--wf-text-muted); font-weight: 500; }
-    .kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--wf-text); line-height: 1; margin-bottom: 2px; }
-    .kpi-sub { font-size: 0.72rem; color: var(--wf-text-muted); }
-
-    /* ── Charts row ── */
-    .charts-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-    @media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
-
-    .wf-card {
-        background: var(--wf-card);
-        border: 1px solid var(--wf-border);
-        border-radius: 12px;
-        padding: 20px 22px;
-        box-shadow: 0 1px 4px rgba(0,0,0,.04);
-    }
-    .wf-card-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--wf-text);
-        margin: 0 0 16px;
-    }
-    .chart-wrap {
-        position: relative;
-        height: 200px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .chart-wrap canvas { max-height: 180px; }
-    .chart-legend {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 12px;
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 0.78rem;
-        color: var(--wf-text-muted);
-    }
-    .legend-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 8px;
-        flex-shrink: 0;
-    }
-    .legend-left { display: flex; align-items: center; }
-    .wf-card-footer {
-        margin-top: 14px;
-        padding-top: 12px;
-        border-top: 1px solid var(--wf-border);
-        text-align: center;
-    }
-    .wf-card-footer a {
-        font-size: 0.82rem;
-        color: var(--wf-accent);
-        text-decoration: none;
-        font-weight: 500;
-    }
-    .wf-card-footer a:hover { text-decoration: underline; }
-
-    /* Productivity card */
-    .prod-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 8px;
-    }
-    .prod-select {
-        font-size: 0.75rem;
-        color: var(--wf-text-muted);
-        border: 1px solid var(--wf-border);
-        border-radius: 6px;
-        padding: 3px 8px;
-        background: var(--wf-bg);
-    }
-    .prod-rate {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--wf-text);
-        line-height: 1;
-    }
-    .prod-rate-label { font-size: 0.75rem; color: var(--wf-text-muted); margin-bottom: 8px; }
-    .prod-trend {
-        font-size: 0.78rem;
-        font-weight: 600;
-        margin-bottom: 12px;
-    }
-    .prod-trend.up { color: var(--wf-green); }
-    .prod-trend.down { color: var(--wf-red); }
-    .prod-chart-wrap { height: 120px; }
-
-    /* ── Lists row ── */
-    .lists-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-    @media (max-width: 992px) { .lists-grid { grid-template-columns: 1fr; } }
-
-    .list-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid var(--wf-border);
-    }
-    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .list-avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: var(--wf-accent-light);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--wf-accent);
-        flex-shrink: 0;
-        overflow: hidden;
-    }
-    .list-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .list-info { flex: 1; min-width: 0; }
-    .list-name { font-size: 0.85rem; font-weight: 600; color: var(--wf-text); margin: 0; }
-    .list-meta { font-size: 0.75rem; color: var(--wf-text-muted); margin: 0; }
-    .status-badge {
-        font-size: 0.7rem;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 20px;
-        white-space: nowrap;
-    }
-    .status-badge.pending { background: var(--wf-yellow-light); color: #a16207; }
-    .status-badge.received { background: var(--wf-green-light); color: #15803d; }
-    .status-badge.overdue { background: var(--wf-red-light); color: var(--wf-red); }
-    .empty-list {
-        text-align: center;
-        padding: 24px 0;
-        color: var(--wf-text-muted);
-        font-size: 0.85rem;
-    }
-
-    /* ── AI Section ── */
-    .ai-section {
-        background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
-        border-radius: 14px;
-        padding: 22px 24px;
-        color: white;
-    }
-    .ai-section-title {
-        font-size: 1rem;
-        font-weight: 600;
-        margin: 0 0 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .ai-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr 280px;
-        gap: 14px;
-        align-items: start;
-    }
-    @media (max-width: 1100px) { .ai-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 768px) { .ai-grid { grid-template-columns: 1fr; } }
-    .ai-insight {
-        background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.18);
-        border-radius: 10px;
-        padding: 14px 16px;
-    }
-    .ai-insight p {
-        font-size: 0.82rem;
-        line-height: 1.5;
-        margin: 0 0 8px;
-        color: rgba(255,255,255,.92);
-    }
-    .ai-insight a {
-        font-size: 0.78rem;
-        color: rgba(255,255,255,.85);
-        text-decoration: underline;
-    }
-    .ai-chat-box {
-        background: white;
-        border-radius: 10px;
-        padding: 14px;
-    }
-    .ai-chat-label {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: var(--wf-text);
-        margin-bottom: 8px;
-    }
-    .ai-chat-input-wrap {
-        display: flex;
-        gap: 8px;
-    }
-    .ai-chat-input-wrap input {
-        flex: 1;
-        border: 1px solid var(--wf-border);
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 0.82rem;
-        outline: none;
-    }
-    .ai-chat-input-wrap input:focus { border-color: var(--wf-accent); }
-    .ai-chat-send {
-        width: 38px;
-        height: 38px;
-        border-radius: 8px;
-        background: var(--wf-accent);
-        border: none;
-        color: white;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: background .15s;
-    }
-    .ai-chat-send:hover { background: #1d4ed8; }
-    #ai-response {
-        margin-top: 8px;
-        font-size: 0.78rem;
-        color: var(--wf-text-muted);
-        display: none;
+    @media (max-width: 900px) {
+        body.dash-dark .sidebar-racin { transform: translateX(-105%); }
+        body.dash-dark .app-row > .racin-content, body.dash-dark .racin-content { margin-left: 0; width: 100%; max-width: 100%; }
+        body.dash-dark.dash-open .sidebar-racin { transform: none; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dash-page">
-
-    <!-- Header -->
-    <div class="dash-header">
-        <div>
-            <h1 class="dash-title">Tableau de bord</h1>
-            <p class="dash-subtitle">Bienvenue {{ user.first_name }}, voici la situation de votre équipe aujourd'hui.</p>
-        </div>
-        <div class="dash-header-actions">
-            <div class="dash-search">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Rechercher (employé, projet, tâche…)" id="dash-search-input">
-            </div>
-            <div class="dash-date-picker">
-                <i class="fas fa-calendar-alt"></i>
-                {{ today_formatted }}
-            </div>
-            <a href="{% url 'notifications:list' %}" class="dash-notif-btn">
-                <i class="fas fa-bell"></i>
-                {% if unread_notifications %}
-                <span class="dash-notif-badge">{{ unread_notifications }}</span>
-                {% endif %}
-            </a>
-        </div>
+<form id="dash-filters" method="get"></form>
+<div class="sup-top">
+    <button class="sup-icon-btn" type="button" id="dash-menu" aria-label="Menu"><i class="fas fa-bars"></i></button>
+    <form class="sup-search" method="get" action="{% url 'dashboard:search' %}">
+        <i class="fas fa-search"></i>
+        <input type="search" name="q" placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche">
+    </form>
+    <div class="sup-tools">
+        <div class="sup-chip"><i class="far fa-calendar"></i> {{ today_formatted }}</div>
+        <a class="sup-icon-btn" href="{% url 'notifications:list' %}" aria-label="Notifications">
+            <i class="far fa-bell"></i>
+            {% if unread_notifications %}<span class="sup-badge">{{ unread_notifications }}</span>{% endif %}
+        </a>
+        <a class="sup-user" href="{% url 'authentication:profile' %}">
+            <span class="sup-avatar">{{ profile_initials }}</span>
+            <span><strong>{{ profile_name }}</strong><span>Responsable</span></span>
+        </a>
     </div>
-
-    <!-- KPI Cards -->
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Employés</span>
-                <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
-            </div>
-            <div class="kpi-value">{{ total_employees }}</div>
-            <div class="kpi-sub">Total</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Présents</span>
-                <div class="kpi-icon green"><i class="fas fa-user-check"></i></div>
-            </div>
-            <div class="kpi-value">{{ present_count }}</div>
-            <div class="kpi-sub">Aujourd'hui</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Absents</span>
-                <div class="kpi-icon orange"><i class="fas fa-user-times"></i></div>
-            </div>
-            <div class="kpi-value">{{ absent_count }}</div>
-            <div class="kpi-sub">Aujourd'hui</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Projets en cours</span>
-                <div class="kpi-icon blue"><i class="fas fa-folder-open"></i></div>
-            </div>
-            <div class="kpi-value">{{ active_projects }}</div>
-            <div class="kpi-sub">Actifs</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Tâches terminées</span>
-                <div class="kpi-icon purple"><i class="fas fa-check-circle"></i></div>
-            </div>
-            <div class="kpi-value">{{ completed_tasks_today }}</div>
-            <div class="kpi-sub">Aujourd'hui</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-card-top">
-                <span class="kpi-label">Tâches en retard</span>
-                <div class="kpi-icon red"><i class="fas fa-exclamation-circle"></i></div>
-            </div>
-            <div class="kpi-value">{{ overdue_tasks_count }}</div>
-            <div class="kpi-sub">À traiter</div>
-        </div>
-    </div>
-
-    <!-- Charts -->
-    <div class="charts-grid">
-        <!-- Projets -->
-        <div class="wf-card">
-            <h3 class="wf-card-title">Avancement des projets</h3>
-            <div class="chart-wrap">
-                <canvas id="projectChart"></canvas>
-            </div>
-            <div class="chart-legend">
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#22c55e"></span>Terminés</span>
-                    <span>{{ project_status_data.completed }}{% if total_projects_chart %} · {% widthratio project_status_data.completed total_projects_chart 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#2563eb"></span>En cours</span>
-                    <span>{{ project_status_data.in_progress }}{% if total_projects_chart %} · {% widthratio project_status_data.in_progress total_projects_chart 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#eab308"></span>En pause</span>
-                    <span>{{ project_status_data.on_hold }}{% if total_projects_chart %} · {% widthratio project_status_data.on_hold total_projects_chart 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#ef4444"></span>Annulés</span>
-                    <span>{{ project_status_data.cancelled }}{% if total_projects_chart %} · {% widthratio project_status_data.cancelled total_projects_chart 100 %}%{% endif %}</span>
-                </div>
-            </div>
-            <div class="wf-card-footer">
-                <a href="{% url 'projects:list' %}">Voir tous les projets</a>
-            </div>
-        </div>
-
-        <!-- Tâches -->
-        <div class="wf-card">
-            <h3 class="wf-card-title">Tâches par statut</h3>
-            <div class="chart-wrap">
-                <canvas id="taskChart"></canvas>
-            </div>
-            <div class="chart-legend">
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#22c55e"></span>Terminées</span>
-                    <span>{{ task_status_data.completed }}{% if total_tasks %} · {% widthratio task_status_data.completed total_tasks 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#2563eb"></span>En cours</span>
-                    <span>{{ task_status_data.in_progress }}{% if total_tasks %} · {% widthratio task_status_data.in_progress total_tasks 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#eab308"></span>En attente</span>
-                    <span>{{ task_status_data.pending }}{% if total_tasks %} · {% widthratio task_status_data.pending total_tasks 100 %}%{% endif %}</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-left"><span class="legend-dot" style="background:#ef4444"></span>En retard</span>
-                    <span>{{ task_status_data.overdue }}{% if total_tasks %} · {% widthratio task_status_data.overdue total_tasks 100 %}%{% endif %}</span>
-                </div>
-            </div>
-            <div class="wf-card-footer">
-                <a href="{% url 'tasks:list' %}">Voir toutes les tâches</a>
-            </div>
-        </div>
-
-        <!-- Productivité -->
-        <div class="wf-card">
-            <div class="prod-header">
-                <h3 class="wf-card-title" style="margin:0">Productivité de l'équipe</h3>
-                <span class="prod-select">Cette semaine</span>
-            </div>
-            <div class="prod-rate">{{ productivity.rate }}%</div>
-            <div class="prod-rate-label">Taux moyen de réalisation</div>
-            <div class="prod-trend {% if productivity.trend >= 0 %}up{% else %}down{% endif %}">
-                {% if productivity.trend >= 0 %}↑{% else %}↓{% endif %}
-                {{ productivity.trend|floatformat:0 }}% vs semaine précédente
-            </div>
-            <div class="prod-chart-wrap">
-                <canvas id="productivityChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lists -->
-    <div class="lists-grid">
-        <!-- Permissions en attente -->
-        <div class="wf-card">
-            <h3 class="wf-card-title">Demandes de permissions en attente</h3>
-            {% if pending_permissions_list %}
-                {% for perm in pending_permissions_list %}
-                <div class="list-item">
-                    <div class="list-avatar">
-                        {% if perm.employee.user.photo %}
-                            <img src="{{ perm.employee.user.photo.url }}" alt="">
-                        {% else %}
-                            {{ perm.employee.user.first_name|first }}{{ perm.employee.user.last_name|first }}
-                        {% endif %}
-                    </div>
-                    <div class="list-info">
-                        <p class="list-name">{{ perm.employee.full_name }}</p>
-                        <p class="list-meta">{{ perm.employee.get_position_display }} · {{ perm.get_type_display }} · {{ perm.start_date|date:"d/m/Y" }} – {{ perm.end_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <span class="status-badge pending">En attente</span>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-list">Aucune demande en attente</div>
-            {% endif %}
-            <div class="wf-card-footer">
-                <a href="{% url 'permissions:list' %}">Voir toutes les permissions</a>
-            </div>
-        </div>
-
-        <!-- Derniers rapports -->
-        <div class="wf-card">
-            <h3 class="wf-card-title">Derniers rapports reçus</h3>
-            {% if recent_reports %}
-                {% for report in recent_reports %}
-                <div class="list-item">
-                    <div class="list-avatar">
-                        {% if report.employee.photo %}
-                            <img src="{{ report.employee.photo.url }}" alt="">
-                        {% else %}
-                            {{ report.employee.first_name|first }}{{ report.employee.last_name|first }}
-                        {% endif %}
-                    </div>
-                    <div class="list-info">
-                        <p class="list-name">{{ report.employee.first_name }} {{ report.employee.last_name }}</p>
-                        <p class="list-meta">{{ report.created_at|date:"d/m/Y" }} à {{ report.created_at|date:"H:i" }}</p>
-                    </div>
-                    <span class="status-badge received">Reçu</span>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-list">Aucun rapport reçu</div>
-            {% endif %}
-            <div class="wf-card-footer">
-                <a href="{% url 'reports:list' %}">Voir tous les rapports</a>
-            </div>
-        </div>
-
-        <!-- Tâches en retard -->
-        <div class="wf-card">
-            <h3 class="wf-card-title">Tâches en retard</h3>
-            {% if overdue_tasks_list %}
-                {% for item in overdue_tasks_list %}
-                <div class="list-item">
-                    <div class="list-info" style="padding-left:0">
-                        <p class="list-name">{{ item.task.title }}</p>
-                        <p class="list-meta">Projet : {% if item.task.project %}{{ item.task.project.name }}{% else %}—{% endif %}</p>
-                    </div>
-                    <span class="status-badge overdue">
-                        {{ item.days_late }} jour{{ item.days_late|pluralize }}
-                    </span>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-list">Aucune tâche en retard</div>
-            {% endif %}
-            <div class="wf-card-footer">
-                <a href="{% url 'tasks:list' %}">Voir toutes les tâches</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI Assistant -->
-    <div class="ai-section">
-        <h3 class="ai-section-title">
-            <i class="fas fa-robot"></i>
-            Assistant IA — Analyse intelligente de la situation actuelle
-        </h3>
-        <div class="ai-grid">
-            <div class="ai-insight">
-                <p>
-                    {% if at_risk_count %}
-                    ⚠️ {{ at_risk_count }} projet{{ at_risk_count|pluralize }} {% if at_risk_count > 1 %}ont{% else %}a{% endif %} un risque de retard
-                    {% if at_risk_projects %}({% for p in at_risk_projects %}{{ p.project.name }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}.
-                    {% else %}
-                    ✅ Aucun projet à risque de retard détecté.
-                    {% endif %}
-                </p>
-                <a href="{% url 'decision_ai:delay_detection' %}">Voir les projets</a>
-            </div>
-            <div class="ai-insight">
-                <p>
-                    {% if overdue_tasks_count %}
-                    📋 {{ overdue_tasks_count }} tâche{{ overdue_tasks_count|pluralize }} en retard à traiter en priorité.
-                    {% else %}
-                    ✅ Toutes les tâches sont à jour.
-                    {% endif %}
-                </p>
-                <a href="{% url 'tasks:list' %}">Voir les tâches</a>
-            </div>
-            <div class="ai-insight">
-                <p>
-                    {% if overloaded_departments %}
-                    ⚡ Charge de travail élevée pour : {{ overloaded_departments|join:", " }}.
-                    {% else %}
-                    ✅ La charge de travail de l'équipe est équilibrée.
-                    {% endif %}
-                </p>
-                <a href="{% url 'decision_ai:workload_analysis' %}">Voir la répartition</a>
-            </div>
-            <div class="ai-chat-box">
-                <div class="ai-chat-label">Posez une question à l'IA</div>
-                <div class="ai-chat-input-wrap">
-                    <input type="text" id="ai-question" placeholder="Ex : Qui est absent aujourd'hui ?">
-                    <button class="ai-chat-send" onclick="askAI()"><i class="fas fa-paper-plane"></i></button>
-                </div>
-                <div id="ai-response"></div>
-            </div>
-        </div>
-    </div>
-
 </div>
+
+<div class="sup-title-row">
+    <div>
+        <h1>Tableau de bord</h1>
+        <p>Vue d'ensemble de l'activité de l'agence</p>
+    </div>
+    <div class="sup-actions">
+        <input class="sup-date" type="date" name="date" form="dash-filters" value="{{ selected|date:'Y-m-d' }}" onchange="this.form.submit()">
+        <button class="sup-ai dash-synthesis" type="button" id="dash-synthesis" data-url="{% url 'reports:synthesis' %}" data-csrf="{{ csrf_token }}">✨ Générer la synthèse IA</button>
+    </div>
+</div>
+
+<div class="sup-kpis">
+    <a class="sup-kpi" href="{% url 'employees:list' %}">
+        <span class="sup-ico ico-blue"><i class="fas fa-users"></i></span>
+        <span>
+            <h3>Employés actifs</h3>
+            <strong id="kpi-active">{{ kpis.active_employees }}</strong><span class="sup-kpi-total"> / {{ kpis.employees_total }}</span>
+            <p class="sup-trend {% if kpis.new_employees %}trend-up{% else %}trend-flat{% endif %}">
+                {% if kpis.new_employees %}<i class="fas fa-arrow-up"></i> +{{ kpis.new_employees }} cette semaine{% else %}0 cette semaine{% endif %}
+            </p>
+        </span>
+    </a>
+    <a class="sup-kpi" href="{% url 'tasks:list' %}">
+        <span class="sup-ico ico-violet"><i class="fas fa-clipboard-list"></i></span>
+        <span>
+            <h3>Activités totales</h3>
+            <strong id="kpi-total">{{ kpis.tasks_total }}</strong>
+            {% include 'dashboard/_trend.html' with delta=kpis.total_delta %}
+        </span>
+    </a>
+    <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=completed">
+        <span class="sup-ico ico-green"><i class="fas fa-check"></i></span>
+        <span>
+            <h3>Activités terminées</h3>
+            <strong id="kpi-done">{{ kpis.tasks_completed }}</strong>
+            {% include 'dashboard/_trend.html' with delta=kpis.done_delta %}
+        </span>
+    </a>
+    <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=in_progress">
+        <span class="sup-ico ico-orange"><i class="fas fa-clock"></i></span>
+        <span>
+            <h3>Activités en cours</h3>
+            <strong id="kpi-doing">{{ kpis.tasks_in_progress }}</strong>
+            {% include 'dashboard/_trend.html' with delta=kpis.doing_delta %}
+        </span>
+    </a>
+    <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=overdue">
+        <span class="sup-ico ico-red"><i class="fas fa-exclamation-triangle"></i></span>
+        <span>
+            <h3>Activités en retard</h3>
+            <strong id="kpi-late">{{ kpis.tasks_late }}</strong>
+            {% include 'dashboard/_trend.html' with delta=kpis.late_delta %}
+        </span>
+    </a>
+</div>
+
+<div class="sup-grid">
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <div>
+                <h2>Évolution des activités</h2>
+                <p class="sub">Nombre d'activités par statut au cours des derniers jours</p>
+            </div>
+            <select class="sup-select" name="range" form="dash-filters" onchange="this.form.submit()">
+                <option value="7" {% if window == 7 %}selected{% endif %}>7 derniers jours</option>
+                <option value="14" {% if window == 14 %}selected{% endif %}>14 derniers jours</option>
+                <option value="30" {% if window == 30 %}selected{% endif %}>30 derniers jours</option>
+            </select>
+        </div>
+        {% if series.empty %}
+        <div class="sup-empty">Aucune activité enregistrée pour cette période.</div>
+        {% else %}
+        <div class="sup-chart"><canvas id="trendChart"></canvas></div>
+        <div class="sup-legend">
+            <span><i style="background:#10B981"></i>Terminées</span>
+            <span><i style="background:#2563EB"></i>En cours</span>
+            <span><i style="background:#F59E0B"></i>Non commencées</span>
+            <span><i style="background:#EF4444"></i>En retard</span>
+        </div>
+        {% endif %}
+    </section>
+    <div>
+        <section class="sup-card">
+            <h2>État des projets</h2>
+            <p class="sub">Répartition calculée sur les projets enregistrés</p>
+            {% if project_donut.empty %}
+            <div class="sup-empty">Aucun projet enregistré.</div>
+            {% else %}
+            <div class="sup-donut-layout">
+                <div class="sup-chart donut"><canvas id="donutChart"></canvas></div>
+                <div class="sup-donut-legend">
+                    {% for row in project_donut.rows %}
+                    {% if row.count %}
+                    <div><span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ row.color }};margin-right:6px"></i>{{ row.label }}</span><strong>{{ row.count }} <span class="sup-muted">{{ row.percent }}%</span></strong></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<div class="sup-mid">
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <div>
+                <h2>Activités par projet</h2>
+                <p class="sub">Projets qui ont des activités enregistrées</p>
+            </div>
+            <a class="sup-link" href="{% url 'projects:list' %}">Voir tout →</a>
+        </div>
+        {% if project_bars.empty %}
+        <div class="sup-empty">Aucun projet avec activité enregistrée.</div>
+        {% else %}
+        {% for row in project_bars.rows %}
+        <div class="bar-row">
+            <span>{{ row.name }}</span>
+            <div class="bar-track"><span style="width:{% widthratio row.count project_bars.peak 100 %}%"></span></div>
+            <b>{{ row.count }}</b>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </section>
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <h2>Points d'attention</h2>
+        </div>
+        <a class="attn" href="{% url 'tasks:list' %}?tab=overdue">
+            <span class="attn-ico red"><i class="fas fa-exclamation-triangle"></i></span>
+            <span>{% if attention.late == 1 %}<strong>1</strong> activité en retard{% else %}<strong>{{ attention.late }}</strong> activités en retard{% endif %}</span>
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        <a class="attn" href="{% url 'projects:list' %}">
+            <span class="attn-ico orange"><i class="fas fa-clock"></i></span>
+            <span>{% if attention.due_soon == 1 %}<strong>1</strong> projet proche de son échéance{% else %}<strong>{{ attention.due_soon }}</strong> projets proches de leur échéance{% endif %}</span>
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        <a class="attn" href="{% url 'decision_ai:delay_detection' %}?date={{ selected|date:'Y-m-d' }}">
+            <span class="attn-ico blue"><i class="fas fa-info-circle"></i></span>
+            <span>{% if attention.difficulties == 1 %}<strong>1</strong> difficulté signalée aujourd'hui{% else %}<strong>{{ attention.difficulties }}</strong> difficultés signalées aujourd'hui{% endif %}</span>
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        <a class="sup-link" href="{% url 'decision_ai:delay_detection' %}?date={{ selected|date:'Y-m-d' }}">Voir les détails →</a>
+    </section>
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <div>
+                <h2>Activités récentes</h2>
+                <p class="sub">Dernières actions sur la plateforme</p>
+            </div>
+            <a class="sup-link" href="{% url 'tasks:list' %}">Voir tout →</a>
+        </div>
+        {% for row in recent_rows %}
+        <a class="feed-item" href="{{ row.url }}">
+            <span class="feed-avatar" style="background:{% cycle '#2563EB' '#7C3AED' '#10B981' '#F59E0B' %}">{{ row.initials }}</span>
+            <span class="feed-main">
+                <strong>{{ row.who }}</strong>
+                <span>{{ row.action }} · {{ row.detail }}{% if row.project != '—' %} · {{ row.project }}{% endif %}</span>
+            </span>
+            <span class="feed-side">
+                <small>{{ row.ago }}</small>
+                <span class="sup-pill st-{{ row.status_key }}">{{ row.status }}</span>
+            </span>
+        </a>
+        {% empty %}
+        <div class="sup-empty">Aucune activité enregistrée.</div>
+        {% endfor %}
+    </section>
+</div>
+
+<div class="sup-mid task-watch">
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <div>
+                <h2>État des tâches</h2>
+                <p class="sub">Répartition réelle des activités</p>
+            </div>
+            <a class="sup-link" href="{% url 'tasks:list' %}">Voir les tâches →</a>
+        </div>
+        <div class="state-row">
+            <a href="{% url 'tasks:list' %}?tab=todo"><b>{{ task_state.todo }}</b><span>À faire</span></a>
+            <a href="{% url 'tasks:list' %}?tab=in_progress"><b>{{ task_state.in_progress }}</b><span>En cours</span></a>
+            <a href="{% url 'tasks:list' %}?tab=review"><b>{{ task_state.review }}</b><span>En révision</span></a>
+            <a href="{% url 'tasks:list' %}?tab=completed"><b>{{ task_state.completed }}</b><span>Terminées</span></a>
+            <a href="{% url 'tasks:list' %}?tab=overdue"><b>{{ task_state.late }}</b><span>En retard</span></a>
+        </div>
+    </section>
+    <section class="sup-card">
+        <div class="sup-card-head">
+            <h2>Projets nécessitant une attention</h2>
+        </div>
+        {% for row in watch_projects %}
+        <a class="attn" href="{% url 'projects:detail' row.project.pk %}">
+            <span class="attn-ico {% if row.level == 'danger' %}red{% elif row.level == 'warning' %}orange{% else %}blue{% endif %}"><i class="fas fa-circle"></i></span>
+            <span><strong>{{ row.project.name }}</strong> — {{ row.text }}</span>
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        {% empty %}
+        <div class="sup-empty">Aucun projet à signaler.</div>
+        {% endfor %}
+    </section>
+</div>
+
+<div class="sup-bottom">
+    <section class="sup-card sup-band-ai">
+        <div class="sup-band-icon"><i class="fas fa-robot"></i></div>
+        <div class="sup-band-copy">
+            <h2>Analyse IA de l'activité</h2>
+            <p>L'IA analyse les données de votre plateforme et vous fournit une synthèse claire et pertinente.</p>
+            <button class="sup-ai dash-synthesis" type="button" data-url="{% url 'reports:synthesis' %}" data-csrf="{{ csrf_token }}">✨ Générer la synthèse IA</button>
+        </div>
+    </section>
+    <section class="sup-card sup-band-note">
+        <div class="sup-card-head">
+            <h2>Synthèse rapide</h2>
+            <span class="sup-muted">{{ today_formatted }}</span>
+        </div>
+        <p>{{ quick_brief }}</p>
+        <a class="sup-link" href="{% url 'decision_ai:center' %}">Voir l'analyse complète →</a>
+    </section>
+</div>
+
+<div id="dash-synthesis-status" class="sup-status" hidden></div>
+<section class="sup-sheet" id="dash-synthesis-sheet" hidden>
+    <div class="sup-sheet-kicker">✨ SYNTHÈSE IA DE L'ACTIVITÉ DE L'ÉQUIPE</div>
+    <div id="dash-synthesis-date"></div>
+    <div id="dash-synthesis-count" class="sup-muted"></div>
+    <div id="dash-synthesis-body"></div>
+</section>
+{{ chart_payload|json_script:"dash-chart-data" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const chartDefaults = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    cutout: '72%',
-};
-
-// Projets donut
-new Chart(document.getElementById('projectChart'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Terminés', 'En cours', 'En pause', 'Annulés'],
-        datasets: [{
-            data: [
-                {{ project_status_data.completed }},
-                {{ project_status_data.in_progress }},
-                {{ project_status_data.on_hold }},
-                {{ project_status_data.cancelled }}
-            ],
-            backgroundColor: ['#22c55e', '#2563eb', '#eab308', '#ef4444'],
-            borderWidth: 0,
-        }]
-    },
-    options: {
-        ...chartDefaults,
-        plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-        },
-    },
-    plugins: [{
-        id: 'centerText',
-        beforeDraw(chart) {
-            const { ctx, chartArea: { width, height, top, left } } = chart;
-            ctx.save();
-            ctx.font = 'bold 1.1rem Inter, sans-serif';
-            ctx.fillStyle = '#1e293b';
-            ctx.textAlign = 'center';
-            ctx.fillText('{{ total_projects_chart }}', left + width / 2, top + height / 2 - 4);
-            ctx.font = '0.75rem Inter, sans-serif';
-            ctx.fillStyle = '#64748b';
-            ctx.fillText('Projets', left + width / 2, top + height / 2 + 14);
-            ctx.restore();
-        }
-    }]
-});
-
-// Tâches donut
-new Chart(document.getElementById('taskChart'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Terminées', 'En cours', 'En attente', 'En retard'],
-        datasets: [{
-            data: [
-                {{ task_status_data.completed }},
-                {{ task_status_data.in_progress }},
-                {{ task_status_data.pending }},
-                {{ task_status_data.overdue }}
-            ],
-            backgroundColor: ['#22c55e', '#2563eb', '#eab308', '#ef4444'],
-            borderWidth: 0,
-        }]
-    },
-    options: {
-        ...chartDefaults,
-        plugins: { legend: { display: false } },
-    },
-    plugins: [{
-        id: 'centerText',
-        beforeDraw(chart) {
-            const { ctx, chartArea: { width, height, top, left } } = chart;
-            ctx.save();
-            ctx.font = 'bold 1.1rem Inter, sans-serif';
-            ctx.fillStyle = '#1e293b';
-            ctx.textAlign = 'center';
-            ctx.fillText('{{ total_tasks }}', left + width / 2, top + height / 2 - 4);
-            ctx.font = '0.75rem Inter, sans-serif';
-            ctx.fillStyle = '#64748b';
-            ctx.fillText('Tâches', left + width / 2, top + height / 2 + 14);
-            ctx.restore();
-        }
-    }]
-});
-
-// Productivité line chart
-new Chart(document.getElementById('productivityChart'), {
-    type: 'line',
-    data: {
-        labels: {{ productivity_labels_json|safe }},
-        datasets: [{
-            data: {{ productivity_data_json|safe }},
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,.08)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3,
-            pointBackgroundColor: '#2563eb',
-            borderWidth: 2,
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-            y: { display: false, beginAtZero: true },
-        },
+(function () {
+    const payload = JSON.parse(document.getElementById('dash-chart-data').textContent);
+    const axis = { ticks: { color: '#8FA8C7' }, grid: { color: 'rgba(143,168,199,.15)' } };
+    if (!payload.series.empty && document.getElementById('trendChart')) {
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: payload.series.labels,
+                datasets: [
+                    { label: 'Terminées', data: payload.series.completed, borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,.12)', tension: .35, fill: false, pointRadius: 2 },
+                    { label: 'En cours', data: payload.series.in_progress, borderColor: '#2563EB', tension: .35, pointRadius: 2 },
+                    { label: 'Non commencées', data: payload.series.not_started, borderColor: '#F59E0B', tension: .35, pointRadius: 2 },
+                    { label: 'En retard', data: payload.series.late, borderColor: '#EF4444', tension: .35, pointRadius: 2 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: axis, y: Object.assign({ beginAtZero: true, ticks: { precision: 0, color: '#8FA8C7' } }, axis) } }
+        });
     }
-});
+    if (!payload.bars.empty && document.getElementById('barChart')) {
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: payload.bars.labels,
+                datasets: [{ data: payload.bars.values, backgroundColor: ['#2563EB', '#7C3AED', '#10B981', '#F59E0B', '#38BDF8', '#8FA8C7'], borderRadius: 6, maxBarThickness: 28 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: axis, y: Object.assign({ beginAtZero: true, ticks: { precision: 0, color: '#8FA8C7' } }, axis) } }
+        });
+    }
+    if (!payload.donut.empty && document.getElementById('donutChart')) {
+        new Chart(document.getElementById('donutChart'), {
+            type: 'doughnut',
+            data: { labels: payload.donut.labels, datasets: [{ data: payload.donut.values, backgroundColor: payload.donut.colors, borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } },
+            plugins: [{
+                id: 'center',
+                beforeDraw(chart) {
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return;
+                    ctx.save();
+                    ctx.fillStyle = '#F5F7FA';
+                    ctx.font = '700 22px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(String(payload.donut.total), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 - 2);
+                    ctx.fillStyle = '#8FA8C7';
+                    ctx.font = '12px Inter, sans-serif';
+                    ctx.fillText('projets', (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + 16);
+                    ctx.restore();
+                }
+            }]
+        });
+    }
 
-// AI chat
-function askAI() {
-    const input = document.getElementById('ai-question');
-    const response = document.getElementById('ai-response');
-    const question = input.value.trim();
-    if (!question) return;
+    const menu = document.getElementById('dash-menu');
+    if (menu) menu.addEventListener('click', function () {
+        if (window.innerWidth <= 900) document.body.classList.toggle('dash-open');
+        else document.body.classList.toggle('dash-collapsed');
+    });
+    const filter = document.getElementById('activity-filter');
+    if (filter) {
+        filter.addEventListener('change', function () {
+            let visible = 0;
+            document.querySelectorAll('.sup-table tbody tr').forEach(function (row) {
+                const show = !filter.value || row.dataset.kind === filter.value;
+                row.hidden = !show;
+                if (show) visible += 1;
+            });
+            const empty = document.getElementById('activity-empty');
+            if (empty) empty.hidden = visible !== 0;
+        });
+    }
 
-    response.style.display = 'block';
-    response.textContent = 'Analyse en cours…';
-
-    const formData = new FormData();
-    formData.append('question', question);
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-    fetch('{% url "decision_ai:chat" %}', { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(data => {
-            response.textContent = data.answer || data.error || 'Erreur inconnue';
-            input.value = '';
-        })
-        .catch(() => { response.textContent = 'Erreur de connexion.'; });
-}
-
-document.getElementById('ai-question').addEventListener('keydown', e => {
-    if (e.key === 'Enter') askAI();
-});
+    const buttons = document.querySelectorAll('.dash-synthesis');
+    const statusBox = document.getElementById('dash-synthesis-status');
+    const sheet = document.getElementById('dash-synthesis-sheet');
+    buttons.forEach(function (button) {
+    button.addEventListener('click', async function () {
+        const date = document.querySelector('[name=date]').value;
+        button.disabled = true;
+        sheet.hidden = true;
+        statusBox.hidden = false;
+        statusBox.className = 'sup-status loading';
+        statusBox.textContent = 'Chargement des statistiques...';
+        try {
+            const body = new URLSearchParams();
+            body.set('date', date);
+            const response = await fetch(button.dataset.url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': button.dataset.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                body: body
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                statusBox.className = 'sup-status err';
+                statusBox.textContent = data.error && data.error.indexOf('Aucun rapport') === 0
+                    ? 'Aucune donnée suffisante pour générer une synthèse.'
+                    : (data.error || 'Aucune donnée suffisante pour générer une synthèse.');
+                return;
+            }
+            statusBox.className = 'sup-status ok';
+            statusBox.textContent = (data.analyzed || 0) + ' rapports ont été analysés.';
+            document.getElementById('dash-synthesis-date').textContent = data.date_label || '';
+            document.getElementById('dash-synthesis-count').textContent = (data.analyzed || 0) + ' rapports analysés';
+            document.getElementById('dash-synthesis-body').innerHTML = data.html || '';
+            sheet.hidden = false;
+        } catch (error) {
+            statusBox.className = 'sup-status err';
+            statusBox.textContent = 'Aucune donnée suffisante pour générer une synthèse.';
+        } finally {
+            buttons.forEach(function (item) { item.disabled = false; });
+        }
+    });
+    });
+})();
 </script>
 {% endblock %}

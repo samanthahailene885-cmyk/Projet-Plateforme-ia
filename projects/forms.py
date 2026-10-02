@@ -59,7 +59,7 @@ class ProjectSearchForm(forms.Form):
     status = forms.ChoiceField(
         label='Statut',
         required=False,
-        choices=[('', 'Tous')] + Project.STATUS_CHOICES
+        choices=[('', 'Tous'), ('late', 'En retard')] + list(Project.STATUS_CHOICES)
     )
     priority = forms.ChoiceField(
         label='Priorité',

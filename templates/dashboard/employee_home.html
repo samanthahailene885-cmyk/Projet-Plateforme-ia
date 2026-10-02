@@ -632,7 +632,7 @@
                         <span class="emp-priority low">Faible</span>
                         {% endif %}
                         <span class="emp-task-time">
-                            {% if task.due_date %}{{ task.due_date|date:"H:i" }}{% else %}{{ task.created_at|date:"H:i" }}{% endif %}
+                            {% if task.due_date %}{{ task.due_date|date:"d/m" }}{% else %}{{ task.created_at|date:"H:i" }}{% endif %}
                         </span>
                     </div>
                 </div>
@@ -697,7 +697,7 @@
                 <a href="{% url 'reports:create' %}" class="emp-report-btn">Voir mon rapport</a>
             {% else %}
                 <p class="emp-report-text">Votre rapport n'a pas encore été envoyé. Générez votre rapport quotidien en quelques secondes avec l'IA.</p>
-                <a href="{% url 'reports:create' %}" class="emp-report-btn">Générer mon rapport</a>
+                <a href="{% url 'reports:create' %}" class="emp-report-btn">Générer mon rapport avec l'IA</a>
             {% endif %}
         </div>
     </div>

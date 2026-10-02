@@ -7,9 +7,11 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from authentication.decorators import admin_required
 from employees.models import Employee
+from tasks.models import Task
 from .forms import ProjectForm, ProjectSearchForm
 from .models import Project
 
@@ -28,7 +30,9 @@ def _visible_projects(request):
     employee = _employee_or_none(request.user)
     if not employee:
         return Project.objects.none()
-    return projects.filter(assigned_employees=employee).distinct()
+    return projects.filter(
+        Q(assigned_employees=employee) | Q(tasks__assigned_to=employee)
+    ).distinct()
 
 
 @login_required
@@ -36,10 +40,16 @@ def project_list(request):
     """
     Liste des projets : vue admin complète, vue employé (mes projets).
     """
+    from projects.progress import link_employee_tasks, sync_queryset
+    if not request.user.is_admin():
+        employee = _employee_or_none(request.user)
+        if employee:
+            link_employee_tasks(employee)
     base_qs = _visible_projects(request)
+    sync_queryset(base_qs)
 
     if not request.user.is_admin():
-        return _employee_project_list(request, base_qs)
+        return _employee_project_list(request, _visible_projects(request))
 
     projects = base_qs
     search_query = request.GET.get('search', '')
@@ -53,7 +63,11 @@ def project_list(request):
             Q(description__icontains=search_query)
         )
 
-    if status_filter:
+    if status_filter == 'late':
+        projects = projects.filter(end_date__lt=timezone.now().date()).exclude(
+            status__in=['completed', 'cancelled']
+        )
+    elif status_filter:
         projects = projects.filter(status=status_filter)
 
     if priority_filter:
@@ -127,7 +141,9 @@ def _employee_project_list(request, base_qs):
     if sort not in sort_map:
         sort = 'recent'
     projects = projects.annotate(
-        member_count=Count('assigned_employees', distinct=True)
+        member_count=Count('assigned_employees', distinct=True),
+        task_total=Count('tasks', filter=~Q(tasks__status='cancelled'), distinct=True),
+        task_done=Count('tasks', filter=Q(tasks__status='completed'), distinct=True),
     ).order_by(sort_map[sort])
 
     paginator = Paginator(projects, 5)
@@ -156,6 +172,10 @@ def _employee_project_list(request, base_qs):
         'kpi_teams': kpi_teams,
         'kpi_deadlines': kpi_deadlines,
         'total_count': paginator.count,
+        'has_unlinked_tasks': Task.objects.filter(
+            assigned_to=_employee_or_none(request.user),
+            project__isnull=True,
+        ).exclude(status='cancelled').exists() if _employee_or_none(request.user) else False,
     })
 
 
@@ -167,10 +187,63 @@ def project_detail(request, pk):
     )
     if not request.user.is_admin():
         employee = _employee_or_none(request.user)
-        if not employee or not project.assigned_employees.filter(pk=employee.pk).exists():
+        participates = employee and (
+            project.assigned_employees.filter(pk=employee.pk).exists()
+            or project.tasks.filter(assigned_to=employee).exists()
+        )
+        if not participates:
             messages.error(request, "Vous n'avez pas accès à ce projet.")
             return redirect('projects:list')
-    return render(request, 'projects/project_detail.html', {'project': project})
+    from projects.progress import sync_project_progress
+    sync_project_progress(project.pk)
+    project.refresh_from_db()
+
+    today = timezone.localdate()
+    tasks = list(
+        project.tasks.select_related('assigned_to__user').exclude(status='cancelled').order_by('due_date', 'title')
+    )
+    late = [task for task in tasks if task.is_overdue]
+    late_ids = {task.pk for task in late}
+    done = [task for task in tasks if task.status == 'completed']
+    doing = [task for task in tasks if task.status in ('in_progress', 'review') and task.pk not in late_ids]
+    waiting = [task for task in tasks if task.status in ('todo', 'not_done') and task.pk not in late_ids]
+    team = list(project.assigned_employees.select_related('user').order_by('user__last_name', 'user__first_name'))
+    leader = next((member for member in team if member.position == 'project_manager'), team[0] if team else None)
+    comments = [task for task in tasks if (task.comments or '').strip()]
+    tab = request.GET.get('onglet', 'apercu')
+    if tab not in {'apercu', 'taches', 'membres', 'documents', 'commentaires'}:
+        tab = 'apercu'
+    if project.is_overdue:
+        remaining_label = 'Échéance dépassée'
+    elif project.days_remaining == 1:
+        remaining_label = '1 jour'
+    else:
+        remaining_label = f'{project.days_remaining} jours'
+    user = request.user
+    initials = (
+        f'{(user.first_name[:1] if user.first_name else "")}'
+        f'{(user.last_name[:1] if user.last_name else "")}'
+    ).upper() or user.username[:2].upper()
+
+    profile = _employee_or_none(user)
+    return render(request, 'projects/project_detail.html', {
+        'project': project,
+        'tasks': tasks,
+        'shown_tasks': tasks if tab == 'taches' else sorted(tasks, key=lambda task: task.updated_at, reverse=True)[:6],
+        'task_done': done,
+        'task_doing': doing,
+        'task_waiting': waiting,
+        'task_late': late,
+        'team': team,
+        'leader': leader,
+        'comments': comments,
+        'tab': tab,
+        'remaining_label': remaining_label,
+        'today_label': date_format(today, 'l j F Y').capitalize(),
+        'viewer_initials': initials,
+        'viewer_name': (user.get_full_name() or '').strip() or user.username,
+        'viewer_role': 'Responsable' if user.is_admin() else (profile.get_position_display() if profile else 'Employé'),
+    })
 
 
 @login_required

@@ -10,13 +10,20 @@ from .models import User
 
 def login_view(request):
     """
-    Vue de connexion
+    Fenêtre de connexion isolée : aucun menu ni donnée de la plateforme.
     """
+    if request.method == 'GET' and request.user.is_authenticated:
+        logout(request)
+
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            if request.POST.get('remember'):
+                request.session.set_expiry(60 * 60 * 24 * 30)
+            else:
+                request.session.set_expiry(0)
             messages.success(request, f'Bienvenue {user.first_name} !')
             return redirect(user.get_home_url_name())
     else:
@@ -152,21 +159,42 @@ def profile_view(request):
     return render(request, 'authentication/profile.html', context)
 
 
+def _profile_completion(user):
+    checks = [
+        user.first_name, user.last_name, user.email, user.phone,
+        user.photo, user.birth_date, user.gender, user.address, user.bio,
+    ]
+    filled = sum(1 for value in checks if value)
+    return round(filled / len(checks) * 100)
+
+
 @login_required
 def profile_update_view(request):
     """
     Vue de mise à jour du profil
     """
+    try:
+        employee = request.user.employee_profile
+    except Exception:
+        employee = None
+
     if request.method == 'POST':
         form = UserProfileForm(request.POST, request.FILES, instance=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Profil mis à jour avec succès.')
             return redirect('authentication:profile')
-        else:
-            messages.error(request, 'Erreur lors de la mise à jour. Vérifiez les champs.')
-            return redirect('authentication:profile')
     else:
         form = UserProfileForm(instance=request.user)
-    
-    return render(request, 'authentication/profile_update.html', {'form': form})
+
+    if employee:
+        position_label = employee.get_position_display()
+    else:
+        position_label = request.user.get_role_display()
+
+    return render(request, 'authentication/profile_update.html', {
+        'form': form,
+        'employee': employee,
+        'position_label': position_label,
+        'profile_completion': _profile_completion(request.user),
+    })

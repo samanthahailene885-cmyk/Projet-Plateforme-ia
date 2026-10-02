@@ -63,9 +63,20 @@ class CustomAuthenticationForm(AuthenticationForm):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['username'].label = 'Nom d\'utilisateur'
-        self.fields['username'].widget.attrs.update({'placeholder': 'Entrez votre identifiant'})
-        self.fields['password'].widget.attrs.update({'placeholder': 'Entrez votre mot de passe'})
+        self.fields['username'].label = 'Adresse e-mail'
+        self.fields['username'].widget.attrs.update({
+            'placeholder': 'Adresse e-mail',
+            'autocomplete': 'username',
+            'autocapitalize': 'none',
+            'spellcheck': 'false',
+            'autofocus': True,
+            'class': 'rac-input',
+        })
+        self.fields['password'].widget.attrs.update({
+            'placeholder': 'Mot de passe',
+            'autocomplete': 'current-password',
+            'class': 'rac-input',
+        })
 
         self.helper = FormHelper()
         self.helper.form_tag = False
@@ -85,21 +96,68 @@ class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'email', 'phone', 'photo', 'birth_date', 'gender', 'address', 'bio')
+        labels = {
+            'first_name': 'Prénom',
+            'last_name': 'Nom',
+            'email': 'Adresse e-mail',
+            'phone': 'Téléphone',
+            'photo': 'Photo de profil',
+            'birth_date': 'Date de naissance',
+            'gender': 'Genre',
+            'address': 'Adresse',
+            'bio': 'Présentation',
+        }
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'photo': forms.FileInput(attrs={'class': 'form-control'}),
-            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gender': forms.Select(attrs={'class': 'form-control'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Votre prénom',
+                'autocomplete': 'given-name',
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Votre nom',
+                'autocomplete': 'family-name',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'prenom@entreprise.com',
+                'autocomplete': 'email',
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '+223 00 00 00 00',
+                'autocomplete': 'tel',
+            }),
+            'photo': forms.FileInput(attrs={
+                'class': 'photo-input',
+                'accept': 'image/*',
+            }),
+            'birth_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'autocomplete': 'bday',
+            }),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Ville, quartier ou adresse professionnelle',
+                'autocomplete': 'street-address',
+            }),
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control field-bio',
+                'rows': 4,
+                'placeholder': 'Quelques lignes sur votre rôle et vos spécialités.',
+            }),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['gender'].choices = [('', 'Non renseigné')] + [
+            choice for choice in self.fields['gender'].choices if choice[0]
+        ]
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Row(
                 Column('first_name', css_class='col-md-6 mb-3'),

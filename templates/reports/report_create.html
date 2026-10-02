@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Mon rapport - WorkFlow{% endblock %}
 
 {% block extra_css %}
+{% include 'reports/_journal_css.html' %}
 <style>
     :root {
         --wf-sidebar: #0f172a;
@@ -72,6 +74,7 @@
         font-size: 0.85rem;
     }
     .date-picker-btn:hover { background: var(--wf-bg); color: var(--wf-accent); }
+    a.date-picker-btn { text-decoration: none; }
     .date-picker-label {
         font-size: 0.875rem;
         font-weight: 500;
@@ -375,9 +378,11 @@
             <p class="report-page-subtitle">Gérez et envoyez votre rapport quotidien</p>
         </div>
         <div class="date-picker">
-            <button class="date-picker-btn" title="Jour précédent"><i class="fas fa-chevron-left"></i></button>
-            <span class="date-picker-label">{{ formatted_date }}</span>
-            <button class="date-picker-btn" title="Jour suivant"><i class="fas fa-chevron-right"></i></button>
+            <a class="date-picker-btn" href="?date={{ prev_date|date:'Y-m-d' }}" title="Jour précédent"><i class="fas fa-chevron-left"></i></a>
+            <form method="get" class="d-flex align-items-center gap-2 mb-0">
+                <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control form-control-sm" onchange="this.form.submit()" aria-label="Date du rapport">
+            </form>
+            <a class="date-picker-btn" href="?date={{ next_date|date:'Y-m-d' }}" title="Jour suivant"><i class="fas fa-chevron-right"></i></a>
         </div>
     </div>
 
@@ -391,23 +396,36 @@
                 <div class="wf-card-header">
                     <h2 class="wf-card-title">
                         <span class="icon-wrap icon-ai"><i class="fas fa-star"></i></span>
-                        Résumé généré par l'IA
+                        Rapport du {{ formatted_date }}
                     </h2>
-                    <span class="ai-badge">Généré automatiquement</span>
-                </div>
-                <textarea class="ai-summary-text" id="aiSummary" {% if is_submitted %}readonly{% endif %}>{{ ai_summary }}</textarea>
-                <div class="ai-actions">
-                    {% if not is_submitted %}
-                    <button class="btn-wf-outline" onclick="regenerateSummary()">
-                        <i class="fas fa-sync-alt"></i> Régénérer
-                    </button>
-                    <button class="btn-wf-primary" onclick="editSummary()">
-                        <i class="fas fa-pen"></i> Modifier le texte
-                    </button>
-                    {% else %}
-                    <span class="ai-badge"><i class="fas fa-check me-1"></i> Rapport envoyé</span>
+                    {% if is_submitted %}
+                        <span class="ai-badge"><i class="fas fa-check me-1"></i> Enregistré</span>
+                    {% elif from_ai_draft %}
+                        <span class="ai-badge">Proposition à valider</span>
                     {% endif %}
                 </div>
+                {% if not data_sufficient and not ai_summary %}
+                <p class="text-muted mb-3">Aucune activité n'est enregistrée pour cette date. Le rapport ne peut pas être généré tant que la todo list du jour est vide.</p>
+                {% endif %}
+                {% include 'reports/_journal.html' with journal_date=journal_date journal_name=journal_name body=ai_summary editable=True %}
+                {% if not read_only %}
+                <div class="ai-actions">
+                    <form id="generate-form" method="post" action="{% url 'reports:generate' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
+                        <button type="submit" class="btn-wf-primary" id="generate-btn" {% if not data_sufficient %}disabled{% endif %}>
+                            <i class="fas fa-wand-magic-sparkles"></i> Générer mon rapport avec l'IA
+                        </button>
+                    </form>
+                    <button type="submit" class="btn-wf-outline" form="save-report-form">
+                        <i class="fas fa-check"></i> Valider et enregistrer
+                    </button>
+                </div>
+                <form id="save-report-form" method="post" action="{% url 'reports:save' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
+                </form>
+                {% endif %}
             </div>
 
             <!-- Détail des activités -->
@@ -444,7 +462,7 @@
                     {% else %}
                         <div class="empty-activities">
                             <i class="fas fa-inbox d-block"></i>
-                            <p>Aucune activité enregistrée pour aujourd'hui</p>
+                            <p>Aucune activité enregistrée pour cette date</p>
                         </div>
                     {% endif %}
                 </div>
@@ -480,13 +498,18 @@
                 </div>
                 <div class="stat-row">
                     <div class="stat-icon-sm purple"><i class="fas fa-clock"></i></div>
-                    <span class="stat-label-sm">Temps travaillé</span>
+                    <span class="stat-label-sm">Heures réelles saisies</span>
                     <span class="stat-value-sm">{{ stats.hours_worked }}</span>
                 </div>
                 <div class="stat-row">
                     <div class="stat-icon-sm teal"><i class="fas fa-bolt"></i></div>
-                    <span class="stat-label-sm">Productivité</span>
+                    <span class="stat-label-sm">Part terminée</span>
                     <span class="stat-value-sm">{{ stats.productivity }}%</span>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-sm orange"><i class="fas fa-ban"></i></div>
+                    <span class="stat-label-sm">Non réalisées</span>
+                    <span class="stat-value-sm">{{ stats.tasks_not_done }}</span>
                 </div>
             </div>
 
@@ -496,9 +519,9 @@
                     <span class="icon-wrap" style="background:#fef3c7;color:#d97706;"><i class="fas fa-comment-dots"></i></span>
                     Ajoutez une remarque
                 </h2>
-                <textarea class="remarks-textarea" id="remarks" maxlength="500"
+                <textarea class="remarks-textarea" id="remarks" name="extra_remark" form="save-report-form" maxlength="500"
                     placeholder="Écrivez vos remarques ici..."
-                    oninput="updateCounter()"></textarea>
+                    oninput="updateCounter()" {% if read_only %}readonly{% endif %}></textarea>
                 <div class="char-counter"><span id="charCount">0</span>/500</div>
             </div>
 
@@ -514,20 +537,27 @@
                     </svg>
                 </div>
                 {% if is_submitted %}
-                <h3>Rapport envoyé avec succès</h3>
+                <h3>Rapport enregistré</h3>
                 <div class="submitted-badge">
-                    <i class="fas fa-check-circle"></i> Envoyé le {{ report.created_at|date:"d/m/Y à H:i" }}
+                    <i class="fas fa-check-circle"></i> Enregistré le {{ report.updated_at|date:"d/m/Y à H:i" }}
                 </div>
+                <p class="last-sent">Le responsable reçoit ce compte rendu en PDF, à la présentation RAC'IN.</p>
+                <a href="{% url 'reports:pdf' report.pk %}" class="btn btn-primary mt-3">
+                    <i class="fas fa-file-pdf me-2"></i>Télécharger le PDF
+                </a>
+                {% elif read_only %}
+                <h3>Consultation du rapport</h3>
                 {% else %}
-                <h3>Prêt à envoyer votre rapport ?</h3>
-                <button class="btn-submit-report" onclick="submitReport()">
-                    <i class="fas fa-paper-plane"></i> Envoyer le rapport
-                </button>
+                <h3>Validez le rapport après relecture</h3>
+                <p class="last-sent">La génération remplit le texte. L'enregistrement le conserve pour cette date.</p>
                 {% endif %}
-                {% if last_report %}
-                <p class="last-sent">Dernier envoi : {{ last_report.created_at|date:"d/m/Y à H:i" }}</p>
-                {% elif not is_submitted %}
-                <p class="last-sent">Aucun rapport envoyé précédemment</p>
+                {% if previous_reports %}
+                <div class="text-start mt-3">
+                    <p class="last-sent mb-2">Rapports précédents</p>
+                    {% for item in previous_reports %}
+                    <a href="{% url 'reports:detail' item.pk %}" class="d-block small mb-1">{{ item.date|date:"d/m/Y" }}</a>
+                    {% endfor %}
+                </div>
                 {% endif %}
             </div>
 
@@ -538,34 +568,17 @@
 
 {% block extra_js %}
 <script>
-function editSummary() {
-    const el = document.getElementById('aiSummary');
-    el.removeAttribute('readonly');
-    el.focus();
-    el.style.background = '#fff';
-}
-
-function regenerateSummary() {
-    const el = document.getElementById('aiSummary');
-    el.value = 'Régénération en cours...';
-    el.setAttribute('readonly', true);
-    setTimeout(() => {
-        window.location.reload();
-    }, 800);
-}
+document.getElementById('generate-form')?.addEventListener('submit', function () {
+    const btn = document.getElementById('generate-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Génération en cours…';
+});
 
 function updateCounter() {
     const ta = document.getElementById('remarks');
+    if (!ta) return;
     document.getElementById('charCount').textContent = ta.value.length;
-}
-
-function submitReport() {
-    const summary = document.getElementById('aiSummary').value.trim();
-    if (!summary) {
-        alert('Veuillez générer un résumé avant d\'envoyer le rapport.');
-        return;
-    }
-    window.location.href = '{% url "reports:generate" %}';
 }
 </script>
 {% endblock %}

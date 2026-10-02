@@ -55,6 +55,11 @@ class User(AbstractUser):
         blank=True,
         verbose_name=_('Bio')
     )
+    is_demo = models.BooleanField(
+        default=False,
+        verbose_name=_('Donnée de démonstration'),
+        help_text=_("Compte créé par le générateur. Il ne représente pas un employé réel."),
+    )
     
     class Meta:
         verbose_name = _('Utilisateur')

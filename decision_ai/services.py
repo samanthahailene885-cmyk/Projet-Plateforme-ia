@@ -1,346 +1,430 @@
+import logging
+
 from django.conf import settings
-from openai import OpenAI
 from django.utils import timezone
-from datetime import timedelta
-from projects.models import Project
-from tasks.models import Task
-from employees.models import Employee
-from attendance.models import Attendance
-from reports.models import DailyReport
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AuthenticationError,
+    OpenAI,
+    RateLimitError,
+)
+
+from decision_ai.analytics import (
+    assistant_context,
+    collect_alerts,
+    day_stats,
+    employee_report_payload,
+    format_employee_payload,
+    period_stats,
+    project_delay_risks,
+    recorded_answer,
+    workload_rows,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+class AIServiceError(Exception):
+    """Le service IA n'a pas produit de texte. Aucun contenu de remplacement n'est inventé."""
+
+
+class NoSubmittedReportsError(AIServiceError):
+    """Aucun rapport soumis : l'appel au modèle n'a pas lieu."""
+
+
+def _api_error_parts(exc):
+    body = getattr(exc, 'body', None) or {}
+    error = body.get('error') if isinstance(body, dict) else {}
+    if not isinstance(error, dict):
+        error = {}
+    return (
+        type(exc).__name__,
+        getattr(exc, 'status_code', None),
+        error.get('code'),
+        error.get('type'),
+    )
+
+
+def _log_api_error(exc):
+    kind, status, code, error_type = _api_error_parts(exc)
+    logger.warning(
+        'Appel OpenAI refusé (%s, statut %s, code %s, type %s).',
+        kind, status, code, error_type,
+    )
+
+
+def _activity_sentence(task):
+    title = (task.get('title') or '').strip().rstrip('.')
+    extras = []
+    for key in ('description', 'comments'):
+        value = (task.get(key) or '').strip().rstrip('.')
+        if value and value.lower() not in title.lower():
+            extras.append(value)
+    sentence = title
+    if extras:
+        sentence = f"{sentence}. {'. '.join(extras)}"
+    if sentence and sentence[-1] not in '.!?':
+        sentence += '.'
+    return sentence
+
+
+def compose_employee_report(payload):
+    """Une puce par activité enregistrée, sans chiffre ni rubrique inventés."""
+    lines = []
+    for task in payload['tasks']:
+        sentence = _activity_sentence(task)
+        if sentence:
+            lines.append(f'■ {sentence}')
+    return '\n\n'.join(lines)
+
+
+def _quota_exhausted(exc):
+    body = getattr(exc, 'body', None) or {}
+    error = body.get('error') if isinstance(body, dict) else {}
+    details = ''
+    if isinstance(error, dict):
+        details = f"{error.get('code') or ''} {error.get('type') or ''}"
+    blob = f'{details} {exc}'
+    return 'insufficient_quota' in blob or 'credit_balance_exhausted' in blob
+
+
+REPORT_SYSTEM = (
+    "Tu rédiges le rapport journalier d'un employé de l'agence RAC'IN. "
+    "Tu utilises uniquement les activités fournies. "
+    "Tu n'inventes aucune activité, aucun résultat, aucun chiffre et aucune difficulté. "
+    "Chaque activité devient un seul paragraphe, séparé du suivant par une ligne vide. "
+    "Le paragraphe reprend le travail indiqué, en une ou deux phrases, à partir du titre et de la remarque. "
+    "Tu ne mets pas de titre de section, pas de date, pas de nom et pas de bilan chiffré. "
+    "Tu commences chaque paragraphe par le caractère ■ suivi d'un espace. "
+    "Tu écris en français."
+)
+
+REMARK_SYSTEM = (
+    "Tu reformules une remarque en français professionnel. "
+    "Tu conserves strictement le sens et les faits. "
+    "Tu n'ajoutes aucune information. "
+    "Tu renvoies uniquement la phrase reformulée, sans préambule."
+)
+
+SUMMARY_SYSTEM = (
+    "Tu rédiges un résumé pour le responsable d'une agence de communication. "
+    "Les chiffres fournis ont déjà été calculés : tu les reprends tels quels. "
+    "Tu ne recalcules rien et tu n'inventes aucun employé, projet, activité ou nombre. "
+    "Si aucune difficulté n'est listée, tu l'indiques. "
+    "Tu restes factuel et tu ne juges pas la performance des employés. "
+    "Réponds en français, de façon synthétique."
+)
+
+ALERT_SYSTEM = (
+    "Tu expliques en français des alertes déjà produites par des règles. "
+    "Tu ne crées pas de nouvelle alerte et tu n'inventes pas de fait. "
+    "Tu ne juges pas la performance ou la productivité d'un employé. "
+    "Tu proposes seulement de vérifier les éléments cités."
+)
+
+ASSISTANT_SYSTEM = (
+    "Tu es l'assistant du responsable d'une agence de communication. "
+    "Tu réponds uniquement à partir du contexte fourni. "
+    "Les statistiques ont été calculées par le système : tu les recopies sans les additionner ni les recalculer. "
+    "Tu n'inventes aucun employé, projet, activité ou chiffre. "
+    "Si l'information n'est pas dans le contexte, tu le dis clairement. "
+    "Tu ne juges pas la performance des employés. "
+    "Tu réponds en français, de façon concise."
+)
+
+MONTHLY_SYSTEM = (
+    "Tu rédiges un bilan mensuel factuel en français à partir des seuls chiffres fournis. "
+    "Tu n'inventes aucune difficulté ni aucune réussite absente des données. "
+    "Si une information manque, tu l'indiques."
+)
+
+TEAM_SYNTHESIS_SYSTEM = (
+    "Tu rédiges UNE SEULE synthèse globale pour le responsable d'une agence de communication. "
+    "Tu t'appuies uniquement sur les rapports journaliers soumis et les activités fournies. "
+    "Tu ne produis pas un rapport séparé par employé et tu ne recopies pas les rapports à la suite. "
+    "Tu n'inventes aucun employé, aucune activité, aucun projet, aucune difficulté, "
+    "aucun nombre, aucune progression et aucune information absente. "
+    "Tu n'ajoutes pas de civilité (M., Mme) si elle n'est pas déjà écrite dans les données. "
+    "Les décomptes fournis ont été calculés par le système : tu peux les reprendre tels quels, "
+    "sans les recalculer et sans en créer d'autres. "
+    "Un rapport non soumis ne signifie pas une absence : tu peux seulement reprendre le nombre indiqué. "
+    "Tu ne cites pas le nom d'un employé qui n'a pas de rapport dans les données. "
+    "Si aucune difficulté n'est présente dans les rapports ni dans les remarques, écris exactement : "
+    "D'après les rapports soumis, aucune difficulté particulière n'a été signalée. "
+    "Si une rubrique n'a aucune donnée, dis-le sans la compléter. "
+    "Réponds en français, de façon professionnelle, avec exactement ces titres :\n"
+    "### Synthèse de l'activité de l'équipe\n"
+    "### Activités réalisées\n"
+    "### Activités en cours\n"
+    "### Difficultés signalées\n"
+    "### Projets concernés\n"
+    "### Points d'attention\n"
+    "### Conclusion"
+)
 
 
 class DecisionAIService:
-    """
-    Service principal pour les fonctionnalités IA d'aide à la décision
-    """
-    
+    _quota_blocked = False
+
     def __init__(self):
+        api_key = (getattr(settings, 'OPENAI_API_KEY', '') or '').strip()
+        self.model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o-mini')
+        timeout = getattr(settings, 'OPENAI_TIMEOUT', 45)
+        self.client = None
+        self._setup_error = None
+        if not api_key or api_key == 'your-openai-api-key':
+            self._setup_error = (
+                "Le service d'intelligence artificielle n'est pas configuré. "
+                "Dans le fichier .env, remplacez OPENAI_API_KEY par une clé réelle "
+                "(platform.openai.com), puis redémarrez l'application."
+            )
+            return
         try:
-            self.client = OpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
-        except Exception as e:
-            print(f"Erreur lors de l'initialisation du client OpenAI: {e}")
+            self.client = OpenAI(api_key=api_key, timeout=timeout)
+        except Exception:
             self.client = None
-    
+            self._setup_error = (
+                "Le client OpenAI n'a pas pu démarrer. "
+                "Vérifiez que le paquet openai est compatible avec les bibliothèques installées, "
+                "puis redémarrez l'application."
+            )
+
+    def _complete(self, system, user_content, max_tokens=900):
+        if not self.client:
+            raise AIServiceError(
+                self._setup_error
+                or "Le service d'intelligence artificielle est indisponible."
+            )
+        if DecisionAIService._quota_blocked:
+            raise AIServiceError(
+                "Le compte OpenAI n'a plus de crédit. "
+                "Ajoutez des crédits dans la facturation sur platform.openai.com, "
+                "puis relancez la génération. Aucun texte n'a été inventé à la place."
+            )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {'role': 'system', 'content': system},
+                    {'role': 'user', 'content': user_content},
+                ],
+                max_tokens=max_tokens,
+                temperature=0.2,
+            )
+            text = (response.choices[0].message.content or '').strip()
+        except AIServiceError:
+            raise
+        except AuthenticationError as exc:
+            _log_api_error(exc)
+            raise AIServiceError(
+                "La clé OPENAI_API_KEY a été refusée par le service. "
+                "Vérifiez la clé dans le fichier .env, puis redémarrez l'application. "
+                "Aucun texte n'a été inventé à la place."
+            )
+        except APITimeoutError as exc:
+            _log_api_error(exc)
+            raise AIServiceError(
+                "Le service d'intelligence artificielle a mis trop de temps à répondre. "
+                "Réessayez dans quelques instants. Aucun texte n'a été inventé."
+            )
+        except RateLimitError as exc:
+            _log_api_error(exc)
+            if _quota_exhausted(exc):
+                DecisionAIService._quota_blocked = True
+                raise AIServiceError(
+                    "Le compte OpenAI n'a plus de crédit. "
+                    "Ajoutez des crédits dans la facturation sur platform.openai.com, "
+                    "puis relancez la génération. Aucun texte n'a été inventé à la place."
+                )
+            raise AIServiceError(
+                "Le service d'intelligence artificielle est temporairement saturé. "
+                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
+            )
+        except APIConnectionError as exc:
+            _log_api_error(exc)
+            raise AIServiceError(
+                "Le service d'intelligence artificielle est temporairement indisponible. "
+                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
+            )
+        except Exception as exc:
+            _log_api_error(exc)
+            raise AIServiceError(
+                "Le service d'intelligence artificielle est temporairement indisponible. "
+                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
+            )
+        if not text:
+            raise AIServiceError(
+                "Le service d'intelligence artificielle a renvoyé une réponse vide. "
+                "Aucun texte de remplacement n'a été généré."
+            )
+        return text
+
+    def _complete_or(self, system, user_content, fallback, max_tokens=900):
+        """Utilise le modèle s'il répond, sinon le texte déjà calculé sur les données enregistrées."""
+        try:
+            return self._complete(system, user_content, max_tokens=max_tokens)
+        except AIServiceError:
+            return fallback
+
     def _get_current_date(self):
-        """Retourne la date actuelle formatée"""
         return timezone.now().date().strftime('%d/%m/%Y')
-    
-    def generate_intelligent_summary(self):
-        """
-        Génère un résumé intelligent des tâches, rapports et projets
-        """
-        if not self.client:
-            return self._generate_fallback_summary()
-        
-        # Récupérer les données
-        context = self._prepare_summary_context()
-        
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Tu es un assistant expert en gestion de projet pour une agence de communication. Génère un résumé professionnel et structuré de l'activité de l'agence."
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
-                max_tokens=800,
-                temperature=0.7
+
+    def generate_employee_report(self, user, day):
+        payload = employee_report_payload(user, day)
+        if payload['counts']['planned'] == 0:
+            raise AIServiceError(
+                "Données insuffisantes : aucune activité n'est enregistrée pour cette date. "
+                "Le rapport n'a pas été généré."
             )
-            
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Erreur lors de la génération du résumé: {e}")
-            return self._generate_fallback_summary()
-    
-    def _prepare_summary_context(self):
-        """
-        Prépare le contexte pour la génération du résumé
-        """
-        today = timezone.now().date()
-        week_ago = today - timedelta(days=7)
-        
-        # Projets
-        active_projects = Project.objects.filter(status='in_progress')
-        completed_projects = Project.objects.filter(status='completed', updated_at__gte=week_ago)
-        
-        # Tâches
-        completed_tasks = Task.objects.filter(status='completed', updated_at__gte=week_ago)
-        in_progress_tasks = Task.objects.filter(status='in_progress')
-        
-        # Rapports
-        recent_reports = DailyReport.objects.filter(date__gte=week_ago)
-        
-        context = f"Résumé de l'activité de l'agence (semaine du {week_ago.strftime('%d/%m/%Y')} au {today.strftime('%d/%m/%Y')})\n\n"
-        
-        context += f"Projets actifs: {active_projects.count()}\n"
-        for project in active_projects[:5]:
-            context += f"- {project.name} (Progression: {project.progress}%)\n"
-        
-        context += f"\nProjets terminés cette semaine: {completed_projects.count()}\n"
-        
-        context += f"\nTâches terminées cette semaine: {completed_tasks.count()}\n"
-        context += f"Tâches en cours: {in_progress_tasks.count()}\n"
-        
-        context += f"\nRapports envoyés cette semaine: {recent_reports.count()}\n"
-        
-        context += "\nGénère un résumé professionnel mettant en évidence les points clés, les réussites et les points d'attention."
-        
-        return context
-    
-    def _generate_fallback_summary(self):
-        """
-        Génère un résumé de secours
-        """
-        today = timezone.now().date()
-        week_ago = today - timedelta(days=7)
-        
-        active_projects = Project.objects.filter(status='in_progress')
-        completed_tasks = Task.objects.filter(status='completed', updated_at__gte=week_ago)
-        in_progress_tasks = Task.objects.filter(status='in_progress')
-        
-        summary = f"Résumé de l'activité - {today.strftime('%d/%m/%Y')}\n\n"
-        summary += f"Projets actifs: {active_projects.count()}\n"
-        summary += f"Tâches terminées cette semaine: {completed_tasks.count()}\n"
-        summary += f"Tâches en cours: {in_progress_tasks.count()}\n"
-        
-        return summary
-    
+        if self.client and not DecisionAIService._quota_blocked:
+            try:
+                return self._complete(REPORT_SYSTEM, format_employee_payload(payload), max_tokens=900)
+            except AIServiceError:
+                pass
+        from decision_ai.briefing import narrate_employee_day
+        return narrate_employee_day(payload) or compose_employee_report(payload)
+
+    def improve_remark(self, remark):
+        remark = (remark or '').strip()
+        if len(remark) < 3:
+            raise AIServiceError("Saisissez une remarque avant de demander une reformulation.")
+        return self._complete_or(
+            REMARK_SYSTEM,
+            f"Remarque d'origine :\n{remark}",
+            remark,
+            max_tokens=300,
+        )
+
+    def summarize_day(self, day):
+        stats = day_stats(day)
+        remarks = stats['remarks']
+        if remarks:
+            remark_lines = '\n'.join(
+                f"- {item['employee']} / {item['task']} : {item['comment'][:400]}"
+                for item in remarks[:20]
+            )
+        else:
+            remark_lines = "Aucune remarque enregistrée pour cette date."
+        if stats['planned'] == 0 and stats['reports'] == 0 and not remarks:
+            raise AIServiceError(
+                "Données insuffisantes : aucune activité ni rapport n'est enregistré pour cette date. "
+                "Aucun résumé n'a été inventé."
+            )
+        content = (
+            f"{_stats_block(stats)}\n\n"
+            f"Remarques et difficultés saisies :\n{remark_lines}\n\n"
+            "Produis un résumé avec : le volume d'activités (en reprenant les chiffres), "
+            "les difficultés signalées, et les points qui méritent une vérification. "
+            "N'ajoute aucun fait absent."
+        )
+        from decision_ai.briefing import agency_brief, difficulty_brief
+
+        fallback = f"{agency_brief(day)}\n\n{difficulty_brief(day)}"
+        return self._complete_or(SUMMARY_SYSTEM, content, fallback, max_tokens=800)
+
+    def explain_alerts(self, alerts):
+        if not alerts:
+            raise AIServiceError(
+                "Aucune situation à expliquer : les règles n'ont rien détecté dans les données enregistrées."
+            )
+        lines = []
+        for alert in alerts[:25]:
+            lines.append(
+                f"- {alert['kind']} « {alert['subject']} » ({alert['project']}) : "
+                f"{alert['reason']} Données : {alert['evidence']} "
+                f"Vérification proposée : {alert['suggestion']}"
+            )
+        from decision_ai.briefing import alert_brief
+
+        return self._complete_or(
+            ALERT_SYSTEM,
+            "Alertes déjà établies :\n" + '\n'.join(lines),
+            alert_brief(alerts),
+            max_tokens=800,
+        )
+
     def answer_question(self, question):
-        """
-        Répond à une question de l'utilisateur basée sur les données de la base
-        """
-        if not self.client:
-            return self._answer_question_fallback(question)
-        
-        context = self._prepare_qa_context(question)
-        
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Tu es un assistant IA pour une agence de communication. Réponds uniquement aux questions basées sur les données fournies. Sois précis et professionnel."
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
-                max_tokens=500,
-                temperature=0.5
-            )
-            
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Erreur lors de la réponse: {e}")
-            return self._answer_question_fallback(question)
-    
-    def _prepare_qa_context(self, question):
-        """
-        Prépare le contexte pour répondre à une question
-        """
+        question = (question or '').strip()
+        if not question:
+            raise AIServiceError("La question est vide.")
         today = timezone.now().date()
-        
-        # Récupérer les données pertinentes
-        employees = Employee.objects.select_related('user').all()
-        projects = Project.objects.all()
-        tasks = Task.objects.select_related('project', 'assigned_to__user').all()
-        today_attendance = Attendance.objects.filter(date=today)
-        today_reports = DailyReport.objects.filter(date=today)
-        
-        context = f"Question: {question}\n\n"
-        context += "Données disponibles:\n\n"
-        
-        context += f"Employés ({employees.count()}):\n"
-        for emp in employees:
-            context += f"- {emp.full_name} ({emp.get_position_display})\n"
-        
-        context += f"\nProjets ({projects.count()}):\n"
-        for proj in projects:
-            context += f"- {proj.name} (Statut: {proj.get_status_display()}, Progression: {proj.progress}%)\n"
-        
-        context += f"\nPrésence aujourd'hui:\n"
-        context += f"- Présents: {today_attendance.filter(status='present').count()}\n"
-        context += f"- Absents: {today_attendance.filter(status='absent').count()}\n"
-        context += f"- Retards: {today_attendance.filter(status='late').count()}\n"
-        
-        context += f"\nRapports envoyés aujourd'hui: {today_reports.count()}\n"
-        
-        context += "\nRéponds à la question en utilisant uniquement ces données."
-        
-        return context
-    
-    def _answer_question_fallback(self, question):
-        """
-        Réponse de secours pour les questions
-        """
-        question_lower = question.lower()
-        
-        if 'absent' in question_lower:
-            today = timezone.now().date()
-            absent_count = Attendance.objects.filter(date=today, status='absent').count()
-            return f"Il y a {absent_count} employé(s) absent(s) aujourd'hui."
-        
-        elif 'retard' in question_lower or 'projet' in question_lower:
-            overdue_projects = Project.objects.filter(end_date__lt=timezone.now().date(), status__in=['in_progress', 'planning'])
-            if overdue_projects:
-                return f"Projets en retard: {', '.join([p.name for p in overdue_projects])}"
-            return "Aucun projet en retard."
-        
-        elif 'rapport' in question_lower:
-            today = timezone.now().date()
-            reports_count = DailyReport.objects.filter(date=today).count()
-            return f"{reports_count} rapport(s) envoyé(s) aujourd'hui."
-        
-        else:
-            return "Désolé, je ne peux pas répondre à cette question sans l'API OpenAI."
-    
+        context = f"Question du responsable :\n{question}\n\n{assistant_context(question, today)}"
+        return self._complete_or(
+            ASSISTANT_SYSTEM,
+            context,
+            recorded_answer(question, today),
+            max_tokens=700,
+        )
+
+    def generate_intelligent_summary(self):
+        today = timezone.now().date()
+        return self.summarize_day(today)
+
     def detect_project_delays(self):
-        """
-        Détecte les projets à risque de retard
-        """
-        today = timezone.now().date()
-        at_risk_projects = []
-        
-        projects = Project.objects.filter(status__in=['planning', 'in_progress'])
-        
-        for project in projects:
-            # Projets dont la date de fin est proche
-            days_remaining = project.days_remaining
-            if days_remaining is not None and days_remaining <= 7:
-                at_risk_projects.append({
-                    'project': project,
-                    'risk_level': 'high' if days_remaining <= 3 else 'medium',
-                    'days_remaining': days_remaining,
-                    'reason': 'Date limite proche'
-                })
-            
-            # Projets avec progression insuffisante
-            if project.progress < 50 and project.days_remaining < 14:
-                at_risk_projects.append({
-                    'project': project,
-                    'risk_level': 'high',
-                    'days_remaining': project.days_remaining,
-                    'reason': 'Progression insuffisante'
-                })
-        
-        return at_risk_projects
-    
+        return project_delay_risks()
+
     def analyze_workload(self):
-        """
-        Analyse la charge de travail des employés
-        """
-        employees = Employee.objects.select_related('user').prefetch_related('assigned_tasks').all()
-        
-        workload_analysis = []
-        
-        for employee in employees:
-            active_tasks = employee.assigned_tasks.filter(status='in_progress')
-            high_priority_tasks = active_tasks.filter(priority__in=['high', 'urgent'])
-            
-            workload_level = 'normal'
-            if active_tasks.count() > 10:
-                workload_level = 'overloaded'
-            elif active_tasks.count() < 2:
-                workload_level = 'underloaded'
-            
-            workload_analysis.append({
-                'employee': employee,
-                'total_tasks': active_tasks.count(),
-                'high_priority_tasks': high_priority_tasks.count(),
-                'workload_level': workload_level,
-                'recommendation': self._get_workload_recommendation(workload_level, active_tasks.count())
-            })
-        
-        return workload_analysis
-    
-    def _get_workload_recommendation(self, workload_level, task_count):
-        """
-        Génère des recommandations basées sur la charge de travail
-        """
-        if workload_level == 'overloaded':
-            return "Considérer la réaffectation de certaines tâches ou l'embauche temporaire."
-        elif workload_level == 'underloaded':
-            return "Peut accepter de nouvelles responsabilités ou aider d'autres équipes."
-        else:
-            return "Charge de travail équilibrée."
-    
-    def generate_monthly_report(self):
-        """
-        Génère un rapport mensuel avec l'IA
-        """
-        if not self.client:
-            return self._generate_fallback_monthly_report()
-        
-        context = self._prepare_monthly_context()
-        
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Tu es un expert en gestion d'entreprise. Génère un rapport mensuel professionnel avec statistiques, points forts, difficultés et recommandations."
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
-                max_tokens=1000,
-                temperature=0.7
+        return workload_rows(timezone.now().date())
+
+    def synthesize_submitted_reports(self, day):
+        """Une synthèse d'équipe à partir des rapports soumis dans la base."""
+        from reports.synthesis import collect_team_synthesis, compose_team_synthesis, synthesis_prompt
+
+        dossier = collect_team_synthesis(day)
+        if dossier['analyzed'] == 0:
+            raise NoSubmittedReportsError(
+                "Aucun rapport journalier soumis n'est enregistré pour cette date. "
+                "Aucune synthèse n'a été générée."
             )
-            
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Erreur lors de la génération du rapport mensuel: {e}")
-            return self._generate_fallback_monthly_report()
-    
-    def _prepare_monthly_context(self):
-        """
-        Prépare le contexte pour le rapport mensuel
-        """
+        try:
+            text = self._complete(
+                TEAM_SYNTHESIS_SYSTEM,
+                synthesis_prompt(dossier),
+                max_tokens=1600,
+            )
+        except AIServiceError:
+            text = compose_team_synthesis(dossier)
+        return text, dossier
+
+    def generate_monthly_report(self):
         today = timezone.now().date()
         month_start = today.replace(day=1)
-        
-        # Statistiques du mois
-        completed_projects = Project.objects.filter(status='completed', updated_at__gte=month_start)
-        completed_tasks = Task.objects.filter(status='completed', updated_at__gte=month_start)
-        reports_sent = DailyReport.objects.filter(date__gte=month_start)
-        
-        context = f"Rapport mensuel - {today.strftime('%B %Y')}\n\n"
-        context += f"Projets terminés ce mois: {completed_projects.count()}\n"
-        context += f"Tâches terminées ce mois: {completed_tasks.count()}\n"
-        context += f"Rapports envoyés ce mois: {reports_sent.count()}\n"
-        
-        context += "\nGénère un rapport mensuel structuré avec:\n"
-        context += "- Résumé du mois\n"
-        context += "- Statistiques principales\n"
-        context += "- Points forts\n"
-        context += "- Difficultés rencontrées\n"
-        context += "- Recommandations pour améliorer la gestion\n"
-        
-        return context
-    
-    def _generate_fallback_monthly_report(self):
-        """
-        Génère un rapport mensuel de secours
-        """
-        today = timezone.now().date()
-        month_start = today.replace(day=1)
-        
-        completed_projects = Project.objects.filter(status='completed', updated_at__gte=month_start)
-        completed_tasks = Task.objects.filter(status='completed', updated_at__gte=month_start)
-        
-        report = f"Rapport mensuel - {today.strftime('%B %Y')}\n\n"
-        report += f"Projets terminés: {completed_projects.count()}\n"
-        report += f"Tâches terminées: {completed_tasks.count()}\n"
-        report += "\nRecommandations: Continuer à suivre la progression des projets et optimiser la répartition des tâches."
-        
-        return report
+        stats = period_stats(month_start, today)
+        alerts = collect_alerts(today)
+        content = (
+            f"Période : {stats['start']:%d/%m/%Y} au {stats['end']:%d/%m/%Y}\n"
+            f"Activités prévues : {stats['planned']}\n"
+            f"Activités passées au statut terminé : {stats['completed']}\n"
+            f"En cours : {stats['in_progress']}\n"
+            f"Non réalisées : {stats['not_done']}\n"
+            f"Encore à faire : {stats['todo']}\n"
+            f"Alertes ouvertes aujourd'hui : {len(alerts)}\n"
+            "Rédige un bilan court. N'invente pas de difficulté si aucune alerte n'est comptée "
+            "autrement que par ce nombre."
+        )
+        fallback = (
+            f"Bilan du {stats['start']:%d/%m/%Y} au {stats['end']:%d/%m/%Y}. "
+            f"Activités prévues : {stats['planned']}. "
+            f"Passées au statut terminé : {stats['completed']}. "
+            f"En cours : {stats['in_progress']}. "
+            f"Non réalisées : {stats['not_done']}. "
+            f"Encore à faire : {stats['todo']}. "
+            f"Alertes ouvertes aujourd'hui : {len(alerts)}."
+        )
+        return self._complete_or(MONTHLY_SYSTEM, content, fallback, max_tokens=800)
+
+
+def _stats_block(stats):
+    return (
+        f"Date : {stats['date']:%d/%m/%Y}\n"
+        f"Activités prévues : {stats['planned']}\n"
+        f"Terminées : {stats['completed']}\n"
+        f"En cours : {stats['in_progress']}\n"
+        f"À faire : {stats['todo']}\n"
+        f"Non réalisées : {stats['not_done']}\n"
+        f"Annulées : {stats['cancelled']}\n"
+        f"Rapports enregistrés : {stats['reports']}\n"
+        f"Employés actifs : {stats.get('active_employees', 'non demandé')}"
+    )

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -29,9 +30,10 @@
         
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--light-color);
+            background-color: #f4f6fb;
             color: var(--dark-color);
             overflow-x: hidden;
+            margin: 0;
         }
         
         html {
@@ -193,6 +195,191 @@
             transition: background .15s;
         }
         .sidebar-help .btn-help:hover { background: rgba(255,255,255,.18); }
+
+        .container-fluid:has(.sidebar-racin) {
+            padding: 0;
+            margin: 0;
+            max-width: 100%;
+        }
+        .app-row {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            margin: 0;
+            --bs-gutter-x: 0;
+            --bs-gutter-y: 0;
+            min-height: 100vh;
+        }
+        .app-row > .sidebar-racin,
+        .app-row > .racin-content {
+            margin-top: 0;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .app-row > .racin-content {
+            margin-left: 272px;
+            width: calc(100% - 272px);
+            max-width: calc(100% - 272px);
+            flex: none;
+            box-sizing: border-box;
+        }
+        .sidebar-racin {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 40;
+            width: 272px;
+            min-width: 272px;
+            max-width: 272px;
+            height: 100vh;
+            flex: none;
+            background: #041126;
+            overflow: hidden;
+            transition: transform .2s ease;
+        }
+        .racin-content {
+            margin-left: 272px;
+            width: calc(100% - 272px);
+            max-width: calc(100% - 272px);
+            flex: none;
+            box-sizing: border-box;
+            background: #06152F;
+            color: #F8FAFC;
+            min-height: 100vh;
+            padding: 0 18px 28px;
+        }
+        .racin-brand {
+            padding: 16px 18px 8px;
+            flex-shrink: 0;
+        }
+        .racin-logo {
+            font-weight: 800;
+            font-size: 1.35rem;
+            letter-spacing: 0.04em;
+            color: #fff;
+            line-height: 1;
+        }
+        .racin-tag {
+            margin-top: 6px;
+            font-size: 0.62rem;
+            color: rgba(255,255,255,.45);
+            letter-spacing: 0.01em;
+        }
+        .sidebar-racin .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            justify-content: flex-start;
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px 14px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            gap: 2px;
+        }
+        .sidebar-racin .sidebar-nav::-webkit-scrollbar { width: 0; }
+        .sidebar-racin .nav-link {
+            color: rgba(226, 232, 255, 0.72);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin: 0;
+            font-size: 0.84rem;
+            font-weight: 500;
+            border-left: none;
+            width: 100%;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        .sidebar-racin .nav-link i {
+            width: 18px;
+            margin-right: 12px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .sidebar-racin .nav-link:hover {
+            background: rgba(255,255,255,.06);
+            color: #fff;
+        }
+        .sidebar-racin .nav-link.active {
+            background: #2563EB;
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, .25), 0 8px 20px rgba(37, 99, 235, .28);
+        }
+        .racin-badge {
+            margin-left: auto;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .racin-dot {
+            margin-left: auto;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        .racin-ai {
+            margin: 0 12px 14px;
+            padding: 14px 12px 12px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #1a2158 0%, #151b46 100%);
+            border: 1px solid rgba(255,255,255,.06);
+            flex-shrink: 0;
+        }
+        .racin-ai-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #c4b5fd;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+        .racin-ai h6 {
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+        .racin-ai p {
+            color: rgba(226, 232, 255, .62);
+            font-size: 0.75rem;
+            line-height: 1.4;
+            margin: 0 0 12px;
+        }
+        .racin-ai-btn {
+            display: block;
+            text-align: center;
+            background: #2563EB;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .racin-ai-btn:hover { background: #4c3ff0; color: #fff; }
+        .racin-logout {
+            display: block;
+            text-align: center;
+            margin-top: 10px;
+            color: rgba(226,232,255,.45);
+            font-size: 0.72rem;
+            text-decoration: none;
+        }
+        .racin-logout:hover { color: #fff; }
         
         .card {
             border: none;
@@ -297,145 +484,134 @@
     </style>
     
     {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/platform.css' %}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     {% if user.is_authenticated %}
     <div class="container-fluid">
-        <div class="row">
+        <div class="row app-row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-0">
-                <!-- Brand -->
-                <div class="sidebar-brand">
-                    <div class="sidebar-brand-icon">W</div>
-                    <div>
-                        <span class="sidebar-brand-name">WorkFlow</span>
-                        <span class="sidebar-brand-sub">Gestion intelligente</span>
-                    </div>
+            <div class="sidebar sidebar-racin p-0">
+                <div class="racin-brand">
+                    <div class="racin-logo">RAC'IN</div>
+                    <div class="racin-tag">Communication · Création · Impact</div>
                 </div>
 
                 <nav class="sidebar-nav nav flex-column">
                     {% if user.is_admin %}
                     <a class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.namespace == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}">
-                        <i class="fas fa-home"></i> Tableau de bord
+                        <i class="fas fa-border-all"></i> Tableau de bord
                     </a>
-                    <a class="nav-link" href="{% url 'notifications:list' %}">
-                        <i class="fas fa-bell"></i> Notifications
-                        {% if sidebar_unread_messages %}<span class="badge bg-danger ms-auto">{{ sidebar_unread_messages }}</span>{% endif %}
-                    </a>
-                    <a class="nav-link" href="{% url 'employees:list' %}">
-                        <i class="fas fa-users"></i> Employés
-                    </a>
-                    <a class="nav-link" href="{% url 'projects:list' %}">
-                        <i class="fas fa-project-diagram"></i> Projets
-                    </a>
-                    <a class="nav-link" href="{% url 'tasks:list' %}">
-                        <i class="fas fa-tasks"></i> Tâches
-                    </a>
-                    <a class="nav-link" href="{% url 'permissions:list' %}">
-                        <i class="fas fa-calendar-check"></i> Permissions
-                        {% if sidebar_pending_permissions %}<span class="badge bg-warning text-dark ms-auto">{{ sidebar_pending_permissions }}</span>{% endif %}
-                    </a>
-                    <a class="nav-link" href="{% url 'attendance:list' %}">
-                        <i class="fas fa-clock"></i> Présence
-                    </a>
-                    <a class="nav-link" href="{% url 'reports:list' %}">
-                        <i class="fas fa-file-alt"></i> Rapports
-                    </a>
-                    <a class="nav-link" href="{% url 'decision_ai:assistant' %}">
-                        <i class="fas fa-robot"></i> Assistant IA
-                    </a>
-                    {% else %}
-                    <a class="nav-link {% if request.resolver_match.url_name == 'employee_home' %}active{% endif %}" href="{% url 'dashboard:employee_home' %}">
-                        <i class="fas fa-th-large"></i> Tableau de bord
-                    </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' %}active{% endif %}" href="{% url 'tasks:list' %}">
-                        <i class="fas fa-tasks"></i> Mes tâches
-                        {% if sidebar_task_count %}<span class="badge bg-danger ms-auto">{{ sidebar_task_count }}</span>{% endif %}
+                    <a class="nav-link {% if request.resolver_match.namespace == 'employees' %}active{% endif %}" href="{% url 'employees:list' %}">
+                        <i class="fas fa-user-friends"></i> Employés
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'projects' %}active{% endif %}" href="{% url 'projects:list' %}">
-                        <i class="fas fa-folder-open"></i> Mes projets
+                        <i class="far fa-folder"></i> Projets
                     </a>
-                    <a class="nav-link" href="{% url 'tasks:list' %}?status=todo">
-                        <i class="fas fa-list-check"></i> Ma Todo List
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                        <i class="far fa-check-square"></i> Tâches
                     </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:create' %}">
-                        <i class="fas fa-file-alt"></i> Mon rapport
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name == 'daily' %}active{% endif %}" href="{% url 'tasks:daily' %}">
+                        <i class="fas fa-list-ul"></i> Todo Lists du jour
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:list' %}">
+                        <i class="far fa-file-alt"></i> Rapports journaliers
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'permissions' %}active{% endif %}" href="{% url 'permissions:list' %}">
-                        <i class="fas fa-calendar-check"></i> Mes permissions
-                        {% if sidebar_pending_permissions %}<span class="badge bg-warning text-dark ms-auto">{{ sidebar_pending_permissions }}</span>{% endif %}
+                        <i class="far fa-calendar"></i> Permissions et absences
+                        {% if sidebar_pending_permissions %}<span class="racin-dot"></span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'delay_detection' %}active{% endif %}" href="{% url 'decision_ai:delay_detection' %}">
+                        <i class="far fa-bell"></i> Centre d'alertes
+                        {% if sidebar_unread_messages %}<span class="racin-badge">{{ sidebar_unread_messages }}</span>{% endif %}
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}">
                         <i class="fas fa-bell"></i> Notifications
-                        {% if sidebar_unread_messages %}<span class="badge bg-danger ms-auto">{{ sidebar_unread_messages }}</span>{% endif %}
                     </a>
-                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
-                        <i class="fas fa-user-circle"></i> Mon profil
+                    <a class="nav-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}" href="{% url 'decision_ai:assistant' %}">
+                        <i class="fas fa-wand-magic-sparkles"></i> Assistant IA
                     </a>
-                    <a class="nav-link" href="{% url 'authentication:profile' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'demo_data' %}active{% endif %}" href="{% url 'employees:demo_data' %}">
+                        <i class="fas fa-database"></i> Données de démonstration
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'authentication' and request.resolver_match.url_name != 'logout' %}active{% endif %}" href="{% url 'authentication:profile' %}">
                         <i class="fas fa-cog"></i> Paramètres
                     </a>
-                    {% endif %}
-                    {% if user.is_admin %}
-                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
-                        <i class="fas fa-user-circle"></i> Mon profil
+                    {% else %}
+                    <a class="nav-link {% if request.resolver_match.url_name == 'employee_home' %}active{% endif %}" href="{% url 'dashboard:employee_home' %}">
+                        <i class="fas fa-border-all"></i> Tableau de bord
                     </a>
-                    <a class="nav-link" href="{% url 'authentication:logout' %}">
-                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    <a class="nav-link {% if request.resolver_match.namespace == 'projects' %}active{% endif %}" href="{% url 'projects:list' %}">
+                        <i class="far fa-folder"></i> Mes projets
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                        <i class="far fa-check-square"></i> Mes tâches
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name == 'daily' %}active{% endif %}" href="{% url 'tasks:daily' %}">
+                        <i class="fas fa-list-ul"></i> Ma Todo List
+                        {% if sidebar_task_count %}<span class="racin-badge">{{ sidebar_task_count }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:create' %}">
+                        <i class="far fa-file-alt"></i> Mon rapport
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'permissions' %}active{% endif %}" href="{% url 'permissions:list' %}">
+                        <i class="far fa-calendar"></i> Mes permissions
+                        {% if sidebar_pending_permissions %}<span class="racin-dot"></span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}">
+                        <i class="fas fa-bell"></i> Notifications
+                        {% if sidebar_unread_messages %}<span class="racin-badge">{{ sidebar_unread_messages }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
+                        <i class="fas fa-user"></i> Mon profil
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile_update' %}active{% endif %}" href="{% url 'authentication:profile_update' %}">
+                        <i class="fas fa-cog"></i> Paramètres
                     </a>
                     {% endif %}
                 </nav>
 
-                {% if not user.is_admin %}
-                <!-- Profile en bas pour les employés -->
-                <div class="sidebar-profile" style="border-top:1px solid rgba(255,255,255,.08);border-bottom:none;margin-top:auto;">
-                    {% if user.photo %}
-                        <img src="{{ user.photo.url }}" alt="{{ user.username }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">
-                    {% else %}
-                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                             style="width:40px;height:40px;background:rgba(255,255,255,.12);">
-                            <i class="fas fa-user" style="color:rgba(255,255,255,.7);font-size:.85rem;"></i>
-                        </div>
-                    {% endif %}
-                    <div class="sidebar-profile-info">
-                        <h6>{{ user.first_name }} {{ user.last_name }}</h6>
-                        <small>{% if user.employee_profile %}{{ user.employee_profile.get_position_display }}{% else %}{{ user.get_role_display }}{% endif %}</small>
-                        <div class="online-badge">En ligne</div>
-                    </div>
+                {% if user.is_admin %}
+                {% block sidebar_card %}
+                <div class="racin-ai">
+                    <div class="racin-ai-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <h6>Assistant IA</h6>
+                    <p>Posez vos questions et obtenez des analyses basées sur les données de votre plateforme.</p>
+                    <a class="racin-ai-btn" href="{% url 'decision_ai:assistant' %}">Ouvrir l'assistant →</a>
+                    <a class="racin-logout" href="{% url 'authentication:logout' %}">Déconnexion</a>
                 </div>
-                <div class="sidebar-help" style="border-top:none;padding-top:8px;">
-                    <a href="{% url 'authentication:logout' %}" class="nav-link" style="padding:9px 14px;">
-                        <i class="fas fa-sign-out-alt"></i> Déconnexion
-                    </a>
-                </div>
+                {% endblock %}
                 {% else %}
-                <!-- Profile admin en haut -->
-                <div class="sidebar-profile">
-                    {% if user.photo %}
-                        <img src="{{ user.photo.url }}" alt="{{ user.username }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">
-                    {% else %}
-                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                             style="width:40px;height:40px;background:rgba(255,255,255,.12);">
-                            <i class="fas fa-user" style="color:rgba(255,255,255,.7);font-size:.85rem;"></i>
-                        </div>
-                    {% endif %}
-                    <div class="sidebar-profile-info">
-                        <h6>{{ user.first_name }} {{ user.last_name }}</h6>
-                        <small>{{ user.get_role_display }}</small>
-                        <div class="online-badge">En ligne</div>
-                    </div>
+                <div class="racin-ai">
+                    <div class="racin-ai-icon"><i class="fas fa-bell"></i></div>
+                    <h6>Vos notifications</h6>
+                    <p>Suivez vos tâches, rapports et permissions en temps réel.</p>
+                    <a class="racin-ai-btn" href="{% url 'notifications:list' %}">Voir les notifications</a>
+                    <a class="racin-logout" href="{% url 'authentication:logout' %}">Déconnexion</a>
                 </div>
                 {% endif %}
-
-                <!-- Help -->
-                <div class="sidebar-help">
-                    <p>Besoin d'aide ?</p>
-                    <button class="btn-help"><i class="fas fa-headset me-1"></i> Contacter</button>
-                </div>
             </div>
             
             <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-3">
+            <div class="racin-content">
+                <header class="app-header">
+                    <button class="app-icon-btn" type="button" id="app-menu" aria-label="Menu"><i class="fas fa-bars"></i></button>
+                    <form class="app-search" method="get" action="{% url 'dashboard:search' %}">
+                        <i class="fas fa-search"></i>
+                        <input type="search" name="q" placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche">
+                    </form>
+                    <div class="app-tools">
+                        <div class="app-date"><i class="far fa-calendar"></i> {{ header_date_label }}</div>
+                        <a class="app-icon-btn" href="{% url 'notifications:list' %}" aria-label="Notifications">
+                            <i class="far fa-bell"></i>
+                            {% if sidebar_unread_messages %}<span class="app-badge">{{ sidebar_unread_messages }}</span>{% endif %}
+                        </a>
+                        <a class="app-user" href="{% url 'authentication:profile' %}">
+                            <span class="app-avatar">{{ header_initials }}</span>
+                            <span><strong>{{ header_name }}</strong><span>{{ header_role }}</span></span>
+                        </a>
+                    </div>
+                </header>
                 {% if messages %}
                     {% for message in messages %}
                         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -493,6 +669,13 @@
     
     // Mettre à jour au chargement initial
     document.addEventListener('DOMContentLoaded', updateNotificationCount);
+    var menu = document.getElementById('app-menu');
+    if (menu) {
+        menu.addEventListener('click', function () {
+            if (window.innerWidth <= 900) document.body.classList.toggle('app-open');
+            else document.body.classList.toggle('app-collapsed');
+        });
+    }
     </script>
     {% endif %}
     

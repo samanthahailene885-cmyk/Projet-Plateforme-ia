@@ -1,538 +1,329 @@
 {% extends 'base.html' %}
 
-{% block title %}Mes permissions - WorkFlow{% endblock %}
+{% block title %}Permissions et absences{% endblock %}
 
 {% block extra_css %}
 <style>
-    :root {
-        --perm-blue: #2563eb;
-        --perm-blue-dark: #1d4ed8;
-        --perm-text: #1e293b;
-        --perm-muted: #64748b;
-        --perm-border: #e2e8f0;
-        --perm-bg: #f8fafc;
-        --perm-card: #ffffff;
+    .px-page { color: #1e293b; padding-bottom: 24px; }
+    .px-top {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px;
     }
-
-    .perm-page { padding: 4px 8px 40px; }
-
-    .perm-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 20px;
-        margin-bottom: 22px;
-        flex-wrap: wrap;
+    .px-search {
+        display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e6ebf3;
+        border-radius: 12px; padding: 9px 14px; min-width: 280px; flex: 1; max-width: 420px;
     }
-    .perm-title {
-        font-size: 1.55rem;
-        font-weight: 700;
-        color: var(--perm-text);
-        margin: 0 0 6px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        letter-spacing: -0.02em;
-    }
-    .perm-title i { color: var(--perm-blue); font-size: 1.25rem; }
-    .perm-subtitle { margin: 0; color: var(--perm-muted); font-size: 0.9rem; }
-
-    .perm-reminder {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 12px;
-        padding: 14px 18px;
-        max-width: 420px;
-    }
-    .perm-reminder-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background: #dbeafe;
-        color: var(--perm-blue);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .perm-reminder strong { display: block; color: #1e40af; font-size: 0.85rem; margin-bottom: 2px; }
-    .perm-reminder span { color: #1d4ed8; font-size: 0.8rem; line-height: 1.4; }
-
-    .perm-card {
-        background: var(--perm-card);
-        border: 1px solid var(--perm-border);
-        border-radius: 14px;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, .04);
-        padding: 22px 24px 20px;
-        margin-bottom: 20px;
-    }
-    .perm-card-title {
-        font-size: 1.02rem;
-        font-weight: 650;
-        color: var(--perm-text);
-        margin: 0 0 18px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .perm-card-title i { color: var(--perm-blue); }
-
-    .perm-form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 16px 18px;
-    }
-    .perm-field { min-width: 0; }
-    .perm-field.span-2 { grid-column: span 2; }
-    .perm-field.full { grid-column: 1 / -1; }
-    .perm-field label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--perm-text);
-        margin-bottom: 6px;
-    }
-    .perm-input, .perm-page select.perm-input, .perm-page textarea.perm-input {
-        width: 100%;
-        border: 1px solid var(--perm-border);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 0.875rem;
-        color: var(--perm-text);
-        background: #fff;
-        outline: none;
-        transition: border-color .15s, box-shadow .15s;
-    }
-    .perm-input:focus {
-        border-color: var(--perm-blue);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
-    }
-    .perm-textarea { resize: vertical; min-height: 96px; }
-
-    .perm-dropzone {
-        border: 1.5px dashed #cbd5e1;
-        border-radius: 12px;
-        padding: 22px 16px;
-        text-align: center;
-        background: #f8fafc;
-        cursor: pointer;
-        transition: border-color .15s, background .15s;
-        position: relative;
-    }
-    .perm-dropzone:hover, .perm-dropzone.dragover {
-        border-color: var(--perm-blue);
-        background: #eff6ff;
-    }
-    .perm-dropzone i { font-size: 1.6rem; color: var(--perm-blue); margin-bottom: 8px; display: block; }
-    .perm-dropzone p { margin: 0; font-size: 0.85rem; color: var(--perm-text); font-weight: 500; }
-    .perm-dropzone small { color: var(--perm-muted); font-size: 0.75rem; }
-    .perm-dropzone input[type=file] {
-        position: absolute;
-        inset: 0;
-        opacity: 0;
-        cursor: pointer;
-    }
-    .perm-file-name { margin-top: 8px; font-size: 0.8rem; color: var(--perm-blue); font-weight: 500; }
-
-    .perm-form-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        margin-top: 18px;
-        flex-wrap: wrap;
-    }
-    .perm-warning {
-        flex: 1;
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        color: #c2410c;
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 0.8rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .perm-submit {
-        background: var(--perm-blue);
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        padding: 11px 20px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: background .15s;
-        white-space: nowrap;
-    }
-    .perm-submit:hover { background: var(--perm-blue-dark); }
-
-    .perm-errors {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #b91c1c;
-        border-radius: 10px;
-        padding: 10px 14px;
-        margin-bottom: 16px;
-        font-size: 0.85rem;
-    }
-    .perm-errors ul { margin: 0; padding-left: 18px; }
-
-    .history-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 14px;
-        flex-wrap: wrap;
-    }
-    .history-head .perm-card-title { margin: 0; }
-    .perm-filter {
-        border: 1px solid var(--perm-border);
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 0.82rem;
-        background: #fff;
-        color: var(--perm-text);
-        min-width: 170px;
-    }
-
-    .perm-table-wrap { overflow-x: auto; }
-    .perm-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.82rem;
-    }
-    .perm-table thead th {
-        text-align: left;
-        color: var(--perm-muted);
-        font-weight: 600;
-        font-size: 0.75rem;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--perm-border);
-        white-space: nowrap;
-    }
-    .perm-table tbody td {
-        padding: 14px 12px;
-        border-bottom: 1px solid #f1f5f9;
-        color: var(--perm-text);
-        vertical-align: middle;
-    }
-    .perm-table tbody tr:last-child td { border-bottom: none; }
-    .perm-table tbody tr:hover { background: #f8fafc; }
-
-    .type-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .type-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        background: #eff6ff;
-        color: var(--perm-blue);
-    }
-    .type-icon.annual { background: #ecfdf5; color: #059669; }
-    .type-icon.sick { background: #fef2f2; color: #dc2626; }
-    .type-icon.unpaid { background: #fff7ed; color: #ea580c; }
-    .type-icon.absence { background: #f5f3ff; color: #7c3aed; }
-
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 0.72rem;
-        font-weight: 650;
-        white-space: nowrap;
-    }
-    .status-badge.pending { background: #fef9c3; color: #a16207; }
-    .status-badge.approved { background: #dcfce7; color: #15803d; }
-    .status-badge.rejected { background: #fee2e2; color: #dc2626; }
-    .status-badge.cancelled { background: #f1f5f9; color: #64748b; }
-
-    .perm-actions { display: flex; align-items: center; gap: 6px; }
-    .perm-icon-btn {
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        border: 1px solid var(--perm-border);
-        background: #fff;
-        color: var(--perm-muted);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        cursor: pointer;
-        transition: background .15s, color .15s;
-    }
-    .perm-icon-btn:hover { background: #eff6ff; color: var(--perm-blue); }
-    .perm-icon-btn.danger { color: #dc2626; border-color: #fecaca; }
-    .perm-icon-btn.danger:hover { background: #fef2f2; color: #b91c1c; }
-
-    .perm-table-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding-top: 14px;
-        margin-top: 4px;
-        flex-wrap: wrap;
-    }
-    .perm-table-footer span { font-size: 0.8rem; color: var(--perm-muted); }
-    .perm-pagination { display: flex; align-items: center; gap: 6px; }
-    .perm-pagination a, .perm-pagination span {
-        min-width: 34px;
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-        text-decoration: none;
-        color: var(--perm-muted);
-        border: 1px solid transparent;
-        font-weight: 500;
-    }
-    .perm-pagination a:hover { background: #f1f5f9; color: var(--perm-text); }
-    .perm-pagination .current {
-        background: var(--perm-blue);
-        color: #fff;
-        font-weight: 650;
-    }
-    .perm-empty {
-        text-align: center;
-        padding: 36px 12px;
-        color: var(--perm-muted);
-    }
-    .perm-empty i { font-size: 1.8rem; display: block; margin-bottom: 8px; opacity: .5; }
-
-    @media (max-width: 768px) {
-        .perm-form-grid { grid-template-columns: 1fr; }
-        .perm-field.span-2, .perm-field.full { grid-column: auto; }
-        .perm-form-footer { flex-direction: column; align-items: stretch; }
-        .perm-submit { justify-content: center; }
-    }
+    .px-search input { border: none; outline: none; width: 100%; font-size: .86rem; background: transparent; }
+    .px-top-right { display: flex; align-items: center; gap: 14px; }
+    .px-date { color: #64748b; font-size: .85rem; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .px-bell { position: relative; width: 38px; height: 38px; border-radius: 10px; background: #fff; border: 1px solid #e8edf5; display: flex; align-items: center; justify-content: center; color: #64748b; text-decoration: none; }
+    .px-avatar { width: 38px; height: 38px; border-radius: 50%; background: #4f46e5; color: #fff; font-weight: 700; font-size: .75rem; display: flex; align-items: center; justify-content: center; }
+    .px-who { line-height: 1.15; }
+    .px-who strong { display: block; font-size: .84rem; }
+    .px-who span { font-size: .72rem; color: #94a3b8; }
+    .px-layout { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 16px; align-items: start; }
+    .px-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+    .px-head-ico { width: 40px; height: 40px; border-radius: 12px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; }
+    .px-head h1 { font-size: 1.45rem; font-weight: 750; margin: 0; letter-spacing: -.02em; }
+    .px-head p { margin: 2px 0 0; color: #94a3b8; font-size: .86rem; }
+    .px-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 14px; }
+    .px-kpi { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; padding: 14px 14px 12px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .px-kpi-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .px-kpi-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .px-kpi h3 { margin: 8px 0 0; font-size: 1.55rem; font-weight: 750; }
+    .px-kpi small { color: #64748b; font-size: .78rem; }
+    .px-kpi a { display: inline-block; margin-top: 8px; font-size: .75rem; font-weight: 600; color: #4f46e5; text-decoration: none; }
+    .blue { background: #e8f0fe; color: #3b82f6; }
+    .green { background: #e7f8ee; color: #16a34a; }
+    .red { background: #fee8e8; color: #ef4444; }
+    .violet { background: #f1e9ff; color: #7c3aed; }
+    .px-panel { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .px-tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 1px solid #eef2f7; }
+    .px-tabs a { padding: 12px 2px; font-size: .86rem; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+    .px-tabs a.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+    .px-tools { display: flex; gap: 10px; align-items: center; padding: 12px 14px; flex-wrap: wrap; }
+    .px-tools form { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; align-items: center; }
+    .px-input, .px-select { border: 1px solid #e6ebf3; border-radius: 10px; padding: 8px 12px; font-size: .82rem; background: #fff; color: #334155; }
+    .px-input { min-width: 180px; flex: 1; }
+    .px-btn { background: #4f46e5; color: #fff; border: none; border-radius: 10px; padding: 8px 14px; font-size: .82rem; font-weight: 650; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .px-table { width: 100%; border-collapse: collapse; }
+    .px-table th { text-align: left; font-size: .75rem; color: #94a3b8; font-weight: 600; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
+    .px-table td { padding: 12px 14px; border-bottom: 1px solid #f8fafc; font-size: .82rem; vertical-align: middle; }
+    .px-person { display: flex; align-items: center; gap: 10px; }
+    .px-bubble { width: 34px; height: 34px; border-radius: 50%; color: #fff; font-size: .68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .px-person strong { display: block; font-size: .84rem; }
+    .px-person span { color: #94a3b8; font-size: .72rem; }
+    .st { border-radius: 999px; padding: 4px 10px; font-size: .72rem; font-weight: 700; }
+    .st.pending { background: #fff4df; color: #d97706; }
+    .st.approved { background: #e7f8ee; color: #16a34a; }
+    .st.rejected { background: #fee8ee; color: #e11d48; }
+    .st.cancelled { background: #f1f5f9; color: #64748b; }
+    .px-act { display: flex; gap: 6px; }
+    .px-act a, .px-act button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e8edf5; background: #fff; color: #64748b; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    .px-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; color: #94a3b8; font-size: .78rem; }
+    .px-pages a, .px-pages span { display: inline-flex; min-width: 28px; height: 28px; border-radius: 8px; align-items: center; justify-content: center; text-decoration: none; color: #64748b; margin-left: 4px; }
+    .px-pages .on { background: #4f46e5; color: #fff; }
+    .side-card { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .side-card h4 { font-size: .92rem; margin: 0 0 10px; font-weight: 750; }
+    .ap-line { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: .84rem; color: #475569; }
+    .ap-line span { display: flex; align-items: center; gap: 8px; }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .cal-head a { color: #64748b; text-decoration: none; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; text-align: center; font-size: .72rem; }
+    .cal-grid .dow { color: #94a3b8; font-weight: 600; padding-bottom: 4px; }
+    .cal-grid .day { height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #334155; }
+    .cal-grid .day.on { background: #4f46e5; color: #fff; }
+    .cal-grid .day.mark { background: #ede9fe; color: #6d28d9; font-weight: 700; }
+    .abs-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid #f8fafc; }
+    .abs-row strong { display: block; font-size: .82rem; }
+    .abs-row span { font-size: .72rem; color: #94a3b8; }
+    .tag-abs { margin-left: auto; background: #fee8ee; color: #e11d48; border-radius: 999px; padding: 3px 8px; font-size: .68rem; font-weight: 700; }
+    .px-form { padding: 14px 16px 16px; border-bottom: 1px solid #eef2f7; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .px-form .full { grid-column: 1 / -1; }
+    .px-form label { display: block; font-size: .75rem; font-weight: 650; color: #64748b; margin-bottom: 4px; }
+    .px-form input, .px-form select, .px-form textarea { width: 100%; border: 1px solid #e6ebf3; border-radius: 10px; padding: 8px 10px; font-size: .84rem; }
+    .px-form .errorlist { color: #e11d48; font-size: .75rem; margin: 4px 0 0; padding: 0; list-style: none; }
+    @media (max-width: 1100px) { .px-layout, .px-kpis { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="perm-page">
-    <div class="perm-header">
-        <div>
-            <h1 class="perm-title"><i class="fas fa-calendar-check"></i> Mes permissions</h1>
-            <p class="perm-subtitle">Demandez une permission ou consultez vos demandes précédentes.</p>
-        </div>
-        <div class="perm-reminder">
-            <div class="perm-reminder-icon"><i class="fas fa-shield-halved"></i></div>
-            <div>
-                <strong>Rappel important</strong>
-                <span>Toute demande doit être faite au moins 3 jours à l'avance.</span>
+<div class="px-page">
+    <div class="px-top">
+        <form class="px-search" method="get" action="{% url 'dashboard:search' %}">
+            <i class="fas fa-search" style="color:#94a3b8"></i>
+            <input type="search" name="q" placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche">
+        </form>
+        <div class="px-top-right">
+            <a class="px-bell" href="{% url 'notifications:list' %}"><i class="far fa-bell"></i></a>
+            <div class="px-date"><i class="far fa-calendar"></i> {{ today_label }}</div>
+            <div class="px-avatar">{{ initials }}</div>
+            <div class="px-who">
+                <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+                <span>{% if user.is_admin %}Responsable de l'agence{% elif employee %}{{ employee.get_position_display }}{% else %}Employé{% endif %}</span>
             </div>
         </div>
     </div>
 
-    <div class="perm-card">
-        <h2 class="perm-card-title"><i class="far fa-calendar-alt"></i> Demander une permission</h2>
+    <div class="px-layout">
+        <div>
+            <div class="px-head">
+                <div class="px-head-ico"><i class="far fa-calendar-check"></i></div>
+                <div>
+                    <h1>Permissions et absences</h1>
+                    <p>{% if user.is_admin %}Gérez les demandes de permission et suivez les absences de votre équipe.{% else %}Gérez vos demandes de permission et suivez vos absences.{% endif %}</p>
+                </div>
+            </div>
 
-        {% if form.non_field_errors or form.errors %}
-        <div class="perm-errors">
-            {{ form.non_field_errors }}
-            <ul>
-                {% for field in form %}
-                    {% for error in field.errors %}
-                    <li>{{ field.label }} : {{ error }}</li>
-                    {% endfor %}
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
+            <div class="px-kpis">
+                <div class="px-kpi">
+                    <div class="px-kpi-top"><small>Demandes en attente</small><span class="px-kpi-ico blue"><i class="fas fa-paper-plane"></i></span></div>
+                    <h3>{{ stats.pending }}</h3>
+                    <a href="?tab=demandes&status=pending">Voir toutes les demandes →</a>
+                </div>
+                <div class="px-kpi">
+                    <div class="px-kpi-top"><small>Demandes approuvées</small><span class="px-kpi-ico green"><i class="fas fa-check"></i></span></div>
+                    <h3>{{ stats.approved }}</h3>
+                    <a href="?tab=demandes&status=approved">Voir l'historique →</a>
+                </div>
+                <div class="px-kpi">
+                    <div class="px-kpi-top"><small>Demandes refusées</small><span class="px-kpi-ico red"><i class="fas fa-times"></i></span></div>
+                    <h3>{{ stats.rejected }}</h3>
+                    <a href="?tab=demandes&status=rejected">Voir l'historique →</a>
+                </div>
+                <div class="px-kpi">
+                    <div class="px-kpi-top"><small>{% if user.is_admin %}Employés absents aujourd'hui{% else %}Absence aujourd'hui{% endif %}</small><span class="px-kpi-ico violet"><i class="fas fa-user"></i></span></div>
+                    <h3>{{ absent_today|length }}</h3>
+                    <a href="?tab=absences">Voir les absences →</a>
+                </div>
+            </div>
 
-        <form method="post" enctype="multipart/form-data" novalidate>
-            {% csrf_token %}
-            <div class="perm-form-grid">
-                <div class="perm-field">
-                    <label for="{{ form.type.id_for_label }}">Type de demande</label>
-                    {{ form.type }}
+            <div class="px-panel">
+                <div class="px-tabs">
+                    <a class="{% if tab == 'demandes' %}active{% endif %}" href="?tab=demandes&q={{ query|urlencode }}&status={{ status_filter }}&periode={{ period }}"><i class="fas fa-paper-plane"></i> Demandes de permission</a>
+                    <a class="{% if tab == 'absences' %}active{% endif %}" href="?tab=absences&q={{ query|urlencode }}&status={{ status_filter }}&periode={{ period }}"><i class="far fa-calendar"></i> Absences</a>
                 </div>
-                <div class="perm-field">
-                    <label for="{{ form.start_date.id_for_label }}">Date de début</label>
-                    {{ form.start_date }}
+                <div class="px-tools">
+                    <form method="get">
+                        <input type="hidden" name="tab" value="{{ tab }}">
+                        <input class="px-input" type="search" name="q" value="{{ query }}" placeholder="Rechercher une demande...">
+                        <select class="px-select" name="status" onchange="this.form.submit()">
+                            <option value="">Tous les statuts</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>En attente</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approuvée</option>
+                            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Refusée</option>
+                        </select>
+                        <select class="px-select" name="periode" onchange="this.form.submit()">
+                            <option value="">Toutes les dates</option>
+                            <option value="mois" {% if period == 'mois' %}selected{% endif %}>Ce mois</option>
+                            <option value="avenir" {% if period == 'avenir' %}selected{% endif %}>À venir</option>
+                        </select>
+                    </form>
+                    <a class="px-btn" href="?nouvelle=1&tab={{ tab }}"><i class="fas fa-plus"></i> Nouvelle demande</a>
                 </div>
-                <div class="perm-field">
-                    <label for="{{ form.end_date.id_for_label }}">Date de fin</label>
-                    {{ form.end_date }}
-                </div>
-                <div class="perm-field">
-                    <label for="{{ form.reason_choice.id_for_label }}">Motif</label>
-                    {{ form.reason_choice }}
-                </div>
-                <div class="perm-field span-2">
-                    <label for="{{ form.other_reason.id_for_label }}">Autre motif (précisez)</label>
-                    {{ form.other_reason }}
-                </div>
-                <div class="perm-field full">
-                    <label for="{{ form.description.id_for_label }}">Description</label>
-                    {{ form.description }}
-                </div>
-                <div class="perm-field full">
-                    <label>Justificatif</label>
-                    <div class="perm-dropzone" id="permDropzone">
+
+                {% if show_form and employee %}
+                <form class="px-form" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="full" style="background:#fee8ee;color:#9f1239;border-radius:10px;padding:10px 12px;font-size:.84rem;">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label>{{ form.type.label }}</label>
+                        {{ form.type }}
+                        {{ form.type.errors }}
+                    </div>
+                    <div>
+                        <label>{{ form.reason_choice.label }}</label>
+                        {{ form.reason_choice }}
+                        {{ form.reason_choice.errors }}
+                    </div>
+                    <div>
+                        <label>{{ form.start_date.label }}</label>
+                        {{ form.start_date }}
+                        {{ form.start_date.errors }}
+                    </div>
+                    <div>
+                        <label>{{ form.end_date.label }}</label>
+                        {{ form.end_date }}
+                        {{ form.end_date.errors }}
+                    </div>
+                    <div class="full">
+                        <label>{{ form.description.label }}</label>
+                        {{ form.description }}
+                        {{ form.description.errors }}
+                    </div>
+                    <div class="full">
+                        <label>{{ form.attachment.label }}</label>
                         {{ form.attachment }}
-                        <i class="fas fa-cloud-arrow-up"></i>
-                        <p>Glissez-déposez un fichier ou cliquez pour parcourir</p>
-                        <small>PDF, JPG, PNG (Max. 5 Mo)</small>
-                        <div class="perm-file-name" id="permFileName"></div>
+                        {{ form.attachment.errors }}
+                    </div>
+                    <div class="full">
+                        <button class="px-btn" type="submit">Envoyer la demande</button>
+                        <p style="margin:8px 0 0;color:#94a3b8;font-size:.75rem;">La demande doit être envoyée au moins 3 jours avant la date de début. Le justificatif (PDF, JPG ou PNG, 5 Mo max) est transmis au responsable.</p>
+                    </div>
+                </form>
+                {% elif not employee %}
+                <p style="padding:16px;color:#94a3b8;">Aucune fiche employé n'est liée à ce compte.</p>
+                {% endif %}
+
+                <table class="px-table">
+                    <thead>
+                        <tr>
+                            <th>Employé</th>
+                            <th>Date de demande</th>
+                            <th>Période demandée</th>
+                            <th>Motif</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for permission in permissions %}
+                        <tr>
+                            <td>
+                                <div class="px-person">
+                                    <span class="px-bubble" style="background:{% cycle '#7c3aed' '#4f46e5' '#16a34a' '#f59e0b' '#e11d48' %}">{{ permission.employee.full_name|slice:":1" }}{{ permission.employee.user.last_name|slice:":1" }}</span>
+                                    <div>
+                                        <strong>{{ permission.employee.full_name }}</strong>
+                                        <span>{{ permission.employee.get_position_display }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ permission.created_at|date:"d M Y" }}<br><span style="color:#94a3b8">à {{ permission.created_at|date:"H:i" }}</span></td>
+                            <td>{{ permission.start_date|date:"d M Y" }} → {{ permission.end_date|date:"d M Y" }}<br><span style="color:#94a3b8">({{ permission.days_count }} jour{{ permission.days_count|pluralize }})</span></td>
+                            <td>{{ permission.motif_display }}{% if permission.attachment %} <a href="{{ permission.attachment.url }}" target="_blank" rel="noopener" title="Justificatif"><i class="fas fa-paperclip"></i></a>{% endif %}</td>
+                            <td><span class="st {{ permission.status }}">{{ permission.get_status_display }}</span></td>
+                            <td>
+                                <div class="px-act">
+                                    <a href="{% url 'permissions:detail' permission.pk %}" title="Voir"><i class="far fa-eye"></i></a>
+                                    {% if user.is_admin and permission.status == 'pending' %}
+                                    <form method="post" action="{% url 'permissions:approve' permission.pk %}">{% csrf_token %}
+                                        <input type="hidden" name="status" value="approved">
+                                        <button type="submit" title="Approuver" style="color:#16a34a"><i class="fas fa-check"></i></button>
+                                    </form>
+                                    <form method="post" action="{% url 'permissions:approve' permission.pk %}">{% csrf_token %}
+                                        <input type="hidden" name="status" value="rejected">
+                                        <button type="submit" title="Refuser" style="color:#e11d48"><i class="fas fa-times"></i></button>
+                                    </form>
+                                    {% elif permission.status == 'pending' %}
+                                    <form method="post" action="{% url 'permissions:cancel' permission.pk %}">{% csrf_token %}
+                                        <button type="submit" title="Annuler"><i class="fas fa-times"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:28px;">Aucune demande.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="px-foot">
+                    <span>Affichage de {{ permissions|length }} sur {{ total_count }} demande{{ total_count|pluralize }}</span>
+                    <div class="px-pages">
+                        {% if page_obj.has_previous %}
+                        <a href="?tab={{ tab }}&q={{ query|urlencode }}&status={{ status_filter }}&periode={{ period }}&page={{ page_obj.previous_page_number }}">‹</a>
+                        {% endif %}
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if num == page_obj.number %}
+                        <span class="on">{{ num }}</span>
+                        {% else %}
+                        <a href="?tab={{ tab }}&q={{ query|urlencode }}&status={{ status_filter }}&periode={{ period }}&page={{ num }}">{{ num }}</a>
+                        {% endif %}
+                        {% endfor %}
+                        {% if page_obj.has_next %}
+                        <a href="?tab={{ tab }}&q={{ query|urlencode }}&status={{ status_filter }}&periode={{ period }}&page={{ page_obj.next_page_number }}">›</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="perm-form-footer">
-                <div class="perm-warning">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    Votre demande doit être soumise au moins 3 jours avant la date de début.
+        <aside>
+            <div class="side-card">
+                <h4>Aperçu rapide</h4>
+                <div class="ap-line"><span><i class="fas fa-paper-plane" style="color:#3b82f6"></i> Demandes en attente</span><strong>{{ stats.pending }}</strong></div>
+                <div class="ap-line"><span><i class="fas fa-check" style="color:#16a34a"></i> Demandes approuvées</span><strong>{{ stats.approved }}</strong></div>
+                <div class="ap-line"><span><i class="fas fa-times" style="color:#ef4444"></i> Demandes refusées</span><strong>{{ stats.rejected }}</strong></div>
+                <div class="ap-line"><span><i class="fas fa-user" style="color:#7c3aed"></i> {% if user.is_admin %}Absences aujourd'hui{% else %}Absence aujourd'hui{% endif %}</span><strong>{{ absent_today|length }}</strong></div>
+            </div>
+            <div class="side-card">
+                <div class="cal-head">
+                    <a href="?tab={{ tab }}&mois={{ prev_month }}&annee={{ prev_year }}"><i class="fas fa-chevron-left"></i></a>
+                    <h4 style="margin:0">{{ month_label }}</h4>
+                    <a href="?tab={{ tab }}&mois={{ next_month }}&annee={{ next_year }}"><i class="fas fa-chevron-right"></i></a>
                 </div>
-                <button type="submit" class="perm-submit">
-                    <i class="fas fa-paper-plane"></i>
-                    Envoyer la demande
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <div class="perm-card">
-        <div class="history-head">
-            <h2 class="perm-card-title"><i class="fas fa-clock-rotate-left"></i> Historique de mes demandes</h2>
-            <form method="get">
-                <select name="status" class="perm-filter" onchange="this.form.submit()">
-                    <option value="">Tous les statuts</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>En attente</option>
-                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approuvée</option>
-                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Refusée</option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Annulée</option>
-                </select>
-            </form>
-        </div>
-
-        {% if permissions %}
-        <div class="perm-table-wrap">
-            <table class="perm-table">
-                <thead>
-                    <tr>
-                        <th>Type de demande</th>
-                        <th>Motif</th>
-                        <th>Période</th>
-                        <th>Date de demande</th>
-                        <th>Statut</th>
-                        <th>Décision</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for permission in permissions %}
-                    <tr>
-                        <td>
-                            <div class="type-cell">
-                                <span class="type-icon {{ permission.type }}">
-                                    {% if permission.type == 'annual' %}<i class="fas fa-umbrella-beach"></i>
-                                    {% elif permission.type == 'sick' %}<i class="fas fa-notes-medical"></i>
-                                    {% elif permission.type == 'unpaid' %}<i class="fas fa-calendar-xmark"></i>
-                                    {% elif permission.type == 'absence' %}<i class="fas fa-user-clock"></i>
-                                    {% else %}<i class="fas fa-calendar-day"></i>{% endif %}
-                                </span>
-                                {{ permission.get_type_display }}
-                            </div>
-                        </td>
-                        <td>{{ permission.motif_display }}</td>
-                        <td>{{ permission.start_date|date:"d/m/Y" }} → {{ permission.end_date|date:"d/m/Y" }}</td>
-                        <td>{{ permission.created_at|date:"d/m/Y" }} à {{ permission.created_at|date:"H:i" }}</td>
-                        <td><span class="status-badge {{ permission.status }}">{{ permission.get_status_display }}</span></td>
-                        <td>
-                            {% if permission.decided_at %}
-                                {{ permission.decided_at|date:"d/m/Y" }} à {{ permission.decided_at|date:"H:i" }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="perm-actions">
-                                <a href="{% url 'permissions:detail' permission.pk %}" class="perm-icon-btn" title="Voir">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if permission.status == 'pending' %}
-                                <form method="post" action="{% url 'permissions:cancel' permission.pk %}" onsubmit="return confirm('Annuler cette demande ?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="perm-icon-btn danger" title="Annuler">
-                                        <i class="fas fa-circle-xmark"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
+                <div class="cal-grid">
+                    <span class="dow">Lun</span><span class="dow">Mar</span><span class="dow">Mer</span><span class="dow">Jeu</span><span class="dow">Ven</span><span class="dow">Sam</span><span class="dow">Dim</span>
+                    {% for week in weeks %}
+                        {% for day in week %}
+                        {% if day %}
+                        <span class="day{% if day in marked_days %} mark{% endif %}{% if day == today.day and cal_month == today.month and cal_year == today.year %} on{% endif %}">{{ day }}</span>
+                        {% else %}
+                        <span class="day"></span>
+                        {% endif %}
+                        {% endfor %}
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="perm-table-footer">
-            <span>
-                Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }} demande{{ total_count|pluralize }}
-            </span>
-            <div class="perm-pagination">
-                {% if page_obj.has_previous %}
-                    <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}">Précédent</a>
-                {% else %}
-                    <span>Précédent</span>
-                {% endif %}
-                <span class="current">{{ page_obj.number }}</span>
-                {% if page_obj.has_next %}
-                    <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}">Suivant</a>
-                {% else %}
-                    <span>Suivant</span>
-                {% endif %}
+                </div>
             </div>
-        </div>
-        {% else %}
-        <div class="perm-empty">
-            <i class="fas fa-inbox"></i>
-            Aucune demande pour le moment.
-        </div>
-        {% endif %}
+            <div class="side-card">
+                <h4>Absent aujourd'hui</h4>
+                {% for item in absent_today %}
+                <div class="abs-row">
+                    <span class="px-bubble" style="background:#16a34a;width:32px;height:32px;">{{ item.employee.full_name|slice:":1" }}</span>
+                    <div>
+                        <strong>{{ item.employee.full_name }}</strong>
+                        <span>{{ item.employee.get_position_display }}</span>
+                    </div>
+                    <span class="tag-abs">Absente</span>
+                </div>
+                {% empty %}
+                <p style="color:#94a3b8;font-size:.8rem;margin:0;">Aucune absence aujourd'hui.</p>
+                {% endfor %}
+            </div>
+        </aside>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-(function () {
-    var input = document.querySelector('#permDropzone input[type=file]');
-    var nameEl = document.getElementById('permFileName');
-    var zone = document.getElementById('permDropzone');
-    if (!input) return;
-    input.addEventListener('change', function () {
-        nameEl.textContent = this.files && this.files[0] ? this.files[0].name : '';
-    });
-    ['dragenter', 'dragover'].forEach(function (evt) {
-        zone.addEventListener(evt, function (e) { e.preventDefault(); zone.classList.add('dragover'); });
-    });
-    ['dragleave', 'drop'].forEach(function (evt) {
-        zone.addEventListener(evt, function (e) { e.preventDefault(); zone.classList.remove('dragover'); });
-    });
-})();
-</script>
 {% endblock %}

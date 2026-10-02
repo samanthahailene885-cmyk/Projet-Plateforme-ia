@@ -522,14 +522,18 @@
                 <div class="mp-meta">
                     <span><i class="fas fa-users"></i> {{ project.member_count }} membre{{ project.member_count|pluralize }}</span>
                     <span><i class="fas fa-calendar"></i> {{ project.start_date|date:"j M Y" }} – {{ project.end_date|date:"j M Y" }}</span>
+                    {% if project.task_total %}
+                    <span><i class="fas fa-tasks"></i> {{ project.task_done }}/{{ project.task_total }} tâche{{ project.task_total|pluralize }} terminée{{ project.task_done|pluralize }}</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="mp-progress-block">
+                {% if project.task_total %}{% widthratio project.task_done project.task_total 100 as live_progress %}{% endif %}
                 <div class="mp-progress-top">
                     <div class="mp-bar" style="flex:1;">
-                        <div class="mp-bar-fill {{ project.status }}" style="width: {{ project.progress }}%;"></div>
+                        <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%;"></div>
                     </div>
-                    <span class="mp-progress-pct">{{ project.progress }}%</span>
+                    <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%</span>
                 </div>
                 <div class="mp-deadline">
                     {{ project.deadline_label }}
@@ -562,11 +566,12 @@
                 <span><i class="fas fa-users"></i> {{ project.member_count }}</span>
                 <span><i class="fas fa-calendar"></i> {{ project.end_date|date:"j M Y" }}</span>
             </div>
+            {% if project.task_total %}{% widthratio project.task_done project.task_total 100 as live_progress %}{% endif %}
             <div class="mp-progress-top">
                 <div class="mp-bar" style="flex:1;">
-                    <div class="mp-bar-fill {{ project.status }}" style="width: {{ project.progress }}%;"></div>
+                    <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%;"></div>
                 </div>
-                <span class="mp-progress-pct">{{ project.progress }}%</span>
+                <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%</span>
             </div>
         </a>
         {% endfor %}
@@ -594,7 +599,11 @@
     <div class="mp-empty">
         <i class="fas fa-folder-open"></i>
         <h3>Aucun projet pour le moment</h3>
-        <p>Les projets auxquels vous serez assigné apparaîtront ici.</p>
+        {% if has_unlinked_tasks %}
+        <p>Vous avez des activités sans projet. Choisissez un projet dans Ma Todo List, ou créez-en un ici. L'avancement se mettra à jour quand vous terminerez ces activités.</p>
+        {% else %}
+        <p>Créez un projet, reliez-y vos activités, puis cochez-les dans Ma Todo List. Le pourcentage et le statut se mettront à jour ici.</p>
+        {% endif %}
     </div>
     {% endif %}
 </div>
