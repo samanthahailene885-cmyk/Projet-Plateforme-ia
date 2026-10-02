@@ -25,9 +25,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-t(d=#n+@lm3-42oa24f6i*kvf6ko%0*(hy$qj!je2($t!$w=s0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+ON_RENDER = os.environ.get('RENDER') == 'true'
+DEBUG = config('DEBUG', default=not ON_RENDER, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+_default_hosts = '.onrender.com,localhost,127.0.0.1' if ON_RENDER else 'localhost,127.0.0.1'
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default=_default_hosts,
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()],
+)
+_render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
@@ -37,6 +46,12 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:50636',
     'http://127.0.0.1:50636',
 ]
+_render_url = os.environ.get('RENDER_EXTERNAL_URL')
+if _render_url and _render_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_render_url)
+
+if ON_RENDER:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -65,6 +80,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -141,9 +157,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files
