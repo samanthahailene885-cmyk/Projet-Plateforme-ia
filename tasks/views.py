@@ -433,6 +433,10 @@ def _render_admin_todo(request, day, employees):
         row['assigned_to_id']: row['last']
         for row in Task.objects.filter(assigned_to_id__in=ids, planned_date=day).values('assigned_to_id').annotate(last=Max('updated_at'))
     }
+    objectives = {
+        plan.employee_id: plan.objective
+        for plan in DailyPlan.objects.filter(employee_id__in=ids, date=day)
+    }
 
     rows = []
     for person in people:
@@ -472,7 +476,11 @@ def _render_admin_todo(request, day, employees):
         person.state_label = state_label
         person.updated_label = updated_label
         person.updated_sub = updated_sub
+        person.day_tasks = tasks
+        person.objective = objectives.get(person.pk, '')
         rows.append(person)
+
+    rows.sort(key=lambda row: (row.planned == 0, (row.full_name or '').lower()))
 
     filled = sum(1 for row in rows if row.planned)
     total = len(rows)

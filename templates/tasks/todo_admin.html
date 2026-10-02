@@ -74,6 +74,18 @@
     .chips a.on { background: #efedff; color: #5146e5; font-weight: 700; }
     .tip { background: linear-gradient(145deg, #f1efff, #f8f7ff); border: 1px solid #e1ddff; }
     .tip p { margin: 6px 0 0; color: #707da0; font-size: 11px; line-height: 1.55; }
+    .reading { margin-bottom: 16px; border: 1px solid #e4e0ff; background: #fbfaff; border-radius: 12px; padding: 16px 18px; color: #18254a; }
+    .reading-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .reading h2 { margin: 0; font-size: 16px; font-weight: 700; color: #18254a; }
+    .reading-open { color: #5146e5; font-size: 12px; font-weight: 700; text-decoration: none; }
+    .reading-goal { margin: 0 0 12px; color: #31415f; font-size: 13px; }
+    .reading-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .reading-list li { background: white; border: 1px solid #edf0f7; border-radius: 8px; padding: 10px 12px; }
+    .reading-list strong { display: block; color: #18254a; font-size: 13px; }
+    .reading-list em, .reading-list p { display: block; margin: 3px 0 0; color: #657291; font-size: 12px; font-style: normal; }
+    .read-state { display: inline-block; margin-bottom: 4px; font-size: 10px; font-weight: 700; color: #5146e5; text-transform: uppercase; letter-spacing: .04em; }
+    .reading-empty { margin: 0; color: #7180a5; font-size: 13px; }
+    tr.is-selected { background: #f7f5ff; }
     @media (max-width: 1200px) {
         .kpi-grid { grid-template-columns: 1fr 1fr; }
         .todo-layout { grid-template-columns: 1fr; }
@@ -154,6 +166,31 @@
                 <input class="filter-input" type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
                 <a class="reset-btn" href="{% url 'tasks:daily' %}?date={{ day|date:'Y-m-d' }}">Réinitialiser</a>
             </form>
+            {% if selected %}
+            <section class="reading" id="lecture">
+                <div class="reading-head">
+                    <h2>Todo list de {{ selected.full_name }}</h2>
+                    <a class="reading-open" href="?date={{ day|date:'Y-m-d' }}&employee={{ selected.pk }}&sheet=1">Feuille complète</a>
+                </div>
+                {% if selected.objective %}
+                <p class="reading-goal"><strong>Objectif.</strong> {{ selected.objective }}</p>
+                {% endif %}
+                {% if selected.day_tasks %}
+                <ol class="reading-list">
+                    {% for task in selected.day_tasks %}
+                    <li>
+                        <span class="read-state">{{ task.get_status_display }}</span>
+                        <strong>{{ task.title }}</strong>
+                        {% if task.block_title %}<em>{{ task.block_title }}</em>{% endif %}
+                        {% if task.comments %}<p>{{ task.comments }}</p>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="reading-empty">Cette personne n'a pas encore écrit sa todo list pour cette journée.</p>
+                {% endif %}
+            </section>
+            {% endif %}
             <div class="table-wrapper">
                 <table class="todo-table">
                     <thead>
@@ -163,7 +200,7 @@
                     </thead>
                     <tbody>
                     {% for row in rows %}
-                        <tr>
+                        <tr class="{% if selected and selected.pk == row.pk %}is-selected{% endif %}">
                             <td>
                                 <div class="employee">
                                     <span class="avatar" style="background:{{ row.avatar_color }}">{{ row.initials }}</span>
@@ -181,7 +218,7 @@
                             <td><span class="ring" style="--p:{{ row.progress }}"><span>{{ row.progress }}%</span></span></td>
                             <td class="when">{{ row.updated_label }}{% if row.updated_sub %}<small>{{ row.updated_sub }}</small>{% endif %}</td>
                             <td><span class="badge badge-{{ row.state_key }}">{{ row.state_label }}</span></td>
-                            <td><a class="view-btn" href="?date={{ day|date:'Y-m-d' }}&employee={{ row.pk }}" title="Détail"><i class="far fa-eye"></i></a></td>
+                            <td><a class="view-btn" href="?{{ querystring }}&employee={{ row.pk }}#lecture" title="Lire la todo list"><i class="far fa-eye"></i></a></td>
                         </tr>
                     {% empty %}
                         <tr><td colspan="10" style="text-align:center;padding:40px;color:#8b96b0;">Aucune Todo List pour ces filtres.</td></tr>
@@ -214,6 +251,13 @@
                 <div class="legend-item"><span class="legend-dot" style="background:#16b985"></span> Terminées <strong>{{ selected.done }}</strong></div>
                 <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> En cours <strong>{{ selected.doing }}</strong></div>
                 <div class="legend-item"><span class="legend-dot" style="background:#e11d48"></span> Non commencées <strong>{{ selected.waiting }}</strong></div>
+                {% if selected.day_tasks %}
+                <ol class="reading-list" style="margin-top:12px">
+                    {% for task in selected.day_tasks %}
+                    <li><span class="read-state">{{ task.get_status_display }}</span><strong>{{ task.title }}</strong></li>
+                    {% endfor %}
+                </ol>
+                {% endif %}
                 <a class="full-link" href="?date={{ day|date:'Y-m-d' }}&employee={{ selected.pk }}&sheet=1">Voir la Todo List complète <i class="fas fa-arrow-right"></i></a>
                 {% else %}
                 <p class="kpi-subtitle">Sélectionnez un employé dans le tableau.</p>
@@ -230,7 +274,7 @@
             </div>
             <div class="side-card tip">
                 <div class="side-title" style="color:#5146e5"><i class="far fa-lightbulb"></i> Astuce</div>
-                <p>Cliquez sur un employé pour voir le détail de sa Todo List : activités, remarques, difficultés et progression.</p>
+                <p>Cliquez sur l'œil pour lire ce que l'employé a écrit : objectif, activités et remarques.</p>
             </div>
         </div>
     </div>
