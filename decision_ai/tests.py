@@ -208,6 +208,16 @@ class ReportTests(PlatformDataMixin, TestCase):
         self.assertEqual(report.content, 'Rapport relu par Ada.')
         self.assertFalse(report.ai_generated)
 
+    def test_employee_can_send_a_written_report_as_pdf_without_ai(self):
+        response = self.client.post(reverse('reports:save'), {
+            'date': self.today.isoformat(),
+            'content': 'J\'ai terminé la maquette client.',
+            'send_pdf': '1',
+        })
+        report = DailyReport.objects.get(employee=self.user, date=self.today)
+        self.assertFalse(report.ai_generated)
+        self.assertRedirects(response, reverse('reports:pdf', args=[report.pk]), fetch_redirect_response=False)
+
     def test_employee_cannot_read_another_report(self):
         report = DailyReport.objects.create(
             employee=self.other_user, date=self.today, content='Confidentiel', ai_generated=False,

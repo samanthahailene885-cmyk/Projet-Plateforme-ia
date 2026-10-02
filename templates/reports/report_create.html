@@ -405,21 +405,24 @@
                     {% endif %}
                 </div>
                 {% if not data_sufficient and not ai_summary %}
-                <p class="text-muted mb-3">Aucune activité n'est enregistrée pour cette date. Le rapport ne peut pas être généré tant que la todo list du jour est vide.</p>
+                <p class="text-muted mb-3">Aucune activité n'est enregistrée pour cette date. Vous pouvez quand même rédiger le rapport et l'envoyer en PDF.</p>
                 {% endif %}
                 {% include 'reports/_journal.html' with journal_date=journal_date journal_name=journal_name body=ai_summary editable=True %}
                 {% if not read_only %}
                 <div class="ai-actions">
+                    <button type="submit" class="btn-submit-report" form="save-report-form" name="send_pdf" value="1">
+                        <i class="fas fa-file-pdf"></i> Envoyer en PDF
+                    </button>
+                    <button type="submit" class="btn-wf-outline" form="save-report-form">
+                        <i class="fas fa-check"></i> Enregistrer
+                    </button>
                     <form id="generate-form" method="post" action="{% url 'reports:generate' %}">
                         {% csrf_token %}
                         <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
-                        <button type="submit" class="btn-wf-primary" id="generate-btn" {% if not data_sufficient %}disabled{% endif %}>
-                            <i class="fas fa-wand-magic-sparkles"></i> Générer mon rapport avec l'IA
+                        <button type="submit" class="btn-wf-outline" id="generate-btn" {% if not data_sufficient %}disabled{% endif %}>
+                            <i class="fas fa-wand-magic-sparkles"></i> Générer avec l'IA
                         </button>
                     </form>
-                    <button type="submit" class="btn-wf-outline" form="save-report-form">
-                        <i class="fas fa-check"></i> Valider et enregistrer
-                    </button>
                 </div>
                 <form id="save-report-form" method="post" action="{% url 'reports:save' %}">
                     {% csrf_token %}
@@ -548,8 +551,11 @@
                 {% elif read_only %}
                 <h3>Consultation du rapport</h3>
                 {% else %}
-                <h3>Validez le rapport après relecture</h3>
-                <p class="last-sent">La génération remplit le texte. L'enregistrement le conserve pour cette date.</p>
+                <h3>Envoyez votre rapport</h3>
+                <p class="last-sent">Rédigez le texte vous-même, puis envoyez-le en PDF. L'IA reste facultative.</p>
+                <button type="submit" class="btn btn-primary mt-3" form="save-report-form" name="send_pdf" value="1">
+                    <i class="fas fa-file-pdf me-2"></i>Envoyer en PDF
+                </button>
                 {% endif %}
                 {% if previous_reports %}
                 <div class="text-start mt-3">

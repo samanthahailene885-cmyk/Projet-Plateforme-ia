@@ -480,13 +480,13 @@ def report_save(request):
     if extra:
         content = f"{content}\n\nRemarque ajoutée lors de la validation :\n{extra}".strip()
     if not content:
-        messages.error(request, "Le rapport est vide. Générez-le ou rédigez-le avant de l'enregistrer.")
+        messages.error(request, "Le rapport est vide. Rédigez-le avant de l'envoyer. L'IA n'est pas obligatoire.")
         return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 
     draft = request.session.get(_draft_key(request.user, report_date))
     ai_generated = bool(draft) and content == draft
 
-    DailyReport.objects.update_or_create(
+    report, _created = DailyReport.objects.update_or_create(
         employee=request.user,
         date=report_date,
         defaults={
@@ -499,9 +499,15 @@ def report_save(request):
         },
     )
     request.session.pop(_draft_key(request.user, report_date), None)
+    if request.POST.get('send_pdf') == '1':
+        messages.success(
+            request,
+            'Rapport envoyé en PDF. Le responsable peut le consulter dans Rapports.',
+        )
+        return redirect('reports:pdf', pk=report.pk)
     messages.success(
         request,
-        'Rapport validé. Le responsable peut télécharger le PDF dans Rapports.',
+        'Rapport enregistré. Vous pouvez l\'envoyer en PDF quand vous voulez.',
     )
     return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 

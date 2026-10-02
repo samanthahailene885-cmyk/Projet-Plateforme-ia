@@ -4,7 +4,7 @@
     <div class="journal-pill"><span>DATE DU JOUR :</span> {{ journal_date }}</div>
     <div class="journal-name">{{ journal_name }}</div>
     {% if editable %}
-    <textarea class="journal-body" id="aiSummary" name="content" form="save-report-form" {% if read_only %}readonly{% endif %} placeholder="Le texte du rapport apparaîtra ici. Une activité par paragraphe.">{{ body }}</textarea>
+    <textarea class="journal-body" id="aiSummary" name="content" form="save-report-form" {% if read_only %}readonly{% endif %} placeholder="Rédigez votre rapport ici. Une activité par paragraphe. L'IA n'est pas obligatoire.">{{ body }}</textarea>
     {% else %}
     <div class="journal-body journal-read">
         {% for bullet in bullets %}
