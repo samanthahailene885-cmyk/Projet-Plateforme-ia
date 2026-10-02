@@ -111,6 +111,19 @@ def agency_brief(day):
     stats = day_stats(day)
     overview = agency_overview(day)
     late = Task.objects.filter(due_date__lt=day).exclude(status__in=CLOSED).count()
+    if (
+        stats['planned'] == 0
+        and overview['reports_today'] == 0
+        and late == 0
+        and not stats['remarks']
+    ):
+        return (
+            f"Rien n'a été enregistré le {_french_date(day)}. "
+            "Aucune todo list, aucune activité et aucun rapport pour cette journée. "
+            f"L'agence compte {overview['active_employees']} employés actifs, "
+            "mais aucun d'eux n'a saisi de travail aujourd'hui. "
+            "Ne pas présenter cette journée comme une journée de travail."
+        )
     projects = list(Project.objects.filter(status='in_progress').order_by('name')[:8])
     project_names = ', '.join(project.name for project in projects) if projects else 'aucun projet en cours'
     return (

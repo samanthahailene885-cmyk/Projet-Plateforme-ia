@@ -509,8 +509,20 @@ def assistant_context(question, today):
         else:
             reports_missing.append(employee.full_name)
     alerts = collect_alerts(today)
+    empty_day = (
+        today_stats['planned'] == 0
+        and today_stats['reports'] == 0
+        and late_open == 0
+        and not today_stats['remarks']
+    )
     blocks = [
-        "CHIFFRES DÉFINITIFS, CALCULÉS PAR LE SYSTÈME. NE PAS LES RECALCULER.\n"
+        (
+            "JOURNÉE SANS SAISIE. Aucune activité, aucune todo list et aucun rapport "
+            "ne sont enregistrés pour aujourd'hui. Réponds que rien n'a été saisi. "
+            "Ne cite aucun employé comme ayant travaillé.\n"
+            if empty_day else ""
+        )
+        + "CHIFFRES DÉFINITIFS, CALCULÉS PAR LE SYSTÈME. NE PAS LES RECALCULER.\n"
         + _fmt_stats(stats)
         + f"\nEmployés actifs : {overview['active_employees']}"
         + f"\nTodo lists renseignées aujourd'hui : {overview['todo_filled']}"
