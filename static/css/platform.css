@@ -1,12 +1,12 @@
 /* Identité visuelle RAC'IN — bleu marine, appliquée après les styles de page. */
 :root {
-    --bg-primary: #06152F;
-    --bg-sidebar: #041126;
-    --bg-header: #071A33;
-    --bg-card: #0A2142;
-    --bg-secondary: #0D2850;
-    --bg-hover: #102F59;
-    --border: #173B69;
+    --bg-primary: #245892;
+    --bg-sidebar: #1B4578;
+    --bg-header: #2E64A4;
+    --bg-card: #3470B0;
+    --bg-secondary: #3C7CBC;
+    --bg-hover: #4A88C6;
+    --border: #6AA0D4;
     --primary: #2563EB;
     --primary-hover: #1D4ED8;
     --cyan: #38BDF8;
@@ -15,21 +15,21 @@
     --warning: #F59E0B;
     --danger: #EF4444;
     --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --wf-bg: #06152F;
-    --wf-card: #0A2142;
+    --text-secondary: #E7F0FA;
+    --wf-bg: #245892;
+    --wf-card: #3470B0;
     --wf-text: #F8FAFC;
-    --wf-text-muted: #94A3B8;
-    --wf-border: #173B69;
+    --wf-text-muted: #E7F0FA;
+    --wf-border: #6AA0D4;
     --wf-accent: #2563EB;
     --mt-text: #F8FAFC;
-    --mt-muted: #94A3B8;
-    --mt-border: #173B69;
-    --mt-bg: #06152F;
-    --emp-bg: #06152F;
-    --emp-card: #0A2142;
+    --mt-muted: #E7F0FA;
+    --mt-border: #6AA0D4;
+    --mt-bg: #245892;
+    --emp-bg: #245892;
+    --emp-card: #3470B0;
     --emp-text: #F8FAFC;
-    --emp-text-muted: #94A3B8;
+    --emp-text-muted: #E7F0FA;
 }
 
 body { background: var(--bg-primary); color: var(--text-primary); }
@@ -159,7 +159,7 @@ body.app-collapsed .racin-content { margin-left: 0 !important; width: 100% !impo
 
 .racin-content input, .racin-content select, .racin-content textarea,
 .racin-content .form-control, .racin-content .form-select {
-    background: #071A33 !important;
+    background: #2E64A4 !important;
     color: var(--text-primary) !important;
     border: 1px solid var(--border) !important;
     border-radius: 10px;
@@ -249,7 +249,7 @@ body.app-collapsed .racin-content { margin-left: 0 !important; width: 100% !impo
     color: var(--text-primary) !important;
     border: 1px solid var(--border) !important;
 }
-.racin-content .progress { background: #071A33; }
+.racin-content .progress { background: #2E64A4; }
 .racin-content .progress-bar { background: var(--primary); transition: width .4s ease; }
 
 .synthesis-sheet, .synth-kpi, .kpi-card, .main-card, .side-card {
