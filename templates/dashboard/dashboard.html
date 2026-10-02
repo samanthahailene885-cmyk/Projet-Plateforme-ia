@@ -367,58 +367,6 @@
     </section>
 </div>
 
-<div class="sup-mid task-watch">
-    <section class="sup-card">
-        <div class="sup-card-head">
-            <div>
-                <h2>État des tâches</h2>
-                <p class="sub">Répartition réelle des activités</p>
-            </div>
-            <a class="sup-link" href="{% url 'tasks:list' %}">Voir les tâches →</a>
-        </div>
-        <div class="state-row">
-            <a href="{% url 'tasks:list' %}?tab=todo"><b>{{ task_state.todo }}</b><span>À faire</span></a>
-            <a href="{% url 'tasks:list' %}?tab=in_progress"><b>{{ task_state.in_progress }}</b><span>En cours</span></a>
-            <a href="{% url 'tasks:list' %}?tab=review"><b>{{ task_state.review }}</b><span>En révision</span></a>
-            <a href="{% url 'tasks:list' %}?tab=completed"><b>{{ task_state.completed }}</b><span>Terminées</span></a>
-            <a href="{% url 'tasks:list' %}?tab=overdue"><b>{{ task_state.late }}</b><span>En retard</span></a>
-        </div>
-    </section>
-    <section class="sup-card">
-        <div class="sup-card-head">
-            <h2>Projets nécessitant une attention</h2>
-        </div>
-        {% for row in watch_projects %}
-        <a class="attn" href="{% url 'projects:detail' row.project.pk %}">
-            <span class="attn-ico {% if row.level == 'danger' %}red{% elif row.level == 'warning' %}orange{% else %}blue{% endif %}"><i class="fas fa-circle"></i></span>
-            <span><strong>{{ row.project.name }}</strong> — {{ row.text }}</span>
-            <i class="fas fa-chevron-right"></i>
-        </a>
-        {% empty %}
-        <div class="sup-empty">Aucun projet à signaler.</div>
-        {% endfor %}
-    </section>
-</div>
-
-<div class="sup-bottom">
-    <section class="sup-card sup-band-ai">
-        <div class="sup-band-icon"><i class="fas fa-robot"></i></div>
-        <div class="sup-band-copy">
-            <h2>Analyse IA de l'activité</h2>
-            <p>L'IA analyse les données de votre plateforme et vous fournit une synthèse claire et pertinente.</p>
-            <button class="sup-ai dash-synthesis" type="button" data-url="{% url 'reports:synthesis' %}" data-csrf="{{ csrf_token }}">✨ Générer la synthèse IA</button>
-        </div>
-    </section>
-    <section class="sup-card sup-band-note">
-        <div class="sup-card-head">
-            <h2>Synthèse rapide</h2>
-            <span class="sup-muted">{{ today_formatted }}</span>
-        </div>
-        <p>{{ quick_brief }}</p>
-        <a class="sup-link" href="{% url 'decision_ai:center' %}">Voir l'analyse complète →</a>
-    </section>
-</div>
-
 <div id="dash-synthesis-status" class="sup-status" hidden></div>
 <section class="sup-sheet" id="dash-synthesis-sheet" hidden>
     <div class="sup-sheet-kicker">✨ SYNTHÈSE IA DE L'ACTIVITÉ DE L'ÉQUIPE</div>
