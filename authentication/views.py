@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.views.csrf import csrf_failure as django_csrf_failure
 from django.views.generic import CreateView, UpdateView
 from .forms import CustomUserCreationForm, CustomAuthenticationForm, UserProfileForm
 from .models import User
@@ -14,6 +15,12 @@ def login_view(request):
     """
     if request.method == 'GET' and request.user.is_authenticated:
         logout(request)
+
+    if request.method == 'GET' and request.GET.get('expire'):
+        messages.warning(
+            request,
+            "La page de connexion n'est plus valide. Saisissez à nouveau vos identifiants.",
+        )
 
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
@@ -28,8 +35,19 @@ def login_view(request):
             return redirect(user.get_home_url_name())
     else:
         form = CustomAuthenticationForm()
-    
-    return render(request, 'authentication/login.html', {'form': form})
+
+    response = render(request, 'authentication/login.html', {'form': form})
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+def csrf_failure(request, reason=""):
+    """
+    Un jeton périmé sur la connexion renvoie au formulaire, avec un jeton neuf.
+    """
+    if request.path == reverse('authentication:login'):
+        return redirect(f"{reverse('authentication:login')}?expire=1")
+    return django_csrf_failure(request, reason=reason)
 
 
 @login_required

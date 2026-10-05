@@ -229,6 +229,36 @@ class ReportTests(PlatformDataMixin, TestCase):
         self.assertEqual(download['Content-Type'], 'application/pdf')
         payload = b''.join(download.streaming_content)
         self.assertTrue(payload.startswith(b'%PDF'))
+        page = self.admin_client.get(reverse('reports:detail', args=[report.pk]))
+        self.assertContains(page, 'inline=1')
+        self.assertNotContains(page, 'Rapport importé en PDF')
+        preview = self.admin_client.get(reverse('reports:pdf', args=[report.pk]) + '?inline=1')
+        self.assertEqual(preview.status_code, 200)
+        self.assertIn('inline', preview['Content-Disposition'])
+
+    def test_employee_report_page_matches_the_import_screen(self):
+        page = self.client.get(reverse('reports:create'))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Mon rapport journalier')
+        self.assertContains(page, 'Importer mon rapport')
+        self.assertContains(page, 'Quelques conseils')
+        self.assertContains(page, 'Mes rapports précédents')
+        self.assertContains(page, 'Formats acceptés : PDF, DOCX')
+        self.assertNotContains(page, 'Générer mon rapport avec l')
+
+    def test_employee_can_import_a_word_report(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        uploaded = SimpleUploadedFile(
+            'Rapport_journalier_02-10-2026.docx',
+            b'PK\x03\x04' + b'\x00' * 30,
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+        response = self.client.post(reverse('reports:upload'), {'pdf': uploaded})
+        self.assertEqual(response.status_code, 302)
+        page = self.client.get(reverse('reports:create'))
+        self.assertContains(page, 'Rapport_journalier_02-10-2026.docx')
+        self.assertContains(page, 'Soumis')
 
     def test_employee_cannot_read_another_report(self):
         report = DailyReport.objects.create(
@@ -248,7 +278,11 @@ class ReportTests(PlatformDataMixin, TestCase):
     def test_generate_puts_model_text_in_an_editable_draft(self, _mock):
         Task.objects.create(title='Visuel', assigned_to=self.employee, status='completed', planned_date=self.today)
         response = self.client.post(reverse('reports:generate'), {'date': self.today.isoformat()}, follow=True)
-        self.assertContains(response, 'Texte produit par le modèle.')
+        self.assertContains(response, 'Rapport préparé')
+        self.assertEqual(
+            self.client.session.get(f'report_draft_{self.user.pk}_{self.today.isoformat()}'),
+            'Texte produit par le modèle.',
+        )
         self.assertEqual(DailyReport.objects.count(), 0)
         save = self.client.post(reverse('reports:save'), {
             'date': self.today.isoformat(),
@@ -411,8 +445,7 @@ class AssistantPageTests(PlatformDataMixin, TestCase):
         self.assertContains(response, 'Suggestions rapides')
         self.assertContains(response, 'Questions fréquentes')
         self.assertContains(response, 'Nouvelle conversation')
-        self.assertContains(response, 'Historique des conversations')
-        self.assertContains(response, 'Le saviez-vous')
-        self.assertContains(response, 'Utilisation de l\'assistant')
+        self.assertNotContains(response, 'Historique des conversations')
+        self.assertNotContains(response, 'Le saviez-vous')
+        self.assertNotContains(response, 'Utilisation de l\'assistant')
         self.assertContains(response, 'Qui est absent aujourd\'hui ?')
-        self.assertContains(response, '100%')

@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'dashboard',
     'decision_ai',
     'notifications',
+    'messaging',
 ]
 
 MIDDLEWARE = [
@@ -171,6 +172,9 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 AUTHENTICATION_BACKENDS = [
     'authentication.backends.EmailOrUsernameModelBackend',
 ]
+
+# Un POST de connexion avec un jeton périmé revient au formulaire.
+CSRF_FAILURE_VIEW = 'authentication.views.csrf_failure'
 
 # Login URLs
 LOGIN_URL = 'authentication:login'

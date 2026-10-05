@@ -33,6 +33,8 @@ STYLES = {
 
 def _style_for(notification):
     blob = f'{notification.title} {notification.message} {notification.link}'.lower()
+    if '/messagerie/' in blob or 'nouveau message' in notification.title.lower():
+        return 'systeme', 'info'
     if 'permission' in blob or 'demande' in blob:
         return 'demandes', 'permission'
     if 'rapport' in blob:

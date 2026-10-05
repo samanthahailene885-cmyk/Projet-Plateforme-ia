@@ -133,7 +133,7 @@
 
     .ai-board {
         display: grid;
-        grid-template-columns: 268px minmax(0, 1fr) 286px;
+        grid-template-columns: 268px minmax(0, 1fr);
         gap: 14px;
         align-items: start;
     }
@@ -553,64 +553,13 @@
             </form>
             <p class="ai-note">L'IA se base sur les données de votre agence pour vous fournir des réponses fiables et à jour.</p>
         </section>
-
-        <div class="ai-col" id="ai-history-col">
-            <section class="ai-card pad-bottom">
-                <div class="ai-side-head">
-                    <h2><i class="far fa-clock"></i> Historique des conversations</h2>
-                    <button type="button" class="ai-seeall" id="ai-see-all">Voir tout</button>
-                </div>
-                {% for item in history %}
-                <button type="button" class="ai-hist {% if forloop.counter > 5 %}is-extra{% endif %}" data-index="{{ forloop.counter0 }}">
-                    <span class="ai-sico blue"><i class="far fa-comment-dots"></i></span>
-                    <span>
-                        <strong>{{ item.question }}</strong>
-                        <small>{{ item.when }}</small>
-                    </span>
-                    <i class="fas fa-chevron-right go"></i>
-                </button>
-                {% empty %}
-                <p class="ai-empty">Aucune conversation pour le moment.</p>
-                {% endfor %}
-            </section>
-
-            <section class="ai-tip">
-                <div class="ai-tip-ico"><i class="far fa-lightbulb"></i></div>
-                <h3>Le saviez-vous ?</h3>
-                <p>L'IA peut aussi analyser les tendances d'activité pour vous aider à anticiper les besoins de votre agence.</p>
-                <a href="{% url 'decision_ai:center' %}">En savoir plus →</a>
-            </section>
-
-            <section class="ai-card ai-usage">
-                <h2><i class="fas fa-chart-bar"></i> Utilisation de l'assistant</h2>
-                <div class="ai-stats">
-                    <div>
-                        <strong>{{ question_count }}</strong>
-                        <span>Questions posées</span>
-                        <i class="violet fas fa-comment-dots"></i>
-                    </div>
-                    <div>
-                        <strong>{% if response_rate is not None %}{{ response_rate }}%{% else %}—{% endif %}</strong>
-                        <span>Taux de réponse</span>
-                        <i class="green fas fa-check"></i>
-                    </div>
-                    <div>
-                        <strong>—</strong>
-                        <span>Temps moyen</span>
-                        <i class="blue far fa-clock"></i>
-                    </div>
-                </div>
-            </section>
-        </div>
     </div>
 </div>
-{{ history|json_script:"ai-history-data" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
-    var history = JSON.parse(document.getElementById('ai-history-data').textContent || '[]');
     var thread = document.getElementById('ai-thread');
     var welcome = document.getElementById('ai-welcome');
     var input = document.getElementById('question-input');
@@ -639,44 +588,10 @@
         return row;
     }
 
-    function showExchange(question, answer) {
-        welcome.hidden = true;
-        thread.querySelectorAll('.ai-msg').forEach(function (node) { node.remove(); });
-        thread.appendChild(bubble('user', question));
-        thread.appendChild(bubble(answer ? 'bot' : 'error', answer || 'Aucune réponse.'));
-        thread.scrollTop = thread.scrollHeight;
-    }
-
     function resetConversation() {
         thread.querySelectorAll('.ai-msg').forEach(function (node) { node.remove(); });
         welcome.hidden = false;
         input.value = '';
-    }
-
-    function remember(question, answer) {
-        var now = new Date();
-        var when = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-            + ' • ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        history.unshift({ question: question, answer: answer, when: when });
-        var list = document.querySelector('#ai-history-col .ai-card');
-        var empty = list.querySelector('.ai-empty');
-        if (empty) empty.remove();
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'ai-hist';
-        button.dataset.index = '0';
-        button.innerHTML = '<span class="ai-sico blue"><i class="far fa-comment-dots"></i></span><span><strong></strong><small></small></span><i class="fas fa-chevron-right go"></i>';
-        button.querySelector('strong').textContent = question;
-        button.querySelector('small').textContent = when;
-        var head = list.querySelector('.ai-side-head');
-        head.insertAdjacentElement('afterend', button);
-        list.querySelectorAll('.ai-hist').forEach(function (item, index) {
-            item.dataset.index = String(index);
-            item.classList.toggle('is-extra', index >= 5);
-        });
-        var stats = document.querySelectorAll('.ai-stats strong');
-        if (stats[0]) stats[0].textContent = String(Number(stats[0].textContent || 0) + 1);
-        if (stats[1] && stats[1].textContent === '—') stats[1].textContent = '100%';
     }
 
     function ask(question) {
@@ -704,7 +619,6 @@
             var text = result.data.answer || result.data.recorded;
             if (text) {
                 thread.appendChild(bubble('bot', text));
-                remember(question, text);
             } else {
                 thread.appendChild(bubble('bot', 'Aucune donnée enregistrée ne correspond à cette question.'));
             }
@@ -720,17 +634,7 @@
     document.querySelectorAll('[data-question]').forEach(function (button) {
         button.addEventListener('click', function () { ask(button.getAttribute('data-question')); });
     });
-    document.querySelector('#ai-history-col').addEventListener('click', function (event) {
-        var button = event.target.closest('.ai-hist');
-        if (!button) return;
-        var item = history[Number(button.dataset.index)];
-        if (item) showExchange(item.question, item.answer);
-    });
     document.getElementById('ai-new').addEventListener('click', resetConversation);
-    document.getElementById('ai-see-all').addEventListener('click', function () {
-        document.getElementById('ai-history-col').classList.toggle('is-open');
-        this.textContent = document.getElementById('ai-history-col').classList.contains('is-open') ? 'Réduire' : 'Voir tout';
-    });
     form.addEventListener('submit', function (event) {
         event.preventDefault();
         ask(input.value);

@@ -1,3 +1,5 @@
+import mimetypes
+import os
 from datetime import datetime, timedelta
 
 from django.contrib import messages
@@ -21,8 +23,7 @@ from decision_ai.services import (
     compose_employee_report,
 )
 
-from tasks.files import validate_pdf
-
+from .files import validate_report_file
 from .models import DailyReport
 from .synthesis import (
     SYNTHESIS_TYPE,
@@ -59,6 +60,49 @@ STATUS_CLASS = {
 
 def _format_french_date(date):
     return f"{FRENCH_DAYS[date.weekday()]} {date.day} {FRENCH_MONTHS[date.month - 1]} {date.year}"
+
+
+def _format_size(num):
+    mega = num / (1024 * 1024)
+    if mega >= 0.1:
+        text = f'{mega:.1f}'
+        if text.endswith('.0'):
+            text = text[:-2]
+        return f'{text} Mo'
+    kilo = num / 1024
+    if kilo >= 1:
+        return f'{kilo:.0f} Ko'
+    return f'{num} o'
+
+
+def _report_history(user):
+    rows = []
+    reports = DailyReport.objects.filter(employee=user).order_by('-updated_at')
+    for report in reports:
+        stored = ''
+        size = '—'
+        if report.uploaded_pdf:
+            stored = os.path.basename(report.uploaded_pdf.name)
+            try:
+                size = _format_size(report.uploaded_pdf.size)
+            except OSError:
+                size = '—'
+        filename = stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
+        is_pdf = filename.lower().endswith('.pdf')
+        view_url = reverse('reports:pdf', args=[report.pk])
+        if is_pdf:
+            view_url += '?inline=1'
+        sent = timezone.localtime(report.updated_at)
+        rows.append({
+            'sent_at': sent.strftime('%d/%m/%Y %H:%M'),
+            'stamp': sent.strftime('%Y%m%d%H%M'),
+            'filename': filename,
+            'size': size,
+            'view_url': view_url,
+            'download_url': reverse('reports:pdf', args=[report.pk]),
+            'is_word': filename.lower().endswith('.docx'),
+        })
+    return rows
 
 
 def _parse_date(value):
@@ -132,10 +176,6 @@ def _build_report_context(user, report=None, report_date=None, draft=None, read_
         ai_summary = ''
         from_ai_draft = False
 
-    previous_reports = DailyReport.objects.filter(employee=user).order_by('-date')
-    if report:
-        previous_reports = previous_reports.exclude(pk=report.pk)
-
     return {
         'today': today,
         'report_date': today,
@@ -148,7 +188,7 @@ def _build_report_context(user, report=None, report_date=None, draft=None, read_
         'activities': activities,
         'ai_summary': ai_summary,
         'from_ai_draft': from_ai_draft,
-        'previous_reports': previous_reports[:8],
+        'report_history': _report_history(user),
         'report': report,
         'is_submitted': bool(report) and not draft,
         'read_only': read_only,
@@ -518,15 +558,15 @@ def report_upload(request):
         messages.error(request, 'Vous devez avoir un profil employé pour envoyer un rapport.')
         return redirect('reports:create')
 
-    uploaded = request.FILES.get('pdf')
+    uploaded = request.FILES.get('pdf') or request.FILES.get('file')
     if uploaded is None:
-        messages.error(request, 'Choisissez un fichier PDF à envoyer.')
-        return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+        messages.error(request, 'Choisissez un fichier PDF ou Word à envoyer.')
+        return redirect('reports:create')
     try:
-        validate_pdf(uploaded)
+        validate_report_file(uploaded)
     except ValidationError as exc:
         messages.error(request, ' '.join(exc.messages))
-        return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+        return redirect('reports:create')
 
     report, _created = DailyReport.objects.get_or_create(
         employee=request.user,
@@ -545,12 +585,12 @@ def report_upload(request):
 
     name = f'{request.user.first_name} {request.user.last_name}'.strip() or request.user.username
     _notify_admins(
-        'Rapport PDF importé',
-        f'{name} a envoyé son rapport PDF du {report_date:%d/%m/%Y}.',
+        'Rapport importé',
+        f'{name} a envoyé son rapport du {report_date:%d/%m/%Y}.',
         'success',
         reverse('reports:detail', args=[report.pk]),
     )
-    messages.success(request, 'Votre PDF a été envoyé au responsable.')
+    messages.success(request, 'Votre rapport a été envoyé au responsable.')
     return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 
 
@@ -561,13 +601,19 @@ def report_pdf(request, pk):
         messages.error(request, 'Vous ne pouvez télécharger que vos propres rapports.')
         return redirect('reports:create')
 
-    filename = f"RACIN_Rapport_{report.employee.last_name or report.employee.username}_{report.date.isoformat()}.pdf"
     if report.uploaded_pdf:
+        stored = os.path.basename(report.uploaded_pdf.name)
+        content_type = mimetypes.guess_type(stored)[0] or 'application/octet-stream'
+        inline = request.GET.get('inline') == '1' and content_type == 'application/pdf'
         handle = report.uploaded_pdf.open('rb')
-        response = FileResponse(handle, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response = FileResponse(handle, content_type=content_type)
+        response['Content-Disposition'] = (
+            f"{'inline' if inline else 'attachment'}; filename=\"{stored}\""
+        )
+        response['X-Frame-Options'] = 'SAMEORIGIN'
         return response
 
+    filename = f"RACIN_Rapport_{report.employee.last_name or report.employee.username}_{report.date.isoformat()}.pdf"
     response = HttpResponse(build_daily_report_pdf(report), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

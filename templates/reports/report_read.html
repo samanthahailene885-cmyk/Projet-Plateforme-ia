@@ -26,6 +26,20 @@
         gap: 8px;
         flex-wrap: wrap;
     }
+    .pdf-view {
+        max-width: 920px;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #d7e3f0;
+    }
+    .pdf-view iframe {
+        display: block;
+        width: 100%;
+        height: 82vh;
+        border: 0;
+        background: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -42,5 +56,11 @@
     </div>
 </div>
 
+{% if report.uploaded_pdf %}
+<div class="pdf-view">
+    <iframe src="{% url 'reports:pdf' report.pk %}?inline=1" title="PDF envoyé par {{ reading.name }}"></iframe>
+</div>
+{% else %}
 {% include 'reports/_journal.html' with journal_date=reading.date_label journal_name=reading.name bullets=reading.bullets editable=False %}
+{% endif %}
 {% endblock %}

@@ -1,605 +1,393 @@
 {% extends 'base.html' %}
-{% load static %}
 
-{% block title %}Mon rapport - WorkFlow{% endblock %}
+{% block title %}Mon rapport - RAC'IN{% endblock %}
 
 {% block extra_css %}
-{% include 'reports/_journal_css.html' %}
 <style>
-    :root {
-        --wf-sidebar: #0f172a;
-        --wf-sidebar-hover: #1e293b;
-        --wf-accent: #2563eb;
-        --wf-accent-light: #eff6ff;
-        --wf-green: #22c55e;
-        --wf-green-light: #dcfce7;
-        --wf-orange: #f97316;
-        --wf-orange-light: #ffedd5;
-        --wf-blue-action: #0ea5e9;
-        --wf-blue-action-light: #e0f2fe;
-        --wf-bg: #f8fafc;
-        --wf-card: #ffffff;
-        --wf-text: #1e293b;
-        --wf-text-muted: #64748b;
-        --wf-border: #e2e8f0;
-    }
+    .rep-page { max-width: 1180px; }
 
-    body { background: var(--wf-bg) !important; }
-
-    /* ── Page wrapper ── */
-    .report-page {
-        padding: 0 8px 40px;
-        max-width: 1200px;
-    }
-
-    /* ── Header ── */
-    .report-page-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 28px;
-        flex-wrap: wrap;
-        gap: 16px;
-    }
-    .report-page-title {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--wf-text);
-        margin: 0 0 4px;
-        letter-spacing: -0.02em;
-    }
-    .report-page-subtitle {
-        font-size: 0.9rem;
-        color: var(--wf-text-muted);
-        margin: 0;
-    }
-    .date-picker {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--wf-card);
-        border: 1px solid var(--wf-border);
-        border-radius: 10px;
-        padding: 8px 14px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    }
-    .date-picker-btn {
-        background: none;
-        border: none;
-        color: var(--wf-text-muted);
-        cursor: pointer;
-        padding: 4px 6px;
-        border-radius: 6px;
-        transition: background .15s;
-        font-size: 0.85rem;
-    }
-    .date-picker-btn:hover { background: var(--wf-bg); color: var(--wf-accent); }
-    a.date-picker-btn { text-decoration: none; }
-    .date-picker-label {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--wf-text);
-        white-space: nowrap;
-    }
-
-    /* ── Grid layout ── */
-    .report-grid {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 20px;
-        align-items: start;
-    }
-    .report-main { display: flex; flex-direction: column; gap: 20px; }
-    .report-sidebar { display: flex; flex-direction: column; gap: 16px; }
-
-    /* ── Cards ── */
-    .wf-card {
-        background: var(--wf-card);
-        border-radius: 12px;
-        border: 1px solid var(--wf-border);
-        box-shadow: 0 1px 4px rgba(0,0,0,.05);
-        padding: 22px 24px;
-    }
-    .wf-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-    }
-    .wf-card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--wf-text);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 0;
-    }
-    .wf-card-title .icon-wrap {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-    }
-    .icon-ai { background: var(--wf-accent-light); color: var(--wf-accent); }
-    .icon-activities { background: #f0fdf4; color: var(--wf-green); }
-    .icon-stats { background: #fef3c7; color: #d97706; }
-
-    /* ── AI Summary ── */
-    .ai-badge {
-        background: var(--wf-green-light);
-        color: #15803d;
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 20px;
-    }
-    .ai-summary-text {
-        font-size: 0.9rem;
-        line-height: 1.7;
-        color: #334155;
-        background: var(--wf-bg);
-        border-radius: 8px;
-        padding: 16px;
-        border: 1px solid var(--wf-border);
-        min-height: 120px;
-        resize: vertical;
-        width: 100%;
-        font-family: inherit;
-        transition: border-color .15s;
-    }
-    .ai-summary-text:focus {
-        outline: none;
-        border-color: var(--wf-accent);
-        box-shadow: 0 0 0 3px rgba(37,99,235,.12);
-    }
-    .ai-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 16px;
-        flex-wrap: wrap;
-    }
-    .btn-wf-outline {
-        background: white;
-        border: 1px solid var(--wf-border);
-        color: var(--wf-text-muted);
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all .15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .btn-wf-outline:hover { border-color: var(--wf-accent); color: var(--wf-accent); background: var(--wf-accent-light); }
-    .btn-wf-primary {
-        background: var(--wf-accent);
-        border: none;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all .15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .btn-wf-primary:hover { background: #1d4ed8; }
-
-    /* ── Activities ── */
-    .activity-list { display: flex; flex-direction: column; gap: 0; }
-    .activity-row {
+    .rep-head {
         display: flex;
         align-items: flex-start;
         gap: 14px;
-        padding: 14px 0;
-        border-bottom: 1px solid var(--wf-border);
+        margin: 6px 0 22px;
     }
-    .activity-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .activity-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
+    .rep-head-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #234A6A;
+        color: #38BDF8;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        font-size: 1.05rem;
+    }
+    .rep-head h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #F8FAFC;
+    }
+    .rep-head p {
+        margin: 4px 0 0;
+        color: #D7E3F0;
+        font-size: 0.92rem;
+    }
+
+    .rep-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 18px;
+        align-items: stretch;
+    }
+
+    .rep-drop, .rep-tips, .rep-table {
+        background: #1C3E5C;
+        border: 1px solid #3D6A90;
+        border-radius: 16px;
+    }
+
+    .rep-drop {
+        min-height: 340px;
+        padding: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.85rem;
-        flex-shrink: 0;
-        margin-top: 2px;
+        text-align: center;
     }
-    .activity-icon.done { background: var(--wf-green-light); color: var(--wf-green); }
-    .activity-icon.progress { background: var(--wf-orange-light); color: var(--wf-orange); }
-    .activity-icon.todo { background: var(--wf-blue-action-light); color: var(--wf-blue-action); }
-    .activity-body { flex: 1; min-width: 0; }
-    .activity-title { font-size: 0.9rem; font-weight: 600; color: var(--wf-text); margin-bottom: 2px; }
-    .activity-desc { font-size: 0.8rem; color: var(--wf-text-muted); line-height: 1.4; }
-    .activity-meta {
+    .rep-drop-inner {
+        width: min(460px, 100%);
+        border: 1.5px dashed #4E7CA6;
+        border-radius: 16px;
+        padding: 42px 28px 28px;
+        background: rgba(18, 40, 63, 0.35);
+    }
+    .rep-drop.over .rep-drop-inner {
+        border-color: #2563EB;
+        background: rgba(37, 99, 235, 0.12);
+    }
+    .rep-cloud {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        border-radius: 50%;
+        background: #234A6A;
+        color: #38BDF8;
+        display: grid;
+        place-items: center;
+        font-size: 1.45rem;
+    }
+    .rep-drop h2 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #F8FAFC;
+    }
+    .rep-drop .rep-lead {
+        margin: 0 0 18px;
+        color: #D7E3F0;
+        font-size: 0.92rem;
+    }
+    .rep-pick {
+        border: 0;
+        border-radius: 10px;
+        background: #2563EB;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 10px 18px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    .rep-pick:hover { background: #1D4ED8; }
+    .rep-meta {
+        margin: 14px 0 0;
+        color: #9FB4C9;
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+    .rep-file-input { display: none; }
+
+    .rep-tips { padding: 22px 20px; }
+    .rep-tips h2 {
+        margin: 0 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #F8FAFC;
+    }
+    .rep-bulb {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(56, 189, 248, 0.15);
+        color: #38BDF8;
+        display: grid;
+        place-items: center;
+        font-size: 0.85rem;
+    }
+    .rep-tips ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        gap: 6px;
-        flex-shrink: 0;
+        gap: 14px;
     }
-    .status-badge {
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 20px;
-        white-space: nowrap;
-    }
-    .status-badge.done { background: var(--wf-green-light); color: #15803d; }
-    .status-badge.progress { background: var(--wf-orange-light); color: #c2410c; }
-    .status-badge.todo { background: var(--wf-blue-action-light); color: #0369a1; }
-    .activity-time { font-size: 0.75rem; color: var(--wf-text-muted); }
-
-    /* ── Stats sidebar ── */
-    .stat-row {
+    .rep-tips li {
         display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--wf-border);
-    }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-icon-sm {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-    }
-    .stat-icon-sm.blue { background: var(--wf-accent-light); color: var(--wf-accent); }
-    .stat-icon-sm.green { background: var(--wf-green-light); color: var(--wf-green); }
-    .stat-icon-sm.orange { background: var(--wf-orange-light); color: var(--wf-orange); }
-    .stat-icon-sm.purple { background: #f3e8ff; color: #7c3aed; }
-    .stat-icon-sm.teal { background: #ccfbf1; color: #0d9488; }
-    .stat-label-sm { font-size: 0.82rem; color: var(--wf-text-muted); flex: 1; }
-    .stat-value-sm { font-size: 0.9rem; font-weight: 700; color: var(--wf-text); }
-
-    /* ── Remarks ── */
-    .remarks-textarea {
-        width: 100%;
-        min-height: 90px;
-        border: 1px solid var(--wf-border);
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 0.875rem;
-        color: var(--wf-text);
-        resize: vertical;
-        font-family: inherit;
-        background: var(--wf-bg);
-        transition: border-color .15s;
-    }
-    .remarks-textarea:focus {
-        outline: none;
-        border-color: var(--wf-accent);
-        box-shadow: 0 0 0 3px rgba(37,99,235,.12);
-        background: white;
-    }
-    .char-counter { font-size: 0.75rem; color: var(--wf-text-muted); text-align: right; margin-top: 6px; }
-
-    /* ── Submit card ── */
-    .submit-card {
-        text-align: center;
-        padding: 24px 20px;
-    }
-    .submit-illustration {
-        margin: 0 auto 16px;
-        width: 80px;
-        height: 80px;
-        position: relative;
-    }
-    .submit-illustration svg { width: 100%; height: 100%; }
-    .submit-card h3 {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--wf-text);
-        margin: 0 0 16px;
-    }
-    .btn-submit-report {
-        width: 100%;
-        background: var(--wf-green);
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 10px;
+        gap: 10px;
+        align-items: flex-start;
+        color: #D7E3F0;
         font-size: 0.9rem;
+        line-height: 1.45;
+    }
+    .rep-tips li i {
+        color: #38BDF8;
+        margin-top: 3px;
+    }
+
+    .rep-table { margin-top: 18px; overflow: hidden; }
+    .rep-table-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 18px;
+        border-bottom: 1px solid #3D6A90;
+        color: #F8FAFC;
+        font-weight: 700;
+    }
+    .rep-table-head i { color: #38BDF8; }
+    .rep-table table { width: 100%; border-collapse: collapse; }
+    .rep-table th, .rep-table td {
+        padding: 14px 16px;
+        text-align: left;
+        font-size: 0.9rem;
+        border-bottom: 1px solid rgba(61, 106, 144, 0.55);
+        color: #F8FAFC;
+        vertical-align: middle;
+    }
+    .rep-table th {
+        color: #9FB4C9;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+    .rep-table tr:last-child td { border-bottom: 0; }
+    .rep-sort {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
         font-weight: 600;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        transition: background .15s, transform .1s;
-        box-shadow: 0 2px 8px rgba(34,197,94,.3);
-    }
-    .btn-submit-report:hover { background: #16a34a; transform: translateY(-1px); }
-    .btn-submit-report:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-    .submitted-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: var(--wf-green-light);
-        color: #15803d;
+        padding: 0;
+    }
+    .rep-file {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .rep-file i { color: #38BDF8; }
+    .rep-file i.word { color: #60A5FA; }
+    .rep-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #34D399;
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+    .rep-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .rep-view {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #3D6A90;
+        background: #18344F;
+        color: #F8FAFC;
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 6px 12px;
         font-size: 0.85rem;
         font-weight: 600;
-        padding: 10px 20px;
+    }
+    .rep-view:hover { border-color: #2563EB; color: #fff; }
+    .rep-more { position: relative; }
+    .rep-more > summary {
+        list-style: none;
+        width: 34px;
+        height: 34px;
         border-radius: 10px;
-        width: 100%;
-        justify-content: center;
+        border: 1px solid #3D6A90;
+        display: grid;
+        place-items: center;
+        color: #D7E3F0;
+        cursor: pointer;
+        background: #18344F;
     }
-    .last-sent {
-        font-size: 0.75rem;
-        color: var(--wf-text-muted);
-        margin-top: 12px;
+    .rep-more > summary::-webkit-details-marker { display: none; }
+    .rep-more a {
+        position: absolute;
+        right: 0;
+        top: 40px;
+        z-index: 2;
+        white-space: nowrap;
+        background: #18344F;
+        border: 1px solid #3D6A90;
+        color: #F8FAFC;
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
     }
-
-    /* ── Empty state ── */
-    .empty-activities {
+    .rep-empty {
+        padding: 28px 16px;
         text-align: center;
-        padding: 32px 16px;
-        color: var(--wf-text-muted);
+        color: #9FB4C9;
     }
-    .empty-activities i { font-size: 2rem; margin-bottom: 10px; opacity: .4; }
 
-    /* ── Responsive ── */
-    @media (max-width: 992px) {
-        .report-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 576px) {
-        .report-page-header { flex-direction: column; }
-        .activity-meta { display: none; }
+    @media (max-width: 980px) {
+        .rep-top { grid-template-columns: 1fr; }
+        .rep-table { overflow-x: auto; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="report-page">
-
-    <!-- Header -->
-    <div class="report-page-header">
+<div class="rep-page">
+    <div class="rep-head">
+        <div class="rep-head-icon" aria-hidden="true"><i class="far fa-file-alt"></i></div>
         <div>
-            <h1 class="report-page-title">Mon rapport</h1>
-            <p class="report-page-subtitle">Gérez et envoyez votre rapport quotidien</p>
-        </div>
-        <div class="date-picker">
-            <a class="date-picker-btn" href="?date={{ prev_date|date:'Y-m-d' }}" title="Jour précédent"><i class="fas fa-chevron-left"></i></a>
-            <form method="get" class="d-flex align-items-center gap-2 mb-0">
-                <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control form-control-sm" onchange="this.form.submit()" aria-label="Date du rapport">
-            </form>
-            <a class="date-picker-btn" href="?date={{ next_date|date:'Y-m-d' }}" title="Jour suivant"><i class="fas fa-chevron-right"></i></a>
+            <h1>Mon rapport journalier</h1>
+            <p>Importez votre rapport de la journée afin de le transmettre au responsable.</p>
         </div>
     </div>
 
-    <div class="report-grid">
-
-        <!-- Colonne gauche -->
-        <div class="report-main">
-
-            <!-- Résumé IA -->
-            <div class="wf-card">
-                <div class="wf-card-header">
-                    <h2 class="wf-card-title">
-                        <span class="icon-wrap icon-ai"><i class="fas fa-star"></i></span>
-                        Rapport du {{ formatted_date }}
-                    </h2>
-                    {% if is_submitted %}
-                        <span class="ai-badge"><i class="fas fa-check me-1"></i> Enregistré</span>
-                    {% elif from_ai_draft %}
-                        <span class="ai-badge">Proposition à valider</span>
-                    {% endif %}
-                </div>
-                {% if not data_sufficient and not ai_summary %}
-                <p class="text-muted mb-3">Aucune activité n'est enregistrée pour cette date. Le rapport ne peut pas être généré tant que la todo list du jour est vide.</p>
-                {% endif %}
-                {% include 'reports/_journal.html' with journal_date=journal_date journal_name=journal_name body=ai_summary editable=True %}
-                {% if not read_only %}
-                <div class="ai-actions">
-                    <form id="generate-form" method="post" action="{% url 'reports:generate' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
-                        <button type="submit" class="btn-wf-primary" id="generate-btn" {% if not data_sufficient %}disabled{% endif %}>
-                            <i class="fas fa-wand-magic-sparkles"></i> Générer mon rapport avec l'IA
-                        </button>
-                    </form>
-                    <button type="submit" class="btn-wf-outline" form="save-report-form">
-                        <i class="fas fa-check"></i> Valider et enregistrer
-                    </button>
-                </div>
-                <form id="save-report-form" method="post" action="{% url 'reports:save' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
-                </form>
-                {% endif %}
+    <div class="rep-top">
+        <form id="upload-form" class="rep-drop" method="post" action="{% url 'reports:upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
+            <div class="rep-drop-inner">
+                <div class="rep-cloud" aria-hidden="true"><i class="fas fa-cloud-upload-alt"></i></div>
+                <h2>Importer mon rapport</h2>
+                <p class="rep-lead">Déposez votre fichier ici ou choisissez-le depuis votre PC</p>
+                <button class="rep-pick" type="button" id="pick-file">
+                    <i class="far fa-folder-open"></i> Choisir un fichier
+                </button>
+                <input class="rep-file-input" id="report-file" type="file" name="pdf" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                <p class="rep-meta">Formats acceptés : PDF, DOCX<br>Taille maximale : 10 Mo</p>
             </div>
+        </form>
 
-            <!-- Détail des activités -->
-            <div class="wf-card">
-                <div class="wf-card-header">
-                    <h2 class="wf-card-title">
-                        <span class="icon-wrap icon-activities"><i class="fas fa-list-check"></i></span>
-                        Détail des activités
-                    </h2>
-                </div>
-                <div class="activity-list">
-                    {% if activities %}
-                        {% for activity in activities %}
-                        <div class="activity-row">
-                            <div class="activity-icon {{ activity.status_class }}">
-                                {% if activity.status == 'completed' %}
-                                    <i class="fas fa-check"></i>
-                                {% elif activity.status == 'in_progress' %}
-                                    <i class="fas fa-clock"></i>
-                                {% else %}
-                                    <i class="far fa-circle"></i>
-                                {% endif %}
-                            </div>
-                            <div class="activity-body">
-                                <div class="activity-title">{{ activity.title }}</div>
-                                <div class="activity-desc">{{ activity.description|truncatechars:80 }}</div>
-                            </div>
-                            <div class="activity-meta">
-                                <span class="status-badge {{ activity.status_class }}">{{ activity.status_label }}</span>
-                                <span class="activity-time">{{ activity.time }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-activities">
-                            <i class="fas fa-inbox d-block"></i>
-                            <p>Aucune activité enregistrée pour cette date</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Colonne droite -->
-        <div class="report-sidebar">
-
-            <!-- Statistiques -->
-            <div class="wf-card">
-                <div class="wf-card-header">
-                    <h2 class="wf-card-title">
-                        <span class="icon-wrap icon-stats"><i class="fas fa-chart-bar"></i></span>
-                        Statistiques du jour
-                    </h2>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm blue"><i class="fas fa-tasks"></i></div>
-                    <span class="stat-label-sm">Tâches prévues</span>
-                    <span class="stat-value-sm">{{ stats.tasks_planned }}</span>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm green"><i class="fas fa-check-circle"></i></div>
-                    <span class="stat-label-sm">Tâches terminées</span>
-                    <span class="stat-value-sm">{{ stats.tasks_completed }}</span>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm orange"><i class="fas fa-spinner"></i></div>
-                    <span class="stat-label-sm">Tâches en cours</span>
-                    <span class="stat-value-sm">{{ stats.tasks_in_progress }}</span>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm purple"><i class="fas fa-clock"></i></div>
-                    <span class="stat-label-sm">Heures réelles saisies</span>
-                    <span class="stat-value-sm">{{ stats.hours_worked }}</span>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm teal"><i class="fas fa-bolt"></i></div>
-                    <span class="stat-label-sm">Part terminée</span>
-                    <span class="stat-value-sm">{{ stats.productivity }}%</span>
-                </div>
-                <div class="stat-row">
-                    <div class="stat-icon-sm orange"><i class="fas fa-ban"></i></div>
-                    <span class="stat-label-sm">Non réalisées</span>
-                    <span class="stat-value-sm">{{ stats.tasks_not_done }}</span>
-                </div>
-            </div>
-
-            <!-- Remarques -->
-            <div class="wf-card">
-                <h2 class="wf-card-title" style="margin-bottom:12px;">
-                    <span class="icon-wrap" style="background:#fef3c7;color:#d97706;"><i class="fas fa-comment-dots"></i></span>
-                    Ajoutez une remarque
-                </h2>
-                <textarea class="remarks-textarea" id="remarks" name="extra_remark" form="save-report-form" maxlength="500"
-                    placeholder="Écrivez vos remarques ici..."
-                    oninput="updateCounter()" {% if read_only %}readonly{% endif %}></textarea>
-                <div class="char-counter"><span id="charCount">0</span>/500</div>
-            </div>
-
-            <!-- Envoi -->
-            <div class="wf-card submit-card">
-                <div class="submit-illustration">
-                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="40" cy="40" r="38" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
-                        <path d="M20 45 Q40 20 60 45" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
-                        <path d="M38 52 L58 32 L52 50 L38 52Z" fill="#2563eb"/>
-                        <path d="M38 52 L22 58 L28 44 Z" fill="#1d4ed8"/>
-                        <circle cx="58" cy="32" r="3" fill="#2563eb"/>
-                    </svg>
-                </div>
-                {% if is_submitted %}
-                <h3>Rapport enregistré</h3>
-                <div class="submitted-badge">
-                    <i class="fas fa-check-circle"></i> Enregistré le {{ report.updated_at|date:"d/m/Y à H:i" }}
-                </div>
-                <p class="last-sent">Le responsable reçoit ce compte rendu en PDF, à la présentation RAC'IN.</p>
-                <a href="{% url 'reports:pdf' report.pk %}" class="btn btn-primary mt-3">
-                    <i class="fas fa-file-pdf me-2"></i>Télécharger le PDF
-                </a>
-                {% elif read_only %}
-                <h3>Consultation du rapport</h3>
-                {% else %}
-                <h3>Validez le rapport après relecture</h3>
-                <p class="last-sent">La génération remplit le texte. L'enregistrement le conserve pour cette date.</p>
-                {% endif %}
-                {% if previous_reports %}
-                <div class="text-start mt-3">
-                    <p class="last-sent mb-2">Rapports précédents</p>
-                    {% for item in previous_reports %}
-                    <a href="{% url 'reports:detail' item.pk %}" class="d-block small mb-1">{{ item.date|date:"d/m/Y" }}</a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-
-            {% if not read_only %}
-            <div class="wf-card">
-                <h2 class="wf-card-title" style="margin-bottom:12px;">
-                    <span class="icon-wrap" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-file-pdf"></i></span>
-                    Importer un PDF
-                </h2>
-                <p class="last-sent">Autre option : envoyez votre propre rapport PDF au responsable, sans passer par l'IA.</p>
-                <form method="post" action="{% url 'reports:upload' %}" enctype="multipart/form-data" class="mt-3">
-                    {% csrf_token %}
-                    <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
-                    <input type="file" name="pdf" accept="application/pdf,.pdf" class="form-control form-control-sm mb-2" required aria-label="Fichier PDF du rapport">
-                    <button type="submit" class="btn-submit-report">
-                        <i class="fas fa-paper-plane"></i> Envoyer ce PDF au responsable
-                    </button>
-                </form>
-                {% if report and report.uploaded_pdf %}
-                <a href="{% url 'reports:pdf' report.pk %}" class="d-block small mt-3">Voir le PDF déjà envoyé</a>
-                {% endif %}
-            </div>
-            {% endif %}
-
-        </div>
+        <aside class="rep-tips">
+            <h2><span class="rep-bulb" aria-hidden="true"><i class="far fa-lightbulb"></i></span> Quelques conseils</h2>
+            <ul>
+                <li><i class="fas fa-check" aria-hidden="true"></i><span>Votre rapport doit contenir les principales activités de la journée.</span></li>
+                <li><i class="fas fa-check" aria-hidden="true"></i><span>Vous pouvez utiliser le format de votre choix (PDF ou Word).</span></li>
+                <li><i class="fas fa-check" aria-hidden="true"></i><span>Assurez-vous que le fichier soit lisible et bien nommé.</span></li>
+            </ul>
+        </aside>
     </div>
+
+    <section class="rep-table">
+        <div class="rep-table-head"><i class="far fa-copy" aria-hidden="true"></i> Mes rapports précédents</div>
+        {% if report_history %}
+        <table>
+            <thead>
+                <tr>
+                    <th><button class="rep-sort" type="button" id="sort-date">Date d'envoi <i class="fas fa-chevron-down"></i></button></th>
+                    <th>Nom du fichier</th>
+                    <th>Taille</th>
+                    <th>Statut</th>
+                    <th style="text-align:right">Action</th>
+                </tr>
+            </thead>
+            <tbody id="report-rows">
+                {% for item in report_history %}
+                <tr data-stamp="{{ item.stamp }}">
+                    <td>{{ item.sent_at }}</td>
+                    <td>
+                        <span class="rep-file">
+                            <i class="{% if item.is_word %}fas fa-file-word word{% else %}far fa-file-alt{% endif %}" aria-hidden="true"></i>
+                            {{ item.filename }}
+                        </span>
+                    </td>
+                    <td>{{ item.size }}</td>
+                    <td><span class="rep-status"><i class="fas fa-check" aria-hidden="true"></i> Soumis</span></td>
+                    <td>
+                        <div class="rep-actions">
+                            <a class="rep-view" href="{{ item.view_url }}"><i class="far fa-eye" aria-hidden="true"></i> Voir</a>
+                            <details class="rep-more">
+                                <summary aria-label="Autres actions"><i class="fas fa-ellipsis-v"></i></summary>
+                                <a href="{{ item.download_url }}">Télécharger</a>
+                            </details>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="rep-empty">Aucun rapport envoyé pour le moment.</div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.getElementById('generate-form')?.addEventListener('submit', function () {
-    const btn = document.getElementById('generate-btn');
-    if (!btn) return;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Génération en cours…';
-});
+(function () {
+    var form = document.getElementById('upload-form');
+    var input = document.getElementById('report-file');
+    var pick = document.getElementById('pick-file');
+    if (pick && input && form) {
+        pick.addEventListener('click', function () { input.click(); });
+        input.addEventListener('change', function () {
+            if (input.files && input.files.length) form.submit();
+        });
+        form.addEventListener('dragover', function (event) {
+            event.preventDefault();
+            form.classList.add('over');
+        });
+        form.addEventListener('dragleave', function () { form.classList.remove('over'); });
+        form.addEventListener('drop', function (event) {
+            event.preventDefault();
+            form.classList.remove('over');
+            if (!event.dataTransfer.files.length) return;
+            input.files = event.dataTransfer.files;
+            form.submit();
+        });
+    }
 
-function updateCounter() {
-    const ta = document.getElementById('remarks');
-    if (!ta) return;
-    document.getElementById('charCount').textContent = ta.value.length;
-}
+    var sort = document.getElementById('sort-date');
+    var body = document.getElementById('report-rows');
+    if (sort && body) {
+        var desc = true;
+        sort.addEventListener('click', function () {
+            desc = !desc;
+            var rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+            rows.sort(function (a, b) {
+                var left = a.getAttribute('data-stamp') || '';
+                var right = b.getAttribute('data-stamp') || '';
+                return desc ? right.localeCompare(left) : left.localeCompare(right);
+            });
+            rows.forEach(function (row) { body.appendChild(row); });
+            sort.querySelector('i').className = desc ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+        });
+    }
+})();
 </script>
 {% endblock %}

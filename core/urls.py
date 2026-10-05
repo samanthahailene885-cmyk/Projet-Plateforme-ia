@@ -33,6 +33,7 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     path('decision-ai/', include('decision_ai.urls')),
     path('notifications/', include('notifications.urls')),
+    path('messagerie/', include('messaging.urls')),
 ]
 
 if settings.DEBUG:

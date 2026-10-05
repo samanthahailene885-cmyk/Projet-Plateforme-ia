@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+
+{% block title %}Messagerie - RAC'IN{% endblock %}
+{% block body_class %}msg-page{% endblock %}
+
+{% block page_css %}
+<style>
+    body.msg-page .racin-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #041126;
+    }
+    body.msg-page .app-header { flex: 0 0 auto; margin-bottom: 0; }
+    .msg-app {
+        --ink: #F8FAFC;
+        --muted: #94A3B8;
+        --line: #173B69;
+        --bg: #06152F;
+        --list: #071A33;
+        --card: #0A2142;
+        --in: #0D2850;
+        --out: #2563EB;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 16px 32px 24px;
+        display: grid;
+        grid-template-columns: minmax(260px, 32%) minmax(0, 1fr);
+        background: var(--bg);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 12px 32px rgba(4, 17, 38, .35);
+    }
+    .msg-list, .msg-pane { min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    .msg-list { background: var(--list); border-right: 1px solid var(--line); }
+    .msg-list-head, .msg-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px 12px;
+    }
+    .msg-brand {
+        width: 36px; height: 36px; border-radius: 12px;
+        background: #0D2850; color: #38BDF8;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .msg-list-head h1, .msg-head h2 {
+        margin: 0; font-size: 1.2rem; font-weight: 700; color: #F8FAFC;
+    }
+    .msg-lead { margin: 2px 0 0; color: #94A3B8; font-size: 0.78rem; font-weight: 400; }
+    .msg-total {
+        min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+        background: var(--out); color: #fff; font-size: 0.75rem; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .msg-tools { margin-left: auto; display: flex; gap: 8px; }
+    .msg-tool {
+        width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line);
+        background: #0C2344; color: var(--muted);
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .msg-search, .msg-filters { padding: 0 16px 12px; }
+    .msg-search {
+        display: flex; align-items: center; gap: 8px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+        padding: 0 12px; height: 42px;
+    }
+    .msg-search i { color: var(--muted); }
+    .msg-app .msg-search input {
+        flex: 1; border: 0 !important; background: transparent !important;
+        color: var(--ink) !important; outline: none; font-size: 0.88rem; height: 36px;
+    }
+    .msg-filters { display: flex; gap: 8px; }
+    .msg-filters button {
+        border: 1px solid var(--line); background: transparent; color: var(--muted);
+        border-radius: 999px; padding: 6px 12px; font-size: 0.78rem;
+        transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .msg-filters button:hover { border-color: #2563EB; color: var(--ink); }
+    .msg-filters button.on { background: #2563EB; border-color: #2563EB; color: #fff; }
+    .msg-scroll { overflow: auto; flex: 1; }
+    .msg-hint { margin: 8px 18px; color: var(--muted); font-size: 0.82rem; }
+    .msg-app a.msg-row {
+        display: flex; gap: 12px; align-items: center;
+        padding: 12px 16px; color: var(--ink); text-decoration: none;
+        border-left: 3px solid transparent;
+        transition: background .15s ease, border-color .15s ease;
+    }
+    .msg-app a.msg-row:hover { background: #0A2142; }
+    .msg-app a.msg-row.active {
+        background: #0D2850;
+        border-left-color: #2563EB;
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .35);
+    }
+    .avatar {
+        position: relative; width: 44px; height: 44px; border-radius: 50%;
+        background: #1D4ED8; color: #fff; display: inline-flex;
+        align-items: center; justify-content: center; font-weight: 700;
+        flex: 0 0 auto; overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar .dot {
+        position: absolute; right: 1px; bottom: 1px; width: 10px; height: 10px;
+        border-radius: 50%; border: 2px solid var(--list); background: #64748B;
+    }
+    .avatar .dot.on { background: #10B981; }
+    .avatar.sm { width: 34px; height: 34px; font-size: 0.68rem; background: #1D4ED8; }
+    .avatar.sm .dot { border-color: var(--bg); }
+    .msg-row-body { min-width: 0; flex: 1; }
+    .msg-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .msg-row-top strong { font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .msg-row time, .msg-sub { color: var(--muted); font-size: 0.75rem; }
+    .msg-row p {
+        margin: 2px 0 0; color: #94A3B8; font-size: 0.8rem;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .msg-count {
+        min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+        background: var(--out); color: #fff; font-size: 0.7rem; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .msg-head { background: #071A33; border-bottom: 1px solid var(--line); padding: 14px 18px; }
+    .msg-app a.msg-back { display: none; color: var(--ink); text-decoration: none; }
+    .msg-head .who { display: flex; flex-direction: column; min-width: 0; }
+    .msg-head h2 { font-size: 1.15rem; line-height: 1.2; }
+    .msg-title-row { display: flex; align-items: center; gap: 8px; }
+    .msg-sub { display: flex; align-items: center; gap: 6px; }
+    .msg-sub .on { color: #10B981; font-size: 0.45rem; }
+    .msg-stream {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 28px 16px;
+        display: flex; flex-direction: column; gap: 10px; background: var(--bg);
+    }
+    .msg-day {
+        align-self: center; background: #0A2142; color: #94A3B8;
+        border: 1px solid #173B69; border-radius: 999px; padding: 4px 12px; font-size: 0.75rem;
+    }
+    .msg-stream { align-items: flex-start; justify-content: flex-start; }
+    .msg-day { align-self: center; }
+    .bubble-wrap {
+        display: flex; align-items: flex-end; gap: 8px;
+        flex: 0 0 auto; width: fit-content; max-width: 65%; height: auto;
+        animation: msg-in .18s ease;
+    }
+    .bubble-wrap.mine { align-self: flex-end; margin-left: auto; }
+    .bubble-wrap.theirs { align-self: flex-start; margin-right: auto; }
+    .bubble {
+        display: block; width: fit-content; max-width: 100%; height: auto;
+        padding: 12px 16px; border-radius: 18px; color: #F8FAFC;
+        font-size: 0.92rem; line-height: 1.4;
+    }
+    .bubble-text { white-space: pre-wrap; word-break: break-word; }
+    .bubble::after { content: ""; display: block; clear: both; }
+    .bubble-wrap.mine .bubble { background: #2563EB; border-bottom-right-radius: 6px; }
+    .bubble-wrap.theirs .bubble {
+        background: #0D2850; border: 1px solid #173B69; border-bottom-left-radius: 6px;
+    }
+    .bubble-foot {
+        float: right; display: inline-flex; align-items: center; gap: 4px;
+        margin: 6px 0 0 12px; font-size: 0.68rem; color: rgba(248,250,252,.72);
+    }
+    .ticks { color: rgba(248,250,252,.65); }
+    .ticks.seen { color: #38BDF8; }
+    .file-card {
+        display: flex; align-items: center; gap: 10px; margin-top: 8px;
+        background: #0A2142; border: 1px solid #173B69; border-radius: 12px; padding: 10px 12px;
+        color: #F8FAFC !important; text-decoration: none;
+    }
+    @keyframes msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .file-ico {
+        width: 36px; height: 36px; border-radius: 10px; background: #1D4ED8; color: #fff;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .file-card strong { display: block; font-size: 0.82rem; }
+    .file-card small { color: var(--muted); }
+    .file-card .dl { margin-left: auto; color: var(--muted); }
+    .msg-compose { border-top: 1px solid var(--line); background: #071A33; padding: 12px 16px 14px; }
+    .msg-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .msg-shortcuts { justify-content: flex-start; }
+    .msg-shortcuts button {
+        height: 40px; width: auto; border: 1px solid var(--line); background: #0A2142; color: #F8FAFC;
+        border-radius: 10px; font-size: 0.78rem; padding: 0 12px;
+        transition: border-color .15s ease, background .15s ease;
+    }
+    .msg-shortcuts button:hover { border-color: #2563EB; }
+    .msg-shortcuts button.alert { border-color: rgba(239, 68, 68, .45); }
+    .msg-shortcuts button.alert i { color: #EF4444; }
+    .msg-shortcuts button.meet { border-color: rgba(124, 58, 237, .45); }
+    .msg-shortcuts button.meet i { color: #7C3AED; }
+    .msg-form {
+        display: flex; align-items: flex-end; gap: 8px;
+        background: #0A2142; border: 1px solid #173B69; border-radius: 14px; padding: 6px 6px 6px 8px;
+    }
+    .msg-app .msg-form textarea {
+        flex: 1; resize: none; min-height: 40px; max-height: 120px;
+        border-radius: 10px !important; border: 0 !important;
+        background: transparent !important; color: #F8FAFC !important; padding: 8px 6px;
+        box-shadow: none !important;
+    }
+    .msg-clip, .msg-send {
+        width: 40px; height: 40px; border-radius: 50%; border: 0;
+        background: transparent; color: #94A3B8;
+        display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+        transition: background .15s ease, color .15s ease;
+    }
+    .msg-clip:hover { border-color: #2563EB; color: #F8FAFC; }
+    .msg-send { background: #2563EB !important; border-color: #2563EB !important; color: #fff !important; }
+    .msg-picked { color: var(--muted); font-size: 0.75rem; margin: 6px 52px 0; }
+    .msg-center { margin: auto; text-align: center; color: var(--muted); max-width: 320px; }
+    .msg-center strong { display: block; color: var(--ink); margin-bottom: 6px; }
+    @media (max-width: 1100px) { .msg-app { grid-template-columns: minmax(240px, 34%) minmax(0, 1fr); } }
+    @media (max-width: 768px) {
+        body.msg-page .racin-content { padding: 0; }
+        .msg-app { margin: 8px 10px 10px; border-radius: 14px; grid-template-columns: 1fr; }
+        .msg-app.open .msg-list { display: none; }
+        .msg-app:not(.open) .msg-pane { display: none; }
+        .msg-app a.msg-back { display: inline-flex; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="msg-app {% if active %}open{% endif %}">
+    <aside class="msg-list">
+        <div class="msg-list-head">
+            <span class="msg-brand"><i class="far fa-comment-dots"></i></span>
+            <span>
+                <span class="msg-title-row">
+                    <h1>Messagerie</h1>
+                    {% if chat_unread %}<span class="msg-total">{{ chat_unread }}</span>{% endif %}
+                </span>
+                <p class="msg-lead">Communiquez directement avec votre équipe</p>
+            </span>
+        </div>
+        <label class="msg-search">
+            <i class="fas fa-search"></i>
+            <input id="msg-search" type="search" placeholder="Rechercher une conversation..." aria-label="Rechercher une conversation">
+        </label>
+        <div class="msg-filters">
+            <button type="button" class="on" data-filter="all">Toutes</button>
+            <button type="button" data-filter="unread">Non lus{% if chat_unread %} ({{ chat_unread }}){% endif %}</button>
+            <button type="button" data-filter="mine">Mes conversations</button>
+        </div>
+        {% if load_error %}
+        <p class="msg-hint">Impossible de charger les messages.</p>
+        {% elif not rows %}
+        <p class="msg-hint">Vous n'avez encore aucune conversation.</p>
+        {% else %}
+            {% if not has_any_message %}<p class="msg-hint">Vous n'avez encore aucune conversation.</p>{% endif %}
+            <div class="msg-scroll" id="msg-rows">
+                {% for row in rows %}
+                <a class="msg-row {% if active and active.user and active.user.pk == row.user.pk %}active{% endif %}"
+                   href="{{ row.url }}"
+                   data-name="{{ row.name }} {{ row.preview }}"
+                   data-unread="{{ row.unread }}"
+                   data-has="{% if row.sort %}1{% else %}0{% endif %}">
+                    <span class="avatar">
+                        {% if row.photo %}<img src="{{ row.photo }}" alt="">{% else %}{{ row.initials }}{% endif %}
+                        <span class="dot {% if row.online %}on{% endif %}"></span>
+                    </span>
+                    <span class="msg-row-body">
+                        <span class="msg-row-top">
+                            <strong>{{ row.name }}</strong>
+                            {% if row.when %}<time>{{ row.when }}</time>{% endif %}
+                        </span>
+                        <span class="msg-row-top">
+                            <p>{% if row.preview %}{{ row.preview }}{% else %}Aucun message{% endif %}</p>
+                            {% if row.unread %}<span class="msg-count">{{ row.unread }}</span>{% endif %}
+                        </span>
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </aside>
+
+    <section class="msg-pane">
+        {% if load_error %}
+        <div class="msg-stream"><div class="msg-center"><strong>Messagerie</strong>Impossible de charger les messages.</div></div>
+        {% elif not active %}
+        <div class="msg-stream">
+            <div class="msg-center">
+                <strong>Messagerie</strong>
+                {% if user.is_admin %}Sélectionnez un employé pour commencer.{% else %}Sélectionnez le responsable pour commencer.{% endif %}
+            </div>
+        </div>
+        {% else %}
+        <header class="msg-head">
+            <a class="msg-back" href="{% url 'messaging:inbox' %}" aria-label="Retour aux conversations"><i class="fas fa-arrow-left"></i></a>
+            <span class="avatar">
+                {% if active.photo %}<img src="{{ active.photo }}" alt="">{% else %}{{ active.initials }}{% endif %}
+                <span class="dot {% if active.online %}on{% endif %}"></span>
+            </span>
+            <span class="who">
+                <h2>{{ active.name }}</h2>
+                <span class="msg-sub">{{ active.subtitle }}</span>
+                <span class="msg-sub">{% if active.online %}<i class="fas fa-circle on"></i> En ligne{% else %}<i class="fas fa-circle"></i> Hors ligne{% endif %}</span>
+            </span>
+        </header>
+        <div class="msg-stream" id="msg-stream">
+            {% if not thread %}
+            <div class="msg-center">
+                <strong>{{ active.name }}</strong>
+                Commencez la conversation.
+            </div>
+            {% endif %}
+            {% regroup thread by day as day_groups %}
+            {% for group in day_groups %}
+            <div class="msg-day">{{ group.list.0.day_label }}</div>
+            {% for item in group.list %}
+            <article class="bubble-wrap {% if item.mine %}mine{% else %}theirs{% endif %}">
+                {% if not item.mine %}
+                <span class="avatar sm">
+                    {% if item.photo %}<img src="{{ item.photo }}" alt="">{% else %}{{ item.initials }}{% endif %}
+                </span>
+                {% endif %}
+                <div class="bubble">
+                    {% if item.message %}<div class="bubble-text">{{ item.message }}</div>{% endif %}
+                    {% if item.attachment %}
+                    <a class="file-card" href="{% url 'messaging:file' item.pk %}">
+                        <span class="file-ico"><i class="fas fa-file"></i></span>
+                        <span><strong>{{ item.attachment_label }}</strong><small>{{ item.file_size }}</small></span>
+                        <i class="fas fa-download dl"></i>
+                    </a>
+                    {% endif %}
+                    <div class="bubble-foot">
+                        <span>{{ item.created_at|date:"H:i" }}</span>
+                        {% if item.mine %}
+                        <span class="ticks{% if item.read_at %} seen{% endif %}" title="{% if item.read_at %}Lu{% else %}Reçu{% endif %}">
+                            <i class="fas fa-check-double"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if item.mine %}
+                <span class="avatar sm">
+                    {% if my_photo %}<img src="{{ my_photo }}" alt="">{% else %}{{ my_initials }}{% endif %}
+                </span>
+                {% endif %}
+            </article>
+            {% endfor %}
+            {% endfor %}
+        </div>
+        <div class="msg-compose">
+            <div class="msg-shortcuts">
+                <button type="button" class="alert" data-fill="{{ problem_draft }}"><i class="fas fa-exclamation-triangle"></i> Signaler un problème</button>
+                <button type="button" class="meet" data-fill="{{ meeting_draft }}"><i class="fas fa-user"></i> Demander à parler au responsable</button>
+            </div>
+            <form id="msg-form" class="msg-form" method="post" enctype="multipart/form-data" action="{% url 'messaging:inbox' %}">
+                {% csrf_token %}
+                <input type="hidden" name="avec" value="{{ active.user.pk }}">
+                <label class="msg-clip" for="msg-file" title="Joindre un fichier"><i class="fas fa-paperclip"></i></label>
+                <input id="msg-file" type="file" name="attachment" hidden accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt">
+                <textarea id="msg-input" name="message" rows="1" maxlength="4000" placeholder="Écrire un message..." aria-label="Écrire un message"></textarea>
+                <button class="msg-send" type="submit" aria-label="Envoyer"><i class="fas fa-paper-plane"></i></button>
+            </form>
+            <div class="msg-picked" id="msg-picked" hidden></div>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var stream = document.getElementById('msg-stream');
+    if (stream) stream.scrollTop = stream.scrollHeight;
+    var input = document.getElementById('msg-input');
+    var form = document.getElementById('msg-form');
+    var file = document.getElementById('msg-file');
+    var picked = document.getElementById('msg-picked');
+    var search = document.getElementById('msg-search');
+    var rows = document.querySelectorAll('.msg-row');
+    function applyFilter() {
+        var current = document.querySelector('.msg-filters button.on');
+        var filter = current ? current.getAttribute('data-filter') : 'all';
+        var query = search ? search.value.trim().toLowerCase() : '';
+        rows.forEach(function (row) {
+            var name = (row.getAttribute('data-name') || '').toLowerCase();
+            var unread = parseInt(row.getAttribute('data-unread') || '0', 10);
+            var has = row.getAttribute('data-has') === '1';
+            var visible = !query || name.indexOf(query) !== -1;
+            if (filter === 'unread') visible = visible && unread > 0;
+            if (filter === 'mine') visible = visible && has;
+            row.hidden = !visible;
+        });
+    }
+    document.querySelectorAll('.msg-filters button').forEach(function (button) {
+        button.addEventListener('click', function () {
+            document.querySelectorAll('.msg-filters button').forEach(function (item) { item.classList.remove('on'); });
+            button.classList.add('on');
+            applyFilter();
+        });
+    });
+    if (search) search.addEventListener('input', applyFilter);
+    if (!form || !input) return;
+    document.querySelectorAll('[data-fill]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            input.value = button.getAttribute('data-fill');
+            input.focus();
+        });
+    });
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            form.requestSubmit();
+        }
+    });
+    form.addEventListener('submit', function (event) {
+        var hasText = input.value.trim().length > 0;
+        var hasFile = file && file.files && file.files.length > 0;
+        if (!hasText && !hasFile) event.preventDefault();
+    });
+    if (file && picked) {
+        file.addEventListener('change', function () {
+            if (file.files && file.files.length) {
+                picked.hidden = false;
+                picked.textContent = file.files[0].name;
+            } else {
+                picked.hidden = true;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

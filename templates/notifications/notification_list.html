@@ -2,14 +2,13 @@
 
 {% block title %}Notifications - Plateforme de Gestion{% endblock %}
 
-{% block extra_css %}
+{% block page_css %}
 <style>
     .notif-page {
         margin: 0;
-        padding: 0 0 24px;
-        background: #f4f6fb;
-        min-height: calc(100vh - 0px);
-        color: #1e293b;
+        padding: 8px 4px 24px;
+        background: transparent;
+        color: #F8FAFC;
     }
     .notif-topbar {
         display: flex;
@@ -100,60 +99,62 @@
     }
     .notif-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 300px;
-        gap: 18px;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 14px;
         align-items: start;
+        max-width: 1120px;
     }
     .notif-head {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
+        justify-content: space-between;
         gap: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
     }
     .notif-head-icon {
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         border-radius: 10px;
-        background: #eef2ff;
-        color: #4f46e5;
+        background: #0D2850;
+        color: #38BDF8;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-top: 2px;
+        flex: none;
     }
     .notif-head h1 {
-        font-size: 1.45rem;
+        font-size: 1.25rem;
         font-weight: 700;
         margin: 0;
+        color: #F8FAFC;
         letter-spacing: -0.02em;
     }
     .notif-head p {
         margin: 2px 0 0;
-        color: #94a3b8;
-        font-size: 0.86rem;
+        color: #94A3B8;
+        font-size: 0.82rem;
     }
     .notif-panel {
-        background: #fff;
-        border: 1px solid #e8edf5;
-        border-radius: 16px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        background: #1C3E5C;
+        border: 1px solid #3D6A90;
+        border-radius: 14px;
         overflow: hidden;
     }
     .notif-filters {
         display: flex;
         gap: 8px;
-        padding: 14px 16px;
-        border-bottom: 1px solid #eef2f7;
+        padding: 12px 14px;
+        border-bottom: 1px solid #3D6A90;
         overflow-x: auto;
     }
     .notif-filters a {
         flex: 0 0 auto;
-        border: 1px solid #e6ebf3;
-        background: #fff;
-        color: #64748b;
+        border: 1px solid #3D6A90;
+        background: transparent;
+        color: #D7E3F0;
         border-radius: 999px;
         padding: 6px 12px;
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         font-weight: 600;
         text-decoration: none;
         display: inline-flex;
@@ -162,64 +163,72 @@
         white-space: nowrap;
     }
     .notif-filters a.active {
-        background: #4f46e5;
-        border-color: #4f46e5;
+        background: #2563EB;
+        border-color: #2563EB;
         color: #fff;
     }
     .notif-filters a i { font-size: 0.72rem; }
     .notif-row {
         display: flex;
         align-items: center;
-        gap: 14px;
-        padding: 16px 18px;
-        border-bottom: 1px solid #f1f5f9;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(61, 106, 144, .55);
         text-decoration: none;
-        color: inherit;
-        background: #fff;
+        color: #F8FAFC;
+        background: transparent;
     }
-    .notif-row:last-child { border-bottom: none; }
-    .notif-row:hover { background: #fafbff; }
+    .notif-page a.notif-row,
+    .notif-page a.notif-row h3,
+    .notif-page a.quick-link,
+    .notif-page .side-card h4,
+    .notif-page .stat-num { color: #F8FAFC; }
+    .notif-page a.notif-row p,
+    .notif-page .notif-chip,
+    .notif-page .notif-meta { color: #D7E3F0; }
+    .notif-row:hover { background: #18344F; color: #F8FAFC; }
     .notif-ico {
-        width: 42px;
-        height: 42px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
     }
-    .notif-ico.blue { background: #e8f0fe; color: #3b82f6; }
-    .notif-ico.green { background: #e7f8ee; color: #22c55e; }
-    .notif-ico.amber { background: #fff4df; color: #f59e0b; }
-    .notif-ico.violet { background: #f1e9ff; color: #8b5cf6; }
-    .notif-ico.red { background: #fee8e8; color: #ef4444; }
+    .notif-ico.blue { background: rgba(37,99,235,.2); color: #38BDF8; }
+    .notif-ico.green { background: rgba(16,185,129,.18); color: #34D399; }
+    .notif-ico.amber { background: rgba(245,158,11,.18); color: #FCD34D; }
+    .notif-ico.violet { background: rgba(124,58,237,.2); color: #C4B5FD; }
+    .notif-ico.red { background: rgba(239,68,68,.18); color: #FCA5A5; }
     .notif-body { flex: 1; min-width: 0; }
     .notif-body h3 {
-        font-size: 0.92rem;
+        font-size: 0.9rem;
         font-weight: 700;
-        margin: 0 0 3px;
+        margin: 0 0 2px;
+        color: #F8FAFC;
     }
     .notif-body p {
-        margin: 0 0 8px;
-        color: #64748b;
-        font-size: 0.82rem;
+        margin: 0 0 6px;
+        color: #D7E3F0;
+        font-size: 0.8rem;
         line-height: 1.4;
     }
     .notif-chip {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        color: #94a3b8;
+        color: #8FA8C7;
         font-size: 0.72rem;
         font-weight: 500;
     }
     .notif-meta {
         display: flex;
         align-items: center;
-        gap: 10px;
-        color: #94a3b8;
-        font-size: 0.75rem;
+        gap: 8px;
+        color: #8FA8C7;
+        font-size: 0.74rem;
         white-space: nowrap;
         margin-left: 8px;
     }
@@ -232,40 +241,41 @@
     .notif-dot.read { background: transparent; }
     .notif-empty {
         text-align: center;
-        padding: 56px 20px;
-        color: #94a3b8;
+        padding: 40px 20px;
+        color: #8FA8C7;
     }
-    .notif-side { display: flex; flex-direction: column; gap: 14px; }
+    .notif-side { display: flex; flex-direction: column; gap: 12px; }
     .notif-search {
         display: flex;
         align-items: center;
         gap: 8px;
-        background: #fff;
-        border: 1px solid #e8edf5;
+        background: #18344F;
+        border: 1px solid #3D6A90;
         border-radius: 12px;
-        padding: 10px 14px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        padding: 0 12px;
+        height: 40px;
     }
-    .notif-search i { color: #94a3b8; font-size: 0.85rem; }
+    .notif-search i { color: #8FA8C7; font-size: 0.85rem; }
     .notif-search input {
         border: none;
         outline: none;
         width: 100%;
         font-size: 0.84rem;
         background: transparent;
-        color: #1e293b;
+        color: #F8FAFC;
     }
+    .notif-search input::placeholder { color: #8FA8C7; }
     .side-card {
-        background: #fff;
-        border: 1px solid #e8edf5;
-        border-radius: 16px;
-        padding: 16px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        background: #1C3E5C;
+        border: 1px solid #3D6A90;
+        border-radius: 14px;
+        padding: 14px;
     }
     .side-card h4 {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         font-weight: 700;
-        margin: 0 0 12px;
+        margin: 0 0 10px;
+        color: #F8FAFC;
     }
     .stat-line {
         display: flex;
@@ -273,67 +283,50 @@
         justify-content: space-between;
         padding: 8px 0;
     }
-    .stat-line + .stat-line { border-top: 1px solid #f1f5f9; }
+    .stat-line + .stat-line { border-top: 1px solid rgba(61, 106, 144, .55); }
     .stat-label {
         display: flex;
         align-items: center;
         gap: 10px;
-        color: #475569;
-        font-size: 0.86rem;
+        color: #D7E3F0;
+        font-size: 0.84rem;
         font-weight: 500;
     }
     .stat-bubble {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
-    .stat-bubble.red { background: #fee8e8; color: #ef4444; }
-    .stat-bubble.blue { background: #e8f0fe; color: #3b82f6; }
-    .stat-bubble.violet { background: #f1e9ff; color: #8b5cf6; }
-    .stat-num { font-weight: 700; color: #1e293b; }
+    .stat-bubble.red { background: rgba(239,68,68,.18); color: #FCA5A5; }
+    .stat-bubble.blue { background: rgba(56,189,248,.16); color: #7DD3FC; }
+    .stat-bubble.violet { background: rgba(124,58,237,.2); color: #C4B5FD; }
+    .stat-num { font-weight: 700; color: #F8FAFC; }
     .quick-link {
         display: flex;
         align-items: center;
         gap: 10px;
-        border-radius: 12px;
-        padding: 12px 14px;
+        border-radius: 10px;
+        padding: 9px 10px;
         text-decoration: none;
-        font-size: 0.84rem;
+        font-size: 0.82rem;
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+        background: #18344F;
+        border: 1px solid #3D6A90;
+        color: #F8FAFC;
     }
     .quick-link:last-child { margin-bottom: 0; }
+    .quick-link:hover { border-color: #2563EB; color: #F8FAFC; }
     .quick-link span { flex: 1; }
-    .quick-link i.arrow { font-size: 0.7rem; opacity: 0.7; }
-    .quick-link.violet { background: #f3e8ff; color: #7c3aed; }
-    .quick-link.blue { background: #e8f1ff; color: #3b82f6; }
-    .quick-link.green { background: #e7f8ee; color: #16a34a; }
-    .quick-link.rose { background: #fee8ee; color: #e11d48; }
-    .info-card {
-        background: #f4f0ff;
-        border: 1px solid #ebe4ff;
-        border-radius: 16px;
-        padding: 16px;
-    }
-    .info-card h4 {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #6d28d9;
-        font-size: 0.92rem;
-        font-weight: 700;
-        margin: 0 0 6px;
-    }
-    .info-card p {
-        margin: 0;
-        color: #7c6aa8;
-        font-size: 0.8rem;
-        line-height: 1.45;
-    }
+    .quick-link i.arrow { font-size: 0.7rem; color: #8FA8C7; }
+    .quick-link.violet i:first-child { color: #C4B5FD; }
+    .quick-link.blue i:first-child { color: #7DD3FC; }
+    .quick-link.green i:first-child { color: #34D399; }
+    .quick-link.rose i:first-child { color: #FDA4AF; }
     @media (max-width: 1100px) {
         .notif-layout { grid-template-columns: 1fr; }
     }
@@ -346,28 +339,6 @@
 
 {% block content %}
 <div class="notif-page">
-    <div class="notif-topbar">
-        <div class="notif-hello">
-            <button type="button" class="notif-menu-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
-            <div>
-                <h2>Bonjour, {{ user.first_name }} {{ user.last_name }}</h2>
-                {% if user.is_admin %}
-                <div class="notif-role"><i class="fas fa-crown"></i> Responsable de l'agence</div>
-                {% else %}
-                <div class="notif-role"><i class="fas fa-user"></i> {% if user.employee_profile %}{{ user.employee_profile.get_position_display }}{% else %}Employé{% endif %}</div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="notif-top-actions">
-            <div class="notif-date"><i class="far fa-calendar"></i> {{ today_label }}</div>
-            <a class="notif-bell" href="{% url 'notifications:list' %}" aria-label="Notifications">
-                <i class="far fa-bell"></i>
-                {% if unread_count %}<span class="notif-bell-dot"></span>{% endif %}
-            </a>
-            <div class="notif-avatar" title="{{ user.get_full_name }}">{{ initials }}</div>
-        </div>
-    </div>
-
     <div class="notif-layout">
         <div>
             <div class="notif-head">
@@ -456,11 +427,6 @@
                 <a class="quick-link green" href="{% url 'reports:create' %}"><i class="far fa-file-alt"></i><span>Mon rapport</span><i class="fas fa-chevron-right arrow"></i></a>
                 <a class="quick-link rose" href="{% url 'projects:list' %}"><i class="far fa-folder"></i><span>Mes projets</span><i class="fas fa-chevron-right arrow"></i></a>
                 {% endif %}
-            </div>
-
-            <div class="info-card">
-                <h4><i class="far fa-lightbulb"></i> Restez informé !</h4>
-                <p>{% if user.is_admin %}Les notifications vous permettent de suivre en temps réel l'activité de votre agence.{% else %}Les notifications vous permettent de suivre en temps réel vos tâches, rapports et permissions.{% endif %}</p>
             </div>
         </aside>
     </div>

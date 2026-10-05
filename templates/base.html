@@ -485,6 +485,7 @@
     
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/platform.css' %}?v=3">
+    {% block page_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
     {% if user.is_authenticated %}
@@ -525,6 +526,10 @@
                         <i class="far fa-bell"></i> Centre d'alertes
                         {% if sidebar_unread_messages %}<span class="racin-badge">{{ sidebar_unread_messages }}</span>{% endif %}
                     </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'messaging' %}active{% endif %}" href="{% url 'messaging:inbox' %}">
+                        <i class="far fa-comment-dots"></i> Messagerie
+                        {% if sidebar_chat_unread %}<span class="racin-badge">{{ sidebar_chat_unread }}</span>{% endif %}
+                    </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}">
                         <i class="fas fa-bell"></i> Notifications
                     </a>
@@ -548,7 +553,7 @@
                         <i class="far fa-check-square"></i> Mes tâches
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name == 'daily' %}active{% endif %}" href="{% url 'tasks:daily' %}">
-                        <i class="fas fa-list-ul"></i> Ma Todo List
+                        <i class="fas fa-list-ul"></i> Todo Lists du jour
                         {% if sidebar_task_count %}<span class="racin-badge">{{ sidebar_task_count }}</span>{% endif %}
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'reports' %}active{% endif %}" href="{% url 'reports:create' %}">
@@ -558,15 +563,15 @@
                         <i class="far fa-calendar"></i> Mes permissions
                         {% if sidebar_pending_permissions %}<span class="racin-dot"></span>{% endif %}
                     </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}">
-                        <i class="fas fa-bell"></i> Notifications
-                        {% if sidebar_unread_messages %}<span class="racin-badge">{{ sidebar_unread_messages }}</span>{% endif %}
+                    <a class="nav-link {% if request.resolver_match.namespace == 'messaging' %}active{% endif %}" href="{% url 'messaging:inbox' %}">
+                        <i class="far fa-comment-dots"></i> Messagerie
+                        {% if sidebar_chat_unread %}<span class="racin-badge">{{ sidebar_chat_unread }}</span>{% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}" href="{% url 'decision_ai:assistant' %}">
+                        <i class="fas fa-wand-magic-sparkles"></i> Mon assistant
                     </a>
                     <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
                         <i class="fas fa-user"></i> Mon profil
-                    </a>
-                    <a class="nav-link {% if request.resolver_match.url_name == 'profile_update' %}active{% endif %}" href="{% url 'authentication:profile_update' %}">
-                        <i class="fas fa-cog"></i> Paramètres
                     </a>
                     {% endif %}
                 </nav>
@@ -583,10 +588,10 @@
                 {% endblock %}
                 {% else %}
                 <div class="racin-ai">
-                    <div class="racin-ai-icon"><i class="fas fa-bell"></i></div>
-                    <h6>Vos notifications</h6>
-                    <p>Suivez vos tâches, rapports et permissions en temps réel.</p>
-                    <a class="racin-ai-btn" href="{% url 'notifications:list' %}">Voir les notifications</a>
+                    <div class="racin-ai-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <h6>Mon assistant</h6>
+                    <p>Besoin d'aide ? Posez vos questions et obtenez des réponses sur vos activités et projets.</p>
+                    <a class="racin-ai-btn" href="{% url 'decision_ai:assistant' %}">Ouvrir l'assistant →</a>
                     <a class="racin-logout" href="{% url 'authentication:logout' %}">Déconnexion</a>
                 </div>
                 {% endif %}
@@ -598,7 +603,7 @@
                     <button class="app-icon-btn" type="button" id="app-menu" aria-label="Menu"><i class="fas fa-bars"></i></button>
                     <form class="app-search" method="get" action="{% url 'dashboard:search' %}">
                         <i class="fas fa-search"></i>
-                        <input type="search" name="q" placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche">
+                        <input type="search" name="q" placeholder="{% if user.is_admin %}Rechercher un employé, un projet, une tâche...{% else %}Rechercher un projet, une tâche...{% endif %}" aria-label="Recherche">
                     </form>
                     <div class="app-tools">
                         <div class="app-date"><i class="far fa-calendar"></i> {{ header_date_label }}</div>

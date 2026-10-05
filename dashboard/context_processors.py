@@ -1,6 +1,7 @@
 from django.utils import timezone
 from permissions.models import PermissionRequest
 from reports.models import DailyReport
+from messaging.models import Message
 from notifications.models import Notification
 from tasks.models import Task
 
@@ -27,6 +28,16 @@ def _header(user):
     }
 
 
+def _chat_unread(user):
+    if user.is_admin():
+        return Message.objects.filter(
+            sender__role='employee',
+            receiver__role='admin',
+            read_at__isnull=True,
+        ).count()
+    return Message.objects.filter(receiver=user, read_at__isnull=True).count()
+
+
 def sidebar_counts(request):
     """Compteurs pour les badges de la barre latérale."""
     if not request.user.is_authenticated:
@@ -42,12 +53,13 @@ def sidebar_counts(request):
             'sidebar_pending_permissions': PermissionRequest.objects.filter(status='pending').count(),
             'sidebar_reports_count': DailyReport.objects.filter(date__gte=today.replace(day=1)).count(),
             'sidebar_unread_messages': unread,
+            'sidebar_chat_unread': _chat_unread(request.user),
         }
 
     try:
         employee = request.user.employee_profile
     except Exception:
-        return {**header, 'sidebar_unread_messages': unread}
+        return {**header, 'sidebar_unread_messages': unread, 'sidebar_chat_unread': _chat_unread(request.user)}
 
     return {
         **header,
@@ -58,4 +70,5 @@ def sidebar_counts(request):
             employee=employee, status='pending'
         ).count(),
         'sidebar_unread_messages': unread,
+        'sidebar_chat_unread': _chat_unread(request.user),
     }
