@@ -1,18 +1,40 @@
 @echo off
-echo Lancement du projet Django...
+echo Lancement de la plateforme RAC'IN...
 echo.
 
-cd /d "%~dp0"
+cd /d "%~dp0maquette"
 
-echo Activation de l'environnement virtuel...
-call venv\Scripts\activate.bat
+where npm >nul 2>&1
+if errorlevel 1 (
+  echo Node.js est introuvable. Installez-le, puis relancez run.bat.
+  pause
+  exit /b 1
+)
+
+if not exist node_modules (
+  echo Installation des composants, patientez...
+  call npm install
+  if errorlevel 1 (
+    echo L'installation a echoue.
+    pause
+    exit /b 1
+  )
+)
+
+netstat -ano | findstr ":5173" | findstr "LISTENING" >nul
+if not errorlevel 1 (
+  echo La plateforme est deja lancee.
+  echo Ouverture de http://127.0.0.1:5173
+  start "" http://127.0.0.1:5173/
+  pause
+  exit /b 0
+)
 
 echo.
-echo Demarrage du serveur de developpement...
-echo Le serveur sera accessible sur http://127.0.0.1:8000
-echo Appuyez sur CTRL+C pour arreter le serveur.
+echo La plateforme s'ouvre sur http://127.0.0.1:5173
+echo Appuyez sur CTRL+C pour arreter.
 echo.
 
-python manage.py runserver
+call npm run dev -- --open
 
 pause

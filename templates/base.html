@@ -484,10 +484,89 @@
     </style>
     
     {% block extra_css %}{% endblock %}
-    <link rel="stylesheet" href="{% static 'css/platform.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/platform.css' %}?v=4">
     {% block page_css %}{% endblock %}
+    <style>
+        body.admin-shell .emp-page,
+        body.admin-shell .todo-page,
+        body.admin-shell .team-page,
+        body.admin-shell .tb-page,
+        body.admin-shell .td-page,
+        body.admin-shell .tf-page,
+        body.admin-shell .settings-page,
+        body.admin-shell .notif-page,
+        body.admin-shell .ai-page,
+        body.admin-shell .ac-page,
+        body.admin-shell .demo-page,
+        body.admin-shell .permissions-page,
+        body.admin-shell .projects-page,
+        body.admin-shell .fiche,
+        body.admin-shell .pd,
+        body.admin-shell .rp,
+        body.admin-shell .msg-app {
+            margin: 0 auto 20px !important;
+            min-height: 0 !important;
+            max-width: 1080px;
+            background: transparent;
+        }
+        body.admin-shell.msg-page .racin-content {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+        body.admin-shell .msg-app {
+            height: 620px;
+            max-height: calc(100vh - 140px);
+        }
+        body.admin-shell .racin-content h1 {
+            font-family: 'Inter', sans-serif !important;
+            font-size: 1.28rem !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.025em !important;
+            line-height: 1.3 !important;
+        }
+        body.admin-shell .racin-content h2,
+        body.admin-shell .racin-content h3 {
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.015em !important;
+        }
+        body.admin-shell .racin-content h2 { font-size: 1rem !important; }
+        body.admin-shell .racin-content h3 { font-size: 0.92rem !important; }
+        body.admin-shell .racin-content p,
+        body.admin-shell .racin-content li,
+        body.admin-shell .racin-content td,
+        body.admin-shell .racin-content th,
+        body.admin-shell .racin-content label,
+        body.admin-shell .racin-content button,
+        body.admin-shell .racin-content input,
+        body.admin-shell .racin-content select,
+        body.admin-shell .racin-content textarea,
+        body.admin-shell .racin-content a {
+            font-family: 'Inter', sans-serif;
+        }
+        body.admin-shell .racin-content th {
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.01em;
+        }
+        body.admin-shell .racin-content td { font-size: 0.84rem !important; }
+        body.admin-shell .kpi-number,
+        body.admin-shell .sup-kpi strong,
+        body.admin-shell .team-kpi strong {
+            font-size: 1.2rem !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.03em;
+        }
+        body.admin-shell .sidebar-racin .nav-link {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: -0.011em;
+        }
+    </style>
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% if user.is_authenticated and user.is_admin %}admin-shell{% endif %} {% block body_class %}{% endblock %}">
     {% if user.is_authenticated %}
     <div class="container-fluid">
         <div class="row app-row">

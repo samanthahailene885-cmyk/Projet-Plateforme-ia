@@ -703,16 +703,21 @@ def report_pdf(request, pk):
         return redirect('reports:create')
 
     if report.uploaded_pdf:
-        stored = os.path.basename(report.uploaded_pdf.name)
-        content_type = mimetypes.guess_type(stored)[0] or 'application/octet-stream'
-        inline = request.GET.get('inline') == '1' and content_type == 'application/pdf'
-        handle = report.uploaded_pdf.open('rb')
-        response = FileResponse(handle, content_type=content_type)
-        response['Content-Disposition'] = (
-            f"{'inline' if inline else 'attachment'}; filename=\"{stored}\""
-        )
-        response['X-Frame-Options'] = 'SAMEORIGIN'
-        return response
+        try:
+            stored = os.path.basename(report.uploaded_pdf.name)
+            content_type = mimetypes.guess_type(stored)[0] or 'application/octet-stream'
+            if stored.lower().endswith('.pdf'):
+                content_type = 'application/pdf'
+            inline = request.GET.get('inline') == '1' and content_type == 'application/pdf'
+            handle = report.uploaded_pdf.open('rb')
+            response = FileResponse(handle, content_type=content_type)
+            response['Content-Disposition'] = (
+                f"{'inline' if inline else 'attachment'}; filename=\"{stored}\""
+            )
+            response['X-Frame-Options'] = 'SAMEORIGIN'
+            return response
+        except OSError:
+            pass
 
     filename = f"RACIN_Rapport_{report.employee.last_name or report.employee.username}_{report.date.isoformat()}.pdf"
     disposition = 'inline' if request.GET.get('inline') == '1' else 'attachment'

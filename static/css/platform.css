@@ -34,6 +34,53 @@
 
 body { background: var(--bg-primary); color: var(--text-primary); }
 
+body.admin-shell {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+}
+body.admin-shell .racin-content {
+    padding: 0 24px 36px;
+}
+body.admin-shell .app-header {
+    margin: 0 -24px 18px;
+    min-height: 56px;
+    padding: 8px 24px;
+}
+body.admin-shell .racin-content > :not(.app-header) {
+    max-width: 1080px;
+    margin-left: auto;
+    margin-right: auto;
+}
+body.admin-shell .racin-content h1 {
+    font-size: 1.28rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+}
+body.admin-shell .racin-content h2,
+body.admin-shell .racin-content h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+}
+body.admin-shell .racin-content p,
+body.admin-shell .racin-content li,
+body.admin-shell .racin-content td,
+body.admin-shell .racin-content label {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+}
+body.admin-shell .racin-content small,
+body.admin-shell .racin-content .text-muted {
+    font-size: 0.78rem;
+    letter-spacing: 0;
+}
+
 .app-header {
     position: sticky;
     top: 0;

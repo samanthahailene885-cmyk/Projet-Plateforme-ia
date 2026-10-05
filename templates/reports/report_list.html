@@ -10,8 +10,8 @@
         width: 42px; height: 42px; border-radius: 12px; background: #1E3A5F; color: #60A5FA;
         display: grid; place-items: center; flex-shrink: 0;
     }
-    .rp-title h1 { margin: 0; font-size: 1.55rem; font-weight: 700; letter-spacing: -0.03em; }
-    .rp-title p, .rp-muted { margin: 4px 0 0; color: #93A9C3; font-size: 0.9rem; font-weight: 400; }
+    .rp-title h1 { margin: 0; font-size: 1.28rem; font-weight: 600; letter-spacing: -0.025em; }
+    .rp-title p, .rp-muted { margin: 4px 0 0; color: #93A9C3; font-size: 0.84rem; font-weight: 400; line-height: 1.45; }
     .rp-search {
         display: flex; align-items: center; gap: 8px; height: 42px; min-width: min(320px, 100%);
         padding: 0 12px; border-radius: 12px; border: 1px solid #2C5278; background: #16324F;
@@ -47,10 +47,10 @@
     .synthesis-body h3 { font-size: 1rem; margin: 14px 0 6px; }
     .synthesis-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .synthesis-actions button { border: 1px solid #3D6A90; background: #18344F; color: #F8FAFC; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
-    .rp-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
-    .rp-col { padding: 14px 12px; }
-    .rp-col h2 { margin: 0 0 10px; font-size: 0.98rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
-    .rp-scroll { overflow: auto; max-height: 560px; }
+    .rp-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr) 250px; gap: 12px; align-items: start; }
+    .rp-col { padding: 12px 10px; }
+    .rp-col h2 { margin: 0 0 8px; font-size: 0.9rem; font-weight: 600; letter-spacing: -0.015em; display: flex; align-items: center; gap: 8px; }
+    .rp-scroll { overflow: auto; max-height: 340px; }
     .rp-person, .rp-file {
         display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
         color: inherit; text-decoration: none; border-radius: 12px; padding: 8px;
@@ -71,15 +71,15 @@
     }
     .rp-file-ico.word { background: #1E3A8A; color: #BFDBFE; }
     .rp-file-main { flex: 1; min-width: 0; }
-    .rp-file-main strong { display: block; font-size: 0.88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rp-file-main strong { display: block; font-size: 0.82rem; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .rp-status {
         color: #34D399; font-size: 0.75rem; font-weight: 700; white-space: nowrap;
         background: rgba(16,185,129,.16); border-radius: 999px; padding: 4px 8px;
     }
     .rp-online-pill { color: #34D399; font-size: 0.78rem; font-weight: 700; }
     .rp-profile { text-align: center; padding-bottom: 8px; }
-    .rp-profile .rp-avatar, .rp-profile .rp-avatar img { width: 72px; height: 72px; margin: 0 auto 8px; font-size: 1.2rem; }
-    .rp-profile h3 { margin: 0; font-size: 1.05rem; }
+    .rp-profile .rp-avatar, .rp-profile .rp-avatar img { width: 56px; height: 56px; margin: 0 auto 8px; font-size: 1rem; }
+    .rp-profile h3 { margin: 0; font-size: 0.95rem; font-weight: 600; letter-spacing: -0.02em; }
     .rp-online { color: #34D399; font-size: 0.82rem; font-weight: 700; }
     .rp-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; text-align: center; }
     .rp-kpis div { background: #122C49; border-radius: 12px; padding: 8px 4px; }
@@ -92,6 +92,7 @@
         margin-top: 8px; border-radius: 12px; overflow: hidden; background: #122C49;
     }
     .rp-preview-empty { padding: 16px; color: #D7E3F0; font-size: 0.88rem; }
+    .rp-frame { width: 100%; height: 280px; border: 0; border-radius: 12px; background: #fff; margin-top: 8px; display: block; }
     .rp-file-link { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
     .rp-doc-art {
         width: 64px; height: 72px; margin-left: auto; border-radius: 10px; background: #234A6A;
@@ -219,12 +220,22 @@
                     </span>
                     <span class="rp-status"><i class="fas fa-check"></i> Soumis</span>
                 </a>
-                <a class="rp-view" href="{{ card.preview_url }}" target="_blank" rel="noopener"><i class="far fa-eye"></i> Ouvrir</a>
+                <a class="rp-view" href="{{ card.href }}#apercu"><i class="far fa-eye"></i> Ouvrir</a>
             </div>
             {% empty %}
             <p class="rp-empty">Aucun rapport sur cette période.</p>
             {% endfor %}
             </div>
+            {% if opened and opened.is_pdf %}
+            <iframe id="apercu" class="rp-frame" src="{{ opened.preview_url }}" title="{{ opened.filename }}"></iframe>
+            {% elif opened %}
+            <div id="apercu" class="rp-preview">
+                <div class="rp-preview-empty">
+                    <p class="rp-muted">{{ opened.filename }} s'ouvre en téléchargement.</p>
+                    <a class="rp-open" href="{{ opened.download_url }}">Ouvrir le fichier</a>
+                </div>
+            </div>
+            {% endif %}
         </section>
 
         <aside class="rp-col">
@@ -255,7 +266,7 @@
                     </span>
                     <span class="rp-status">Soumis</span>
                 </div>
-                <a class="rp-open" href="{{ opened.preview_url }}" target="_blank" rel="noopener"><i class="far fa-eye"></i> Ouvrir le rapport</a>
+                <a class="rp-open" href="#apercu"><i class="far fa-eye"></i> Ouvrir le rapport</a>
             </div>
             {% endif %}
             {% else %}
@@ -269,7 +280,7 @@
                 <h3>Aperçu du rapport</h3>
                 <div class="rp-preview">
                     <div class="rp-preview-empty" style="display:flex;align-items:center;gap:12px;">
-                        <p class="rp-muted" style="margin:0;">Le rapport sera ouvert directement dans votre navigateur.</p>
+                        <p class="rp-muted" style="margin:0;">{% if opened %}Le document s'affiche sous la liste des rapports.{% else %}Choisissez un employé pour lire son rapport.{% endif %}</p>
                         <span class="rp-doc-art"><i class="far fa-file-alt"></i><i class="fas fa-check"></i></span>
                     </div>
                 </div>
