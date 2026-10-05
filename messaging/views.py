@@ -78,6 +78,10 @@ def _inbox(request):
     if error:
         messages.error(request, error)
         return redirect('messaging:inbox')
+    if employee is None and not request.user.is_admin():
+        boss = manager()
+        if boss is not None:
+            return redirect(conversation_link(boss))
 
     rows = conversation_rows(request.user)
     has_any_message = any(row['sort'] for row in rows)

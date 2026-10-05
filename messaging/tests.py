@@ -57,6 +57,17 @@ class MessagingTests(TestCase):
         self.assertNotContains(hidden, 'projet TIKO', status_code=302)
         self.assertFalse(Message.objects.filter(receiver=self.grace).exists())
 
+    def test_employee_inbox_opens_the_received_message(self):
+        self.admin_client.post(reverse('messaging:inbox'), {
+            'avec': self.ada.pk,
+            'message': 'Le rapport de ce matin est validé.',
+        })
+        response = self.ada_client.get(reverse('messaging:inbox'))
+        self.assertRedirects(response, reverse('messaging:inbox') + f'?avec={self.admin.pk}')
+        page = self.ada_client.get(response.url)
+        self.assertContains(page, 'Le rapport de ce matin est validé.')
+        self.assertContains(page, 'bubble-wrap theirs')
+
     def test_manager_reply_notifies_the_employee(self):
         self.admin_client.post(reverse('messaging:inbox'), {
             'avec': self.ada.pk,
@@ -66,10 +77,8 @@ class MessagingTests(TestCase):
         self.assertEqual(note.title, 'Nouveau message du responsable')
         page = self.ada_client.get(note.link)
         self.assertContains(page, 'passer dans mon bureau')
-        self.assertNotContains(
-            self.grace_client.get(reverse('messaging:inbox')),
-            'passer dans mon bureau',
-        )
+        other = self.grace_client.get(reverse('messaging:inbox'), follow=True)
+        self.assertNotContains(other, 'passer dans mon bureau')
 
     def test_opening_a_conversation_marks_it_read(self):
         self.ada_client.post(reverse('messaging:inbox'), {

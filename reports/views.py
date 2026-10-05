@@ -203,90 +203,168 @@ def report_list(request):
     return _admin_report_board(request)
 
 
+def _period(request):
+    today = timezone.localdate()
+    periode = (request.GET.get('periode') or 'all').strip()
+    start = _parse_date(request.GET.get('debut'))
+    end = _parse_date(request.GET.get('fin'))
+    if periode == 'week':
+        start = today - timedelta(days=today.weekday())
+        end = today
+    elif periode == 'month':
+        start = today.replace(day=1)
+        end = today
+    elif start and end:
+        periode = 'range'
+    else:
+        periode = 'all'
+        start = None
+        end = None
+    if start and end and start > end:
+        start, end = end, start
+    return periode, start, end
+
+
+def _query(base, **extra):
+    from urllib.parse import urlencode
+
+    data = {key: value for key, value in {**base, **extra}.items() if value not in ('', None)}
+    encoded = urlencode(data)
+    return f'?{encoded}' if encoded else '?'
+
+
+def _file_card(report):
+    stored = ''
+    size = '—'
+    if report.uploaded_pdf:
+        stored = os.path.basename(report.uploaded_pdf.name)
+        try:
+            size = _format_size(report.uploaded_pdf.size)
+        except OSError:
+            size = '—'
+    filename = stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
+    lower = filename.lower()
+    is_word = lower.endswith('.docx')
+    sent = timezone.localtime(report.updated_at)
+    preview = reverse('reports:pdf', args=[report.pk])
+    if not is_word:
+        preview += '?inline=1'
+    short_months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+    owner = report.employee
+    owner_name = (owner.get_full_name() or '').strip() or owner.username
+    return {
+        'pk': report.pk,
+        'owner': owner_name,
+        'filename': filename,
+        'size': size,
+        'sent_label': sent.strftime('%d/%m/%Y - %H:%M'),
+        'sent_compact': f"{sent.day} {short_months[sent.month - 1]} {sent.year}",
+        'is_word': is_word,
+        'is_pdf': not is_word,
+        'preview_url': preview,
+        'download_url': reverse('reports:pdf', args=[report.pk]),
+        'text': (report.content or '').strip(),
+    }
+
+
+_IMPORTED = {
+    'Rapport importé en PDF.',
+    "Rapport importé par l'employé.",
+    'Rapport importe.',
+}
+
+
+def _reading_block(cards, person_name=''):
+    sentences = []
+    for card in cards:
+        text = card['text']
+        if text and text not in _IMPORTED:
+            sentences.append(f"{card['filename']} : {text}")
+        else:
+            sentences.append(f"Le fichier {card['filename']} a été envoyé le {card['sent_label']}.")
+    if not sentences:
+        return "Aucun rapport n'a été envoyé sur cette période. La lecture IA n'a rien à analyser."
+    who = f"Rapports de {person_name}. " if person_name else ''
+    return who + ' '.join(sentences)
+
+
 def _admin_report_board(request):
-    from django.core.paginator import Paginator
-    from decision_ai.analytics import tasks_on_date
     from employees.models import Employee
+    from messaging.services import is_online
 
     day = _parse_date(request.GET.get('date')) or timezone.localdate()
-    people = list(Employee.objects.select_related('user').order_by('user__first_name', 'user__last_name'))
-    reports = {
-        report.employee_id: report
-        for report in DailyReport.objects.filter(date=day, employee_id__in=[person.user_id for person in people])
+    periode, start, end = _period(request)
+    people = list(
+        Employee.objects.select_related('user')
+        .filter(status='active')
+        .order_by('user__first_name', 'user__last_name')
+    )
+    reports = DailyReport.objects.filter(
+        employee_id__in=[person.user_id for person in people],
+    ).select_related('employee')
+    if start:
+        reports = reports.filter(date__gte=start)
+    if end:
+        reports = reports.filter(date__lte=end)
+    reports = list(reports.order_by('-updated_at'))
+
+    search = (request.GET.get('q') or request.GET.get('search') or '').strip()
+    base = {
+        'periode': '' if periode == 'all' else periode,
+        'q': search,
+        'debut': start.isoformat() if periode == 'range' and start else '',
+        'fin': end.isoformat() if periode == 'range' and end else '',
     }
     colors = ['#7c3aed', '#db2777', '#ea580c', '#0d9488', '#2563eb', '#16a34a', '#ca8a04', '#e11d48']
-    rows = []
+    by_user = {}
+    for report in reports:
+        by_user.setdefault(report.employee_id, []).append(_file_card(report))
+
+    directory = []
     for person in people:
-        report = reports.get(person.user_id)
-        tasks = list(tasks_on_date(day, person))
-        countable = [task for task in tasks if task.status != 'cancelled']
-        done = sum(1 for task in countable if task.status == 'completed')
-        planned = len(countable)
-        open_count = planned - done
-        if report:
-            state_key, state_label = 'done', 'Soumis'
-            kind_key = 'ai' if report.ai_generated else 'manual'
-            kind_label = 'IA' if report.ai_generated else 'Manuel'
-        else:
-            state_key, state_label = 'wait', 'En attente'
-            kind_key, kind_label = '', '—'
-        rows.append({
-            'employee': person,
-            'report': report,
-            'initials': ((person.user.first_name or '')[:1] + (person.user.last_name or '')[:1]).upper() or person.user.username[:2].upper(),
+        name = (person.full_name or '').strip() or person.user.username
+        if search and search.lower() not in name.lower() and search.lower() not in (person.email or '').lower():
+            continue
+        files = by_user.get(person.user_id, [])
+        user = person.user
+        photo = user.photo.url if getattr(user, 'photo', None) else ''
+        directory.append({
+            'pk': person.pk,
+            'user_id': person.user_id,
+            'name': name,
+            'role': person.get_position_display(),
+            'service': (person.department or '').strip(),
+            'initials': (
+                f'{(user.first_name[:1] if user.first_name else "")}'
+                f'{(user.last_name[:1] if user.last_name else "")}'
+            ).upper() or user.username[:2].upper(),
             'color': colors[person.pk % len(colors)],
-            'service': person.department or 'Non renseigné',
-            'planned': planned,
-            'done': done,
-            'open': open_count,
-            'state_key': state_key,
-            'state_label': state_label,
-            'kind_key': kind_key,
-            'kind_label': kind_label,
-            'submitted_at': timezone.localtime(report.created_at) if report else None,
+            'photo': photo,
+            'count': len(files),
+            'online': is_online(user),
+            'files': files,
+            'href': _query(base, employee=person.pk),
         })
 
-    search = (request.GET.get('search') or request.GET.get('q') or '').strip()
-    service = (request.GET.get('service') or '').strip()
-    state = (request.GET.get('state') or request.GET.get('status') or '').strip()
-    if state == 'submitted':
-        state = 'done'
-    if state == 'pending':
-        state = 'wait'
-    kind = (request.GET.get('kind') or '').strip()
-    employee_id = (request.GET.get('employee') or '').strip()
-    filtered = rows
-    if employee_id.isdigit():
-        filtered = [row for row in filtered if str(row['employee'].pk) == employee_id]
-    if search:
-        needle = search.lower()
-        filtered = [
-            row for row in filtered
-            if needle in row['employee'].full_name.lower() or needle in (row['employee'].email or '').lower()
-        ]
-    if service:
-        filtered = [row for row in filtered if row['employee'].department == service]
-    if state:
-        filtered = [row for row in filtered if row['state_key'] == state]
-    if kind:
-        filtered = [row for row in filtered if row['kind_key'] == kind]
+    chosen_id = (request.GET.get('employee') or '').strip()
+    selected = next((item for item in directory if str(item['pk']) == chosen_id), None)
+    report_id = (request.GET.get('rapport') or '').strip()
+    visible_files = selected['files'] if selected else [
+        card for item in directory for card in item['files']
+    ]
+    opened = None
+    if selected and selected['files']:
+        opened = next((card for card in selected['files'] if str(card['pk']) == report_id), selected['files'][0])
+    elif not selected and report_id:
+        opened = next((card for card in visible_files if str(card['pk']) == report_id), None)
 
-    submitted = [row for row in rows if row['state_key'] == 'done']
-    stats = {
-        'total_people': len(rows),
-        'submitted': len(submitted),
-        'waiting': len(rows) - len(submitted),
-        'ai': sum(1 for row in submitted if row['kind_key'] == 'ai'),
-        'manual': sum(1 for row in submitted if row['kind_key'] == 'manual'),
-    }
-    paginator = Paginator(filtered, 8)
-    page_obj = paginator.get_page(request.GET.get('page'))
-    parts = stats['ai'] + stats['manual'] + stats['waiting']
-    stats['ai_deg'] = round(stats['ai'] * 360 / parts) if parts else 0
-    stats['manual_deg'] = round(stats['manual'] * 360 / parts) if parts else 0
-    services = sorted({row['employee'].department for row in rows if row['employee'].department})
-    query = request.GET.copy()
-    query.pop('page', None)
+    for card in visible_files:
+        owner = selected['pk'] if selected else next(
+            (item['pk'] for item in directory if any(item_card['pk'] == card['pk'] for item_card in item['files'])),
+            '',
+        )
+        card['href'] = _query(base, employee=owner, rapport=card['pk'])
+
     synthesis = collect_team_synthesis(day)
     latest = (
         AISummary.objects.filter(summary_type=SYNTHESIS_TYPE, reference_date=day)
@@ -295,21 +373,33 @@ def _admin_report_board(request):
     )
     latest_local = timezone.localtime(latest.created_at) if latest else None
     saved_count = analyzed_count_from_title(latest.title) if latest else None
+    reading_source = selected['files'] if selected else [card for item in directory for card in item['files']]
+    if start and end:
+        range_label = f"{start:%d/%m/%Y} - {end:%d/%m/%Y}"
+    elif periode == 'week':
+        range_label = 'Cette semaine'
+    elif periode == 'month':
+        range_label = 'Ce mois'
+    else:
+        range_label = 'Tous les rapports'
     return render(request, 'reports/report_list.html', {
         'day': day,
         'today': timezone.localdate(),
         'day_label': f"{day.day} {FRENCH_MONTHS[day.month - 1]} {day.year}",
-        'rows': page_obj.object_list,
-        'page_obj': page_obj,
-        'stats': stats,
-        'services': services,
-        'people': people,
-        'employee_id': employee_id,
+        'periode': periode,
+        'range_label': range_label,
+        'start': start,
+        'end': end,
         'search': search,
-        'service': service,
-        'state': state,
-        'kind': kind,
-        'querystring': query.urlencode(),
+        'directory': directory,
+        'employee_total': len(directory),
+        'report_total': sum(item['count'] for item in directory),
+        'selected': selected,
+        'files': visible_files,
+        'opened': opened,
+        'all_href': _query(base),
+        'week_href': _query({**base, 'periode': 'week', 'debut': '', 'fin': ''}),
+        'month_href': _query({**base, 'periode': 'month', 'debut': '', 'fin': ''}),
         'synthesis_stats': synthesis,
         'latest_synthesis': latest,
         'synthesis_html': synthesis_to_html(latest.content) if latest else '',
@@ -317,6 +407,7 @@ def _admin_report_board(request):
         'last_synthesis_label': (
             f"{latest_local:%d/%m/%Y} à {latest_local:%H:%M}" if latest_local else ''
         ),
+        'reading': _reading_block(reading_source, selected['name'] if selected else ''),
     })
 
 
@@ -614,6 +705,8 @@ def report_pdf(request, pk):
         return response
 
     filename = f"RACIN_Rapport_{report.employee.last_name or report.employee.username}_{report.date.isoformat()}.pdf"
+    disposition = 'inline' if request.GET.get('inline') == '1' else 'attachment'
     response = HttpResponse(build_daily_report_pdf(report), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
     return response

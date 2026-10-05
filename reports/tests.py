@@ -58,6 +58,12 @@ class TeamReportTests(TestCase):
         self.assertContains(response, reverse('reports:generate_day'))
         self.assertContains(response, 'Générer les rapports du jour')
 
+    def test_clicking_an_employee_shows_the_document(self):
+        response = self.client.get(reverse('reports:list') + f'?employee={self.ada_employee.pk}')
+        self.assertContains(response, 'Rapports de Aminata Sangare')
+        self.assertContains(response, 'Ouvrir le rapport')
+        self.assertNotContains(response, '<iframe')
+
     def test_generate_day_reports_once_for_employees_with_activities(self):
         fatou = User.objects.create_user(
             username='fatou-report', password='testpass123', role='employee',
