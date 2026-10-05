@@ -1,0 +1,14 @@
+name: Garder le site éveillé
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Réveiller Render
+        run: curl --retry 2 --retry-all-errors --retry-delay 5 --max-time 90 -fsS -o /dev/null -w "code:%{http_code} time:%{time_total}\n" https://projet-plat.onrender.com/

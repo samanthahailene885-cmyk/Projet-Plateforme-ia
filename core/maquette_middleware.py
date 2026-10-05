@@ -24,5 +24,11 @@ class MaquetteMiddleware:
             candidate = candidate / 'index.html'
         if candidate.is_file():
             content_type, _encoding = mimetypes.guess_type(candidate.name)
-            return FileResponse(candidate.open('rb'), content_type=content_type or 'application/octet-stream')
+            response = FileResponse(candidate.open('rb'), content_type=content_type or 'application/octet-stream')
+            if candidate.suffix == '.html':
+                del response['Content-Disposition']
+                response['Cache-Control'] = 'no-cache'
+            else:
+                response['Cache-Control'] = 'public, max-age=86400'
+            return response
         return self.get_response(request)
