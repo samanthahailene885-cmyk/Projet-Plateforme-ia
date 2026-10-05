@@ -35,6 +35,28 @@
         color: #D7E3F0;
         font-size: 0.92rem;
     }
+    .rep-imported {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: -6px 0 18px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(16, 185, 129, .14);
+        border: 1px solid rgba(52, 211, 153, .5);
+        color: #D1FAE5;
+    }
+    .rep-imported i {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #065F46;
+        color: #6EE7B7;
+        flex-shrink: 0;
+    }
+    .rep-imported strong { color: #F8FAFC; font-weight: 700; }
 
     .rep-top {
         display: grid;
@@ -78,6 +100,14 @@
         display: grid;
         place-items: center;
         font-size: 1.45rem;
+    }
+    .rep-cloud.done { background: #065F46; color: #6EE7B7; }
+    .rep-filename {
+        margin: 8px 0 0;
+        color: #F8FAFC;
+        font-size: 1.05rem;
+        font-weight: 700;
+        word-break: break-word;
     }
     .rep-drop h2 {
         margin: 0 0 8px;
@@ -276,16 +306,30 @@
         </div>
     </div>
 
+    {% if imported_name %}
+    <div class="rep-imported" role="status">
+        <i class="fas fa-check" aria-hidden="true"></i>
+        <span>Vous avez importé <strong>{{ imported_name }}</strong>.</span>
+    </div>
+    {% endif %}
+
     <div class="rep-top">
         <form id="upload-form" class="rep-drop" method="post" action="{% url 'reports:upload' %}" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
             <div class="rep-drop-inner">
+                {% if imported_name %}
+                <div class="rep-cloud done" aria-hidden="true"><i class="fas fa-check"></i></div>
+                <h2>Vous avez importé</h2>
+                <p class="rep-filename">{{ imported_name }}</p>
+                <p class="rep-lead">Ce fichier a été transmis au responsable.</p>
+                {% else %}
                 <div class="rep-cloud" aria-hidden="true"><i class="fas fa-cloud-upload-alt"></i></div>
                 <h2>Importer mon rapport</h2>
                 <p class="rep-lead">Déposez votre fichier ici ou choisissez-le depuis votre PC</p>
+                {% endif %}
                 <button class="rep-pick" type="button" id="pick-file">
-                    <i class="far fa-folder-open"></i> Choisir un fichier
+                    <i class="far fa-folder-open"></i> {% if imported_name %}Choisir un autre fichier{% else %}Choisir un fichier{% endif %}
                 </button>
                 <input class="rep-file-input" id="report-file" type="file" name="pdf" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
                 <p class="rep-meta">Formats acceptés : PDF, DOCX<br>Taille maximale : 10 Mo</p>

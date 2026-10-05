@@ -256,7 +256,8 @@ class ReportTests(PlatformDataMixin, TestCase):
         )
         response = self.client.post(reverse('reports:upload'), {'pdf': uploaded})
         self.assertEqual(response.status_code, 302)
-        page = self.client.get(reverse('reports:create'))
+        page = self.client.get(response.url)
+        self.assertContains(page, 'Vous avez importé')
         self.assertContains(page, 'Rapport_journalier_02-10-2026.docx')
         self.assertContains(page, 'Soumis')
 

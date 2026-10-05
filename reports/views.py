@@ -579,6 +579,11 @@ def report_create(request):
         draft=draft,
         read_only=False,
     )
+    imported = (request.GET.get('importe') or '').replace('\\', '/').split('/')[-1].strip()
+    if not imported and existing_report and existing_report.uploaded_pdf:
+        imported = os.path.basename(existing_report.uploaded_pdf.name)
+    if imported and len(imported) <= 180 and '..' not in imported:
+        context['imported_name'] = imported
     return render(request, 'reports/report_create.html', context)
 
 
@@ -681,8 +686,13 @@ def report_upload(request):
         'success',
         reverse('reports:detail', args=[report.pk]),
     )
-    messages.success(request, 'Votre rapport a été envoyé au responsable.')
-    return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
+    filename = os.path.basename(getattr(uploaded, 'name', '') or '').replace('\\', '/').split('/')[-1]
+    filename = filename[:180] or 'votre fichier'
+    messages.success(request, f'Vous avez importé {filename}.')
+    from urllib.parse import quote
+    return redirect(
+        f"{reverse('reports:create')}?date={report_date.isoformat()}&importe={quote(filename)}"
+    )
 
 
 @login_required
