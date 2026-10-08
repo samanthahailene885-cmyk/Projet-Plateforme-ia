@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { deskCall, enterSession, leaveSession, openSession, showSpace } from './work'
+import { deskCall, ensureAdminSession, enterSession, leaveSession, openSession, showSpace } from './work'
 
 type Role = 'admin' | 'employee'
 type Go = (page: string) => void
@@ -2726,6 +2726,7 @@ function DemoPage({ onNavigate }: { onNavigate: Go }) {
   const [busy, setBusy] = useState(false)
   const [counts, setCounts] = useState({ employees: 0, projects: 0, tasks: 0, reports: 0, documents: 0 })
   async function load() {
+    await ensureAdminSession()
     const data = await deskCall('/api/demonstration/')
     setCounts({
       employees: Number(data.employees) || 0,
@@ -2740,7 +2741,7 @@ function DemoPage({ onNavigate }: { onNavigate: Go }) {
     setBusy(true)
     setError('')
     try {
-      await openSession()
+      await ensureAdminSession()
       const data = await deskCall('/api/demonstration/', { method: 'POST', body: JSON.stringify({ action: 'generate', employees: Number(count), projects: 4, tasks: 24, days: 7 }) })
       setNote(String(data.message || 'Les données sont prêtes.'))
       await load()
@@ -2757,7 +2758,7 @@ function DemoPage({ onNavigate }: { onNavigate: Go }) {
     setBusy(true)
     setError('')
     try {
-      await openSession()
+      await ensureAdminSession()
       const data = await deskCall('/api/demonstration/', { method: 'POST', body: JSON.stringify({ action: 'reset', confirm: 'oui' }) })
       setNote(String(data.message || 'Les données de démonstration ont été retirées.'))
       setConfirm(false)
@@ -3154,8 +3155,7 @@ export default function App() {
   const [focusChat, setFocusChat] = useState('')
   const [bell, setBell] = useState(0)
   useEffect(() => {
-    openSession().then(async (user) => {
-      const session = user ?? await enterSession('admin', 'admin123')
+    ensureAdminSession().then((session) => {
       if (session?.role === 'admin' || session?.role === 'employee') setRole(session.role)
     }).catch(() => undefined)
   }, [])

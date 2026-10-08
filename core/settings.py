@@ -47,6 +47,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:50636',
     'http://127.0.0.1:5173',
     'http://localhost:5173',
+    'https://projet-plat.onrender.com',
 ]
 _render_url = os.environ.get('RENDER_EXTERNAL_URL')
 if _render_url and _render_url not in CSRF_TRUSTED_ORIGINS:
@@ -54,6 +55,10 @@ if _render_url and _render_url not in CSRF_TRUSTED_ORIGINS:
 
 if ON_RENDER:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
 
 
 # Application definition

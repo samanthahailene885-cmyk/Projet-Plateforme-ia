@@ -88,6 +88,18 @@ export async function enterSession(username: string, password: string): Promise<
   return data.user
 }
 
+export async function ensureAdminSession(): Promise<LiveUser> {
+  await openSession()
+  let current = await openSession()
+  if (!current) current = await enterSession('admin', 'admin123')
+  if (current.role !== 'admin') {
+    const data = await call('/api/basculer/', { method: 'POST', body: '{}' })
+    current = data.user as LiveUser
+  }
+  if (!current || current.role !== 'admin') current = await enterSession('admin', 'admin123')
+  return current
+}
+
 export async function leaveSession() {
   await openSession()
   await call('/api/deconnexion/', { method: 'POST', body: '{}' })

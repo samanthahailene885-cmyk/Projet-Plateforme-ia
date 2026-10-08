@@ -11,6 +11,9 @@ try:
     admin_user = User.objects.get(username='admin')
     # Mettre à jour le rôle en admin
     admin_user.role = 'admin'
+    admin_user.is_active = True
+    if os.environ.get('RENDER') == 'true':
+        admin_user.set_password('admin123')
     admin_user.save()
     print("Utilisateur 'admin' existe déjà, rôle mis à jour en admin!")
     print("Username: admin")
