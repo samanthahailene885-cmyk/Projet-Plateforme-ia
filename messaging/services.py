@@ -142,12 +142,14 @@ def notify_message(message):
             title='Nouveau message du responsable',
             message=preview,
             notification_type='info',
-            link=conversation_link(message.sender),
+            link='/messages/',
         )
         return
+    from employees.models import Employee
+    employee = Employee.objects.filter(user=message.sender).first()
     name = person_name(message.sender)
     title = f'Nouveau message de {name}'[:200]
-    link = conversation_link(message.sender)
+    link = f'/messages/?avec={employee.pk}' if employee else '/messages/'
     for admin in User.objects.filter(role='admin', is_active=True):
         Notification.objects.create(
             user=admin,

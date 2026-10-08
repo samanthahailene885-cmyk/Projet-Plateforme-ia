@@ -332,7 +332,9 @@
                     <i class="far fa-folder-open"></i> {% if imported_name %}Choisir un autre fichier{% else %}Choisir un fichier{% endif %}
                 </button>
                 <input class="rep-file-input" id="report-file" type="file" name="pdf" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                <p class="rep-meta" id="file-preview" hidden></p>
                 <p class="rep-meta">Formats acceptés : PDF, DOCX<br>Taille maximale : 10 Mo</p>
+                <button class="rep-pick" id="send-report" type="submit" hidden>Envoyer le rapport</button>
             </div>
         </form>
 
@@ -399,8 +401,19 @@
     var pick = document.getElementById('pick-file');
     if (pick && input && form) {
         pick.addEventListener('click', function () { input.click(); });
+        var preview = document.getElementById('file-preview');
+        var send = document.getElementById('send-report');
+        function showFile(file) {
+            if (!file || !preview || !send) return;
+            var size = file.size < 1048576 ? Math.max(1, Math.round(file.size / 1024)) + ' Ko' : (file.size / 1048576).toFixed(1) + ' Mo';
+            var when = new Date();
+            var label = when.toLocaleDateString('fr-FR') + ' ' + when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            preview.hidden = false;
+            preview.textContent = file.name + ' · ' + size + ' · ' + label;
+            send.hidden = false;
+        }
         input.addEventListener('change', function () {
-            if (input.files && input.files.length) form.submit();
+            if (input.files && input.files.length) showFile(input.files[0]);
         });
         form.addEventListener('dragover', function (event) {
             event.preventDefault();
@@ -412,7 +425,7 @@
             form.classList.remove('over');
             if (!event.dataTransfer.files.length) return;
             input.files = event.dataTransfer.files;
-            form.submit();
+            if (input.files.length) showFile(input.files[0]);
         });
     }
 

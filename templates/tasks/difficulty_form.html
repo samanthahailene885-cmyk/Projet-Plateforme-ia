@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Signaler une difficulté - RAC'IN{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto;">
+    <h1>Signaler une difficulté</h1>
+    <p style="color:#94A3B8;">Le responsable verra ce signalement dans les points d'attention. Ce n'est pas une absence.</p>
+    <form method="post" style="display:grid;gap:12px;margin-top:16px;">
+        {% csrf_token %}
+        <label>Projet
+            <select name="project">
+                <option value="">Sans projet</option>
+                {% for project in projects %}
+                <option value="{{ project.pk }}">{{ project.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Priorité
+            <select name="priority">
+                <option value="low">Faible</option>
+                <option value="medium" selected>Moyenne</option>
+                <option value="high">Haute</option>
+            </select>
+        </label>
+        <label>Difficulté
+            <textarea name="description" rows="5" required placeholder="Décrivez ce qui bloque."></textarea>
+        </label>
+        <button type="submit" style="background:#2563EB;color:#fff;border:0;border-radius:10px;min-height:42px;font-weight:700;">Enregistrer</button>
+    </form>
+</div>
+{% endblock %}

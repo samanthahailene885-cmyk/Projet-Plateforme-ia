@@ -5,6 +5,8 @@ app_name = 'decision_ai'
 
 urlpatterns = [
     path('assistant/', views.ai_assistant, name='assistant'),
+    path('mon-assistant/', views.employee_assistant, name='employee_assistant'),
+    path('mon-assistant/question/', views.employee_chat, name='employee_chat'),
     path('chat/', views.ai_chat, name='chat'),
     path('center/', views.intelligence_center, name='center'),
     path('improve-remark/', views.improve_remark, name='improve_remark'),

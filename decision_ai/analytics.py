@@ -15,7 +15,7 @@ from employees.models import Employee
 from permissions.models import PermissionRequest
 from projects.models import Project
 from reports.models import DailyReport
-from tasks.models import Task
+from tasks.models import Difficulty, Task
 
 
 CLOSED = Task.CLOSED_STATUSES
@@ -674,6 +674,325 @@ def assistant_context(question, today):
         "N'invente aucun nom, aucun chiffre et aucune activité."
     )
     return '\n\n'.join(blocks)
+
+
+_MONTHS = (
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+)
+
+
+def _fold(text):
+    import unicodedata
+    value = unicodedata.normalize('NFD', (text or '').lower())
+    return ''.join(char for char in value if unicodedata.category(char) != 'Mn')
+
+
+def _num(count, feminine=False):
+    words = {
+        0: 'Aucune' if feminine else 'Aucun',
+        1: 'Une' if feminine else 'Un',
+        2: 'Deux', 3: 'Trois', 4: 'Quatre', 5: 'Cinq', 6: 'Six',
+        7: 'Sept', 8: 'Huit', 9: 'Neuf', 10: 'Dix', 11: 'Onze', 12: 'Douze',
+    }
+    return words.get(count, str(count))
+
+
+def _join(items):
+    items = [item for item in items if item]
+    if not items:
+        return ''
+    if len(items) == 1:
+        return items[0]
+    return ', '.join(items[:-1]) + ' et ' + items[-1]
+
+
+def _pretty(name):
+    parts = [part for part in (name or '').split() if part]
+    if not parts:
+        return 'Un employé'
+    return ' '.join(part[:1].upper() + part[1:] for part in parts)
+
+
+def _french_day(day):
+    return f'{day.day} {_MONTHS[day.month - 1]}'
+
+
+def _match_employee(question):
+    folded = _fold(question)
+    best = None
+    best_len = 0
+    for employee in Employee.objects.select_related('user').filter(status='active'):
+        name = _fold(employee.full_name).strip()
+        if not name:
+            continue
+        candidates = [name] + [part for part in name.split() if len(part) > 2]
+        for candidate in candidates:
+            if candidate in folded and len(candidate) > best_len:
+                best = employee
+                best_len = len(candidate)
+    return best
+
+
+def _match_projects(question):
+    folded = _fold(question)
+    found = []
+    for project in Project.objects.exclude(status='cancelled').order_by('name'):
+        name = _fold(project.name)
+        if len(name) > 3 and name in folded:
+            found.append(project)
+    return found
+
+
+def _late_projects(today):
+    rows = []
+    for project in Project.objects.exclude(status__in=['completed', 'cancelled']).order_by('end_date', 'name'):
+        late_tasks = project.tasks.filter(due_date__lt=today).exclude(status__in=CLOSED)
+        if (project.end_date and project.end_date < today) or late_tasks.exists():
+            rows.append(project)
+    return rows
+
+
+def _open_tasks():
+    return Task.objects.exclude(status__in=CLOSED).select_related('project', 'assigned_to__user')
+
+
+def manager_catalog_answer(question, today):
+    """Réponses factuelles aux questions types du responsable. None si la question est autre."""
+    folded = _fold(question)
+    if not folded:
+        return None
+
+    def has(*words):
+        return any(word in folded for word in words)
+
+    if has('projet') and has('retard') and not has('employe', 'tache', 'activite'):
+        rows = _late_projects(today)
+        if not rows:
+            return "Aucun projet ne présente actuellement de retard."
+        details = []
+        for project in rows:
+            if project.end_date:
+                details.append(f'{project.name}, prévu pour le {_french_day(project.end_date)}')
+            else:
+                details.append(f'{project.name}, sans date de fin enregistrée')
+        head = (
+            f'{_num(len(rows))} projet présente actuellement un retard'
+            if len(rows) == 1
+            else f'{_num(len(rows))} projets présentent actuellement un retard'
+        )
+        return f'{head} : {_join(details)}.'
+
+    if has('pas ete realise', 'non realise', 'n ont pas ete realise', 'pas realise'):
+        missed = tasks_on_date(today).filter(status__in=['todo', 'not_done'])
+        count = missed.count()
+        if count == 0:
+            planned = tasks_on_date(today)
+            if not planned.exists():
+                return "Aucune activité non réalisée n'est enregistrée pour aujourd'hui."
+            if planned.filter(status__in=IN_PROGRESS).exists():
+                return "Les activités prévues aujourd'hui sont soit réalisées, soit encore en cours."
+            return "Toutes les activités prévues aujourd'hui ont été réalisées."
+        names = []
+        for name in missed.exclude(project__isnull=True).values_list('project__name', flat=True).distinct():
+            if name not in names:
+                names.append(name)
+        sentence = (
+            f"{_num(count, True)} activité n'a pas été réalisée aujourd'hui."
+            if count == 1
+            else f"{_num(count, True)} activités n'ont pas été réalisées aujourd'hui."
+        )
+        if names:
+            sentence += f' Elles concernent {_join(names)}.'
+        return sentence
+
+    if has('moyennement', 'priorite moyenne', 'priorite moyen'):
+        rows = list(_open_tasks().filter(priority='medium').order_by('due_date', 'title')[:12])
+        if not rows:
+            return "Aucune activité ouverte n'a la priorité moyenne."
+        sentence = (
+            f'{_num(len(rows), True)} activité présente un niveau de priorité moyen'
+            if len(rows) == 1
+            else f'{_num(len(rows), True)} activités présentent un niveau de priorité moyen et sont prévues pour les prochains jours'
+        )
+        return f'{sentence} : {_join(task.title for task in rows)}.'
+
+    if has('urgent'):
+        rows = list(_open_tasks().filter(priority='urgent').order_by('title')[:12])
+        if not rows:
+            return "Aucune activité ouverte n'est enregistrée avec la priorité urgente."
+        sentence = (
+            f'{_num(len(rows), True)} activité est considérée comme urgente'
+            if len(rows) == 1
+            else f'{_num(len(rows), True)} activités sont considérées comme urgentes'
+        )
+        return f'{sentence} : {_join(task.title for task in rows)}.'
+
+    if has('en cours') and not has('rapport'):
+        rows = list(Task.objects.filter(status__in=IN_PROGRESS).select_related('assigned_to'))
+        count = len(rows)
+        people = len({task.assigned_to_id for task in rows if task.assigned_to_id})
+        if count == 0:
+            return "Aucune activité n'est actuellement en cours."
+        activity = f'{_num(count, True)} activité est actuellement en cours' if count == 1 else f'{_num(count, True)} activités sont actuellement en cours'
+        if people == 0:
+            return f'{activity}.'
+        staff = f'{_num(people).lower()} employé' if people == 1 else f'{_num(people).lower()} employés'
+        return f'{activity}, répartie{"s" if count > 1 else ""} entre {staff}.'
+
+    if has('to-do', 'todo', 'to do') and has('employe', 'de '):
+        employee = _match_employee(question)
+        if employee is None:
+            names = ', '.join(_pretty(person.full_name) for person in Employee.objects.select_related('user').filter(status='active').order_by('user__first_name'))
+            return f'Indiquez le nom de l\'employé. Employés enregistrés : {names}.'
+        planned = list(tasks_on_date(today, employee).order_by('title'))
+        name = _pretty(employee.full_name)
+        if not planned:
+            return f'Aucune activité n\'est prévue aujourd\'hui pour {name}.'
+        return f'Voici les activités prévues pour {name} aujourd\'hui : {_join(task.title for task in planned)}.'
+
+    if has('realise') and has('aujourd') and has('employe', 'a-t-il', 'a-t-elle', 'a t il', 'a t elle'):
+        employee = _match_employee(question)
+        if employee is None:
+            return 'Indiquez le nom de l\'employé pour connaître ses activités réalisées.'
+        planned = tasks_on_date(today, employee)
+        done = planned.filter(status='completed').count()
+        total = planned.count()
+        name = _pretty(employee.full_name)
+        return f'{name} a réalisé {done} activité{"s" if done != 1 else ""} sur {total} prévue{"s" if total != 1 else ""} aujourd\'hui.'
+
+    if has('pas termine', 'incomplet', 'n a-t-il pas', 'n a-t-elle pas', 'n a t il pas', 'n a t elle pas'):
+        employee = _match_employee(question)
+        if employee is None:
+            return 'Indiquez le nom de l\'employé pour lister ses activités incomplètes.'
+        pending = list(tasks_on_date(today, employee).exclude(status__in=['completed', 'cancelled']).order_by('title'))
+        if not pending:
+            pending = list(employee.assigned_tasks.exclude(status__in=CLOSED).order_by('title')[:12])
+        name = _pretty(employee.full_name)
+        if not pending:
+            return f'{name} n\'a aucune activité incomplète.'
+        head = f'{_num(len(pending), True)} activité reste incomplète' if len(pending) == 1 else f'{_num(len(pending), True)} activités restent incomplètes'
+        return f'{head} pour {name} : {_join(task.title for task in pending)}.'
+
+    if has('avancement'):
+        chosen = _match_projects(question) or list(Project.objects.exclude(status='cancelled').order_by('name')[:8])
+        if not chosen:
+            return "Aucun projet n'est enregistré."
+        lines = []
+        for project in chosen:
+            tasks = project.tasks.exclude(status='cancelled')
+            total = tasks.count()
+            done = tasks.filter(status='completed').count()
+            doing = tasks.filter(status__in=IN_PROGRESS).count()
+            percent = project.progress if total == 0 else round(done * 100 / total)
+            if total == 0:
+                lines.append(f'Le projet {project.name} est actuellement réalisé à {percent} %. Aucune tâche n\'est enregistrée.')
+                continue
+            if done == 0:
+                done_bit = f'Aucune tâche sur {total} n\'est terminée'
+            elif done == 1:
+                done_bit = f'Une tâche sur {total} est terminée'
+            else:
+                done_bit = f'{_num(done)} tâches sur {total} sont terminées'
+            if doing == 0:
+                doing_bit = 'aucune n\'est encore en cours'
+            elif doing == 1:
+                doing_bit = 'une est encore en cours'
+            else:
+                doing_bit = f'{_num(doing).lower()} sont encore en cours'
+            lines.append(f'Le projet {project.name} est actuellement réalisé à {percent} %. {done_bit} et {doing_bit}.')
+        return ' '.join(lines)
+
+    if has('employe') and has('retard'):
+        people = []
+        for task in _open_tasks().filter(due_date__lt=today):
+            if task.assigned_to_id:
+                label = _pretty(task.assigned_to.full_name)
+                if label not in people:
+                    people.append(label)
+        if not people:
+            return "Aucun employé n'a actuellement d'activité en retard."
+        if len(people) == 1:
+            return f'L\'employé {people[0]} a actuellement des activités en retard.'
+        return f'Les employés {_join(people)} ont actuellement des activités en retard.'
+
+    if has('attention immediate', 'attention immediat', 'necessitent une attention'):
+        rows = _late_projects(today)
+        urgent_ids = set(_open_tasks().filter(priority__in=['urgent', 'high']).values_list('project_id', flat=True))
+        urgent_ids.discard(None)
+        names = []
+        for project in rows:
+            if project.name not in names:
+                names.append(project.name)
+        for project in Project.objects.filter(pk__in=urgent_ids):
+            if project.name not in names:
+                names.append(project.name)
+        if not names:
+            return "Aucun projet ne nécessite une attention immédiate."
+        if len(names) == 1:
+            return f'Le projet {names[0]} nécessite une attention immédiate en raison d\'un retard ou d\'une priorité élevée.'
+        return f'Les projets {_join(names)} nécessitent une attention immédiate en raison de leur retard ou de leur priorité élevée.'
+
+    if has('synthese') and has('rapport'):
+        sent = DailyReport.objects.filter(date=today).values('employee_id').distinct().count()
+        done = Task.objects.filter(status='completed', completed_at__date=today).count()
+        doing = Task.objects.filter(status__in=IN_PROGRESS).count()
+        missed = tasks_on_date(today).filter(status__in=['todo', 'not_done']).count()
+        if sent == 0:
+            sent_bit = "Aujourd'hui, aucun employé n'a soumis son rapport."
+        elif sent == 1:
+            sent_bit = "Aujourd'hui, 1 employé a soumis son rapport."
+        else:
+            sent_bit = f"Aujourd'hui, {sent} employés ont soumis leur rapport."
+        done_bit = f'{done} activité a été réalisée' if done == 1 else f'{done} activités ont été réalisées'
+        if doing == 0:
+            doing_bit = "aucune n'est encore en cours"
+        elif doing == 1:
+            doing_bit = '1 est encore en cours'
+        else:
+            doing_bit = f'{doing} sont encore en cours'
+        if missed == 0:
+            missed_bit = "aucune n'est restée non réalisée"
+        elif missed == 1:
+            missed_bit = "1 n'a pas été réalisée"
+        else:
+            missed_bit = f'{missed} n\'ont pas été réalisées'
+        return f'{sent_bit} {done_bit}, {doing_bit} et {missed_bit}.'
+
+    if has('rapport') and has('pas encore', 'n ont pas', 'sans rapport', 'manquant'):
+        sent_ids = set(DailyReport.objects.filter(date=today).values_list('employee_id', flat=True))
+        missing = [
+            _pretty(employee.full_name)
+            for employee in Employee.objects.select_related('user').filter(status='active', user__role='employee').order_by('user__first_name')
+            if employee.user_id not in sent_ids
+        ]
+        if not missing:
+            return "Tous les employés actifs ont soumis leur rapport aujourd'hui."
+        verb = "n'a" if len(missing) == 1 else "n'ont"
+        return f'{_join(missing)} {verb} pas encore soumis leur rapport journalier.'
+
+    if has('problematique', 'plus de difficult', 'difficult'):
+        late = list(_open_tasks().filter(due_date__lt=today))
+        failed = list(Task.objects.filter(status='not_done').select_related('project'))
+        remarks = list(Difficulty.objects.filter(status='open').select_related('project'))
+        scores = {}
+        for task in late + failed:
+            label = task.project.name if task.project_id else 'Sans projet'
+            scores[label] = scores.get(label, 0) + 1
+        for item in remarks:
+            label = item.project.name if item.project_id else 'Sans projet'
+            scores[label] = scores.get(label, 0) + 1
+        if not scores:
+            return "Aucune activité problématique n'est enregistrée pour le moment."
+        name = max(scores, key=scores.get)
+        if name == 'Sans projet':
+            return 'Les activités sans projet rattaché présentent le plus de difficultés, notamment en raison de leur retard ou des signalements ouverts.'
+        return (
+            f'Les activités liées au projet {name} présentent le plus de difficultés, '
+            'notamment en raison de leur retard ou des signalements ouverts.'
+        )
+
+    return None
 
 
 def recorded_answer(question, today):

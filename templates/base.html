@@ -588,8 +588,11 @@
                     <a class="nav-link {% if request.resolver_match.namespace == 'projects' %}active{% endif %}" href="{% url 'projects:list' %}">
                         <i class="far fa-folder"></i> Projets
                     </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' and request.resolver_match.url_name != 'difficulties' and request.resolver_match.url_name != 'difficulty_create' %}active{% endif %}" href="{% url 'tasks:list' %}">
                         <i class="far fa-check-square"></i> Tâches
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'difficulties' or request.resolver_match.url_name == 'difficulty_create' %}active{% endif %}" href="{% url 'tasks:difficulties' %}">
+                        <i class="fas fa-exclamation-triangle"></i> Difficultés
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name == 'daily' %}active{% endif %}" href="{% url 'tasks:daily' %}">
                         <i class="fas fa-list-ul"></i> Todo Lists du jour
@@ -602,8 +605,8 @@
                         {% if sidebar_pending_permissions %}<span class="racin-dot"></span>{% endif %}
                     </a>
                     <a class="nav-link {% if request.resolver_match.url_name == 'delay_detection' %}active{% endif %}" href="{% url 'decision_ai:delay_detection' %}">
-                        <i class="far fa-bell"></i> Centre d'alertes
-                        {% if sidebar_unread_messages %}<span class="racin-badge">{{ sidebar_unread_messages }}</span>{% endif %}
+                        <i class="far fa-bell"></i> Alertes
+                        {% if sidebar_alert_count %}<span class="racin-badge">{{ sidebar_alert_count }}</span>{% endif %}
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'messaging' %}active{% endif %}" href="{% url 'messaging:inbox' %}">
                         <i class="far fa-comment-dots"></i> Messagerie
@@ -628,8 +631,11 @@
                     <a class="nav-link {% if request.resolver_match.namespace == 'projects' %}active{% endif %}" href="{% url 'projects:list' %}">
                         <i class="far fa-folder"></i> Mes projets
                     </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name != 'daily' and request.resolver_match.url_name != 'difficulties' and request.resolver_match.url_name != 'difficulty_create' %}active{% endif %}" href="{% url 'tasks:list' %}">
                         <i class="far fa-check-square"></i> Mes tâches
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'difficulties' or request.resolver_match.url_name == 'difficulty_create' %}active{% endif %}" href="{% url 'tasks:difficulties' %}">
+                        <i class="fas fa-exclamation-triangle"></i> Difficultés
                     </a>
                     <a class="nav-link {% if request.resolver_match.namespace == 'tasks' and request.resolver_match.url_name == 'daily' %}active{% endif %}" href="{% url 'tasks:daily' %}">
                         <i class="fas fa-list-ul"></i> Todo Lists du jour
@@ -646,7 +652,7 @@
                         <i class="far fa-comment-dots"></i> Messagerie
                         {% if sidebar_chat_unread %}<span class="racin-badge">{{ sidebar_chat_unread }}</span>{% endif %}
                     </a>
-                    <a class="nav-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}" href="{% url 'decision_ai:assistant' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'employee_assistant' %}active{% endif %}" href="{% url 'decision_ai:employee_assistant' %}">
                         <i class="fas fa-wand-magic-sparkles"></i> Mon assistant
                     </a>
                     <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'authentication:profile' %}">
@@ -670,7 +676,7 @@
                     <div class="racin-ai-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
                     <h6>Mon assistant</h6>
                     <p>Besoin d'aide ? Posez vos questions et obtenez des réponses sur vos activités et projets.</p>
-                    <a class="racin-ai-btn" href="{% url 'decision_ai:assistant' %}">Ouvrir l'assistant →</a>
+                    <a class="racin-ai-btn" href="{% url 'decision_ai:employee_assistant' %}">Ouvrir l'assistant →</a>
                     <a class="racin-logout" href="{% url 'authentication:logout' %}">Déconnexion</a>
                 </div>
                 {% endif %}

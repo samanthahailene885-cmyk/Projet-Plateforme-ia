@@ -61,6 +61,25 @@
         </div>
     </div>
 
+    {% if can_work and not is_admin_view %}
+    <div class="td-actions" style="margin-bottom:12px;">
+        {% if task.status == 'todo' %}
+        <form method="post" action="{% url 'tasks:set_status' task.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'tasks:detail' task.pk %}">
+            <button class="primary" type="submit" name="status" value="in_progress" style="background:#2563EB;color:#fff;border:0;border-radius:10px;min-height:38px;padding:0 14px;font-weight:700;">Commencer</button>
+        </form>
+        {% endif %}
+        {% if task.status != 'completed' %}
+        <form method="post" action="{% url 'tasks:complete' task.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'tasks:detail' task.pk %}">
+            <button type="submit" style="background:#10B981;color:#fff;border:0;border-radius:10px;min-height:38px;padding:0 14px;font-weight:700;">✓ Marquer comme terminée</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <form class="td-status" method="post" action="{% url 'tasks:set_status' task.pk %}">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'tasks:detail' task.pk %}">
@@ -106,7 +125,23 @@
                 <li><small>Début</small><strong>{{ task.start_date|date:"d/m/Y"|default:"—" }}</strong></li>
                 <li><small>Échéance</small><strong>{{ task.due_date|date:"d/m/Y"|default:"—" }}</strong></li>
                 <li><small>Créée par</small><strong>{{ task.created_by.get_full_name|default:"—" }}</strong></li>
+                <li><small>Commencée le</small><strong>{{ task.started_at|date:"d/m/Y H:i"|default:"—" }}</strong></li>
+                <li><small>Terminée le</small><strong>{{ task.completed_at|date:"d/m/Y H:i"|default:"—" }}</strong></li>
             </ul>
+            <h2 style="margin-top:18px;">Fichier résultat</h2>
+            {% if task.result_file %}
+            <p><a href="{% url 'tasks:result' task.pk %}">{{ task.result_original_name }}</a></p>
+            {% else %}
+            <p>Aucun fichier résultat.</p>
+            {% endif %}
+            {% if can_work %}
+            <form method="post" action="{% url 'tasks:result_upload' task.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" name="result" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" required>
+                <button type="submit" style="margin-top:8px;">Déposer le résultat</button>
+            </form>
+            <p style="font-size:.78rem;">Le dépôt du fichier ne termine pas la tâche.</p>
+            {% endif %}
         </aside>
     </div>
 </div>

@@ -272,18 +272,15 @@ class ReportTests(PlatformDataMixin, TestCase):
         response = self.client.post(reverse('reports:generate'), {'date': self.today.isoformat()})
         self.assertEqual(response.status_code, 302)
         followed = self.client.get(response.url)
-        self.assertContains(followed, 'Données insuffisantes')
+        self.assertContains(followed, "PDF ou DOCX")
         self.assertEqual(DailyReport.objects.count(), 0)
 
     @patch('reports.services.DecisionAIService.generate_employee_report', return_value='Texte produit par le modèle.')
     def test_generate_puts_model_text_in_an_editable_draft(self, _mock):
         Task.objects.create(title='Visuel', assigned_to=self.employee, status='completed', planned_date=self.today)
         response = self.client.post(reverse('reports:generate'), {'date': self.today.isoformat()}, follow=True)
-        self.assertContains(response, 'Rapport préparé')
-        self.assertEqual(
-            self.client.session.get(f'report_draft_{self.user.pk}_{self.today.isoformat()}'),
-            'Texte produit par le modèle.',
-        )
+        self.assertContains(response, "PDF ou DOCX")
+        self.assertIsNone(self.client.session.get(f'report_draft_{self.user.pk}_{self.today.isoformat()}'))
         self.assertEqual(DailyReport.objects.count(), 0)
         save = self.client.post(reverse('reports:save'), {
             'date': self.today.isoformat(),
@@ -291,7 +288,7 @@ class ReportTests(PlatformDataMixin, TestCase):
         })
         self.assertEqual(save.status_code, 302)
         report = DailyReport.objects.get()
-        self.assertTrue(report.ai_generated)
+        self.assertFalse(report.ai_generated)
         self.assertEqual(report.content, 'Texte produit par le modèle.')
 
     def test_composed_report_is_a_bullet_list(self):

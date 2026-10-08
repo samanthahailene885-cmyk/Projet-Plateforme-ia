@@ -355,10 +355,10 @@
             <div class="project-progress">
                 <div class="progress-label">
                     <span>Progression</span>
-                    <span>{{ project.progress }}%</span>
+                    <span>{% if project.live_progress is None %}Aucune tâche{% else %}{{ project.live_progress }}%{% endif %}</span>
                 </div>
                 <div class="progress-bar-container">
-                    <div class="progress-bar-fill {% if project.progress >= 80 %}completed{% elif project.progress >= 50 %}high{% endif %}" style="width: {{ project.progress }}%"></div>
+                    <div class="progress-bar-fill {% if project.live_progress and project.live_progress >= 80 %}completed{% elif project.live_progress and project.live_progress >= 50 %}high{% endif %}" style="width: {% if project.live_progress is None %}0{% else %}{{ project.live_progress }}{% endif %}%"></div>
                 </div>
             </div>
 
@@ -369,7 +369,7 @@
                 </div>
                 <div class="project-meta-item">
                     <i class="fas fa-tasks"></i>
-                    <span>{{ project.task_set.count }} tâches</span>
+                    <span>{% if project.task_total %}{{ project.task_total }} tâches{% else %}Aucune tâche{% endif %}</span>
                 </div>
             </div>
 

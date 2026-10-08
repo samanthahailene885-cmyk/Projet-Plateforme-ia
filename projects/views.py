@@ -79,6 +79,10 @@ def project_list(request):
         'priority': priority_filter
     })
 
+    projects = projects.annotate(
+        task_total=Count('tasks', filter=~Q(tasks__status='cancelled'), distinct=True),
+        task_done=Count('tasks', filter=Q(tasks__status='completed'), distinct=True),
+    )
     return render(request, 'projects/project_list.html', {
         'projects': projects,
         'form': form,

@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from authentication.decorators import admin_required
 
-from .analytics import collect_alerts, day_stats, recorded_answer, workload_rows
+from .analytics import collect_alerts, day_stats, manager_catalog_answer, recorded_answer, workload_rows
 from .briefing import agency_brief, alert_brief, difficulty_brief, project_briefs, trend_brief
 from .models import AIChat, AISummary
 from .services import AIServiceError, DecisionAIService
@@ -27,6 +27,48 @@ def _parse_date(value):
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError:
         return None
+
+
+@login_required
+def employee_assistant(request):
+    if request.user.is_admin():
+        return redirect('decision_ai:assistant')
+    from employees.models import Employee
+    employee = Employee.objects.filter(user=request.user).first()
+    if employee is None:
+        messages.error(request, 'Profil employé introuvable.')
+        return redirect('dashboard:employee_home')
+    history = AIChat.objects.filter(user=request.user).order_by('-created_at')[:12]
+    return render(request, 'decision_ai/employee_assistant.html', {
+        'history': history,
+        'first_name': request.user.first_name or request.user.username,
+    })
+
+
+@login_required
+@require_POST
+def employee_chat(request):
+    if request.user.is_admin():
+        return JsonResponse({'error': 'Utilisez l\'assistant responsable.'}, status=403)
+    from employees.models import Employee
+    employee = Employee.objects.filter(user=request.user).first()
+    if employee is None:
+        return JsonResponse({'error': 'Profil employé introuvable.'}, status=400)
+    question = (request.POST.get('question') or '').strip()
+    if not question:
+        return JsonResponse({'error': 'Question vide.'}, status=400)
+    from .employee_scope import answer_from_records, facts_for_model
+    day = timezone.localdate()
+    answer = answer_from_records(employee, question, day)
+    if answer is None:
+        try:
+            answer = DecisionAIService().answer_employee(question, facts_for_model(employee, day))
+        except AIServiceError:
+            return JsonResponse({
+                'error': 'Le service IA est momentanément indisponible.',
+            }, status=503)
+    AIChat.objects.create(user=request.user, question=question, answer=answer)
+    return JsonResponse({'question': question, 'answer': answer})
 
 
 @admin_required
@@ -66,11 +108,14 @@ def ai_chat(request):
     if len(question) > 2000:
         return JsonResponse({'error': 'La question est trop longue.'}, status=400)
 
-    service = DecisionAIService()
-    try:
-        answer = service.answer_question(question)
-    except AIServiceError:
-        answer = recorded_answer(question, timezone.localdate())
+    today = timezone.localdate()
+    answer = manager_catalog_answer(question, today)
+    if not answer:
+        service = DecisionAIService()
+        try:
+            answer = service.answer_question(question)
+        except AIServiceError:
+            answer = recorded_answer(question, today)
 
     AIChat.objects.create(user=request.user, question=question, answer=answer)
     return JsonResponse({'question': question, 'answer': answer})

@@ -152,11 +152,6 @@
         </div>
         <div class="rp-ai-actions">
             <button class="rp-btn" type="button" id="synthesis-generate" data-url="{% url 'reports:synthesis' %}" data-date="{{ day|date:'Y-m-d' }}" data-csrf="{{ csrf_token }}">Générer la synthèse IA</button>
-            <form method="post" action="{% url 'reports:generate_day' %}">
-                {% csrf_token %}
-                <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
-                <button class="rp-btn ghost" type="submit">Générer les rapports du jour</button>
-            </form>
         </div>
         <p class="synthesis-last" id="synthesis-last">{% if last_synthesis_label %}Dernière synthèse : {{ last_synthesis_label }}{% else %}Aucune synthèse enregistrée pour cette date.{% endif %}</p>
         <div id="synthesis-status" class="synthesis-status" hidden></div>
@@ -193,7 +188,7 @@
                 {% endif %}
                 <span>
                     <strong>{{ person.name }}</strong>
-                    <small>{{ person.role }}</small>
+                    <small>{% if person.submitted %}✓ Soumis{% else %}✕ Non soumis{% endif %} · {{ person.role }}</small>
                 </span>
                 <span class="rp-count">{{ person.count }} <i class="fas fa-chevron-right"></i></span>
             </a>

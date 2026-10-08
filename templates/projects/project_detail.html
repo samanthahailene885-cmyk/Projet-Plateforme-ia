@@ -38,7 +38,7 @@
     .pd-progress .row { display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-bottom: 6px; }
     .pd-progress .row b { color: #1e293b; }
     .pd-bar { height: 8px; background: #eef2ff; border-radius: 999px; overflow: hidden; }
-    .pd-bar span { display: block; height: 100%; background: #4f46e5; border-radius: 999px; width: {{ project.progress }}%; }
+    .pd-bar span { display: block; height: 100%; background: #4f46e5; border-radius: 999px; width: {% if project.live_progress is None %}0{% else %}{{ project.live_progress }}{% endif %}%; }
     .pd-actions { display: flex; gap: 8px; }
     .pd-btn { height: 36px; border-radius: 10px; border: 1px solid #e6ebf3; background: #fff; color: #334155; font-weight: 600; font-size: 0.82rem; padding: 0 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     .pd-menu { position: relative; }
@@ -165,8 +165,8 @@
                         <p class="sub">{{ project.description|default:"Aucune description enregistrée." }}</p>
                     </div>
                     <div class="pd-progress">
-                        <div class="row"><span>Progression</span><b>{{ project.progress }}%</b></div>
-                        <div class="pd-bar"><span></span></div>
+                        <div class="row"><span>Progression</span><b>{% if project.live_progress is None %}Aucune tâche{% else %}{{ project.live_progress }}%{% endif %}</b></div>
+                        <div class="pd-bar"><span style="width:{% if project.live_progress is None %}0{% else %}{{ project.live_progress }}{% endif %}%;"></span></div>
                     </div>
                     <div class="pd-actions">
                         {% if user.is_admin %}
@@ -232,7 +232,7 @@
                                 data-doing="{{ task_doing|length }}"
                                 data-waiting="{{ task_waiting|length }}"
                                 data-late="{{ task_late|length }}"></canvas>
-                            <div class="pd-hole">{{ project.progress }}%</div>
+                            <div class="pd-hole">{% if project.live_progress is None %}Aucune tâche{% else %}{{ project.live_progress }}%{% endif %}</div>
                         </div>
                         <ul class="pd-legend">
                             <li><span class="dot green"></span> Tâches terminées <b>{{ task_done|length }}</b></li>
@@ -257,7 +257,7 @@
                 </div>
                 {% if tab == 'taches' %}
                 <p style="margin:0 0 14px;color:#D7E3F0;">
-                    Progression : <strong style="color:#F8FAFC;">{{ project.progress }} %</strong>
+                    Progression : <strong style="color:#F8FAFC;">{% if project.live_progress is None %}Aucune tâche{% else %}{{ project.live_progress }} %{% endif %}</strong>
                     · {{ tasks|length }} tâche{{ tasks|length|pluralize }}
                     · {{ task_done|length }} terminée{{ task_done|length|pluralize }}
                     · {{ task_doing|length }} en cours

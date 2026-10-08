@@ -531,9 +531,9 @@
                 {% if project.task_total %}{% widthratio project.task_done project.task_total 100 as live_progress %}{% endif %}
                 <div class="mp-progress-top">
                     <div class="mp-bar" style="flex:1;">
-                        <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%;"></div>
+                        <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}0{% endif %}%;"></div>
                     </div>
-                    <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%</span>
+                    <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}%{% else %}Aucune tâche{% endif %}</span>
                 </div>
                 <div class="mp-deadline">
                     {{ project.deadline_label }}
@@ -569,9 +569,9 @@
             {% if project.task_total %}{% widthratio project.task_done project.task_total 100 as live_progress %}{% endif %}
             <div class="mp-progress-top">
                 <div class="mp-bar" style="flex:1;">
-                    <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%;"></div>
+                    <div class="mp-bar-fill {{ project.status }}" style="width: {% if project.task_total %}{{ live_progress }}{% else %}0{% endif %}%;"></div>
                 </div>
-                <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}{% else %}{{ project.progress }}{% endif %}%</span>
+                <span class="mp-progress-pct">{% if project.task_total %}{{ live_progress }}%{% else %}Aucune tâche{% endif %}</span>
             </div>
         </a>
         {% endfor %}

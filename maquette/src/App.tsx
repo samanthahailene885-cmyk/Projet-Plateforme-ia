@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { deskCall, enterSession, leaveSession, openSession, showSpace } from './work'
 
 type Role = 'admin' | 'employee'
 type Go = (page: string) => void
 
-const adminPages = ['dashboard', 'employees', 'projects', 'tasks', 'todos', 'reports', 'permissions', 'alerts', 'messaging', 'notifications', 'assistant', 'demo', 'settings']
-const employeePages = ['dashboard', 'projects', 'tasks', 'todos', 'reports', 'permissions', 'messaging', 'assistant', 'profile']
+const adminPages = ['dashboard', 'employees', 'projects', 'tasks', 'todos', 'reports', 'permissions', 'documents', 'alerts', 'messaging', 'notifications', 'assistant', 'ai-reports', 'demo', 'settings']
+const employeePages = ['dashboard', 'projects', 'tasks', 'todos', 'reports', 'permissions', 'messaging', 'notifications', 'assistant', 'profile']
 
 const people = [
   { id: 'zaina', name: 'Zaina Nouzou', role: 'Graphiste', service: 'Création', initials: 'ZN', tone: '', status: 'Actif', todo: '4 / 5 tâches', seen: 'Il y a 8 min', online: true, reports: 8, presence: '92 %' },
@@ -13,18 +14,41 @@ const people = [
   { id: 'lucas', name: 'Lucas Nguema', role: 'Développeur web', service: 'Digital', initials: 'LN', tone: 'tone-green', status: 'Actif', todo: '5 / 6 tâches', seen: 'Il y a 1 h', online: true, reports: 7, presence: '95 %' },
 ]
 
-const projects = [
-  { id: 'tiko', name: 'Campagne Tiko Transit', client: 'Tiko Transit Logistics', owner: 'Paul Mbia', progress: 72, status: 'En cours', due: '18 oct. 2026' },
-  { id: 'hotel', name: 'Identité visuelle Hôtel Baie', client: 'Hôtel de la Baie', owner: 'Zaina Nouzou', progress: 40, status: 'En cours', due: '11 oct. 2026' },
-  { id: 'nova', name: 'Lancement produit Nova', client: 'Nova Cosmetics', owner: 'Amina Diallo', progress: 100, status: 'Terminé', due: '28 sept. 2026' },
+type ProjectFile = { name: string; kind: string; size: string; url?: string; html?: string }
+type LeaveRequest = { id: string; who: string; type: string; dates: string; motif: string; status: string; file?: ProjectFile; seen?: boolean }
+type ProjectCard = { id: string; name: string; client: string; owner: string; progress: number; status: string; due: string; start?: string; description?: string; priority?: string; members?: string[]; team?: { name: string; initials: string }[]; file?: ProjectFile; files?: ProjectFile[] }
+type AssignedTask = { id: string; title: string; project: string; projectId: string; who: string; whoId: string; priority: string; tone: string; due: string; status: string; docs?: { name: string; url: string }[]; resultUrl?: string; resultName?: string }
+
+const projects: ProjectCard[] = [
+  { id: 'tiko', name: 'Campagne Tiko Transit', client: 'Tiko Transit Logistics', owner: 'Paul Mbia', progress: 72, status: 'En cours', due: '18 oct. 2026', members: ['paul', 'zaina'] },
+  { id: 'hotel', name: 'Identité visuelle Hôtel Baie', client: 'Hôtel de la Baie', owner: 'Zaina Nouzou', progress: 40, status: 'En cours', due: '11 oct. 2026', members: ['zaina'] },
+  { id: 'nova', name: 'Lancement produit Nova', client: 'Nova Cosmetics', owner: 'Amina Diallo', progress: 100, status: 'Terminé', due: '28 sept. 2026', members: ['amina'] },
 ]
 
-const tasks = [
-  { id: 't1', title: "Maquette page d'accueil", project: 'Tiko Transit', who: 'Zaina Nouzou', priority: 'Élevée', tone: 'high', due: '8 oct. 2026', status: 'En cours', mine: true },
-  { id: 'b', title: 'Validation du logo', project: 'Hôtel de la Baie', who: 'Paul Mbia', priority: 'Urgente', tone: 'urgent', due: '4 oct. 2026', status: 'En retard', mine: false },
-  { id: 'c', title: 'Rédaction du post Instagram', project: 'Nova Cosmetics', who: 'Amina Diallo', priority: 'Moyenne', tone: 'mid', due: '5 oct. 2026', status: 'Terminée', mine: false },
-  { id: 't2', title: 'Déclinaison des bannières', project: 'Tiko Transit', who: 'Zaina Nouzou', priority: 'Moyenne', tone: 'mid', due: '9 oct. 2026', status: 'À faire', mine: true },
-]
+function priorityTone(priority: string) {
+  if (priority === 'Urgente') return 'urgent'
+  if (priority === 'Élevée') return 'high'
+  return 'mid'
+}
+
+function needsProof(motif: string) {
+  const value = motif.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return value.includes('maladie') || value.includes('arret')
+}
+
+function formatLeaveDates(from: string, to: string) {
+  const start = formatFrenchDate(from)
+  const end = to ? formatFrenchDate(to) : ''
+  if (!start) return 'Non renseignée'
+  return end && end !== start ? `${start} – ${end}` : start
+}
+
+function formatFrenchDate(iso: string) {
+  const months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+  const [year, month, day] = iso.split('-').map(Number)
+  if (!year || !month || !day) return iso
+  return `${day} ${months[month - 1]} ${year}`
+}
 
 const zaina = {
   name: 'zaina zaina',
@@ -37,14 +61,6 @@ const zaina = {
   hired: '21 juillet 2026',
   photo: '/profil-zaina.jpg',
 }
-
-const zainaTasks = [
-  { id: '6', title: 'creationn de site de marenova', project: 'creationn de site de marenova', who: zaina.name, priority: 'Urgente', tone: 'urgent', due: '10 sept. 2026', status: 'Terminée', mine: true },
-  { id: '7', title: 'Explorer toutes les pages existantes du site CuisineFacile.', project: 'analyse du site', who: zaina.name, priority: 'Moyenne', tone: 'mid', due: '—', status: 'Terminée', mine: true },
-  { id: '8', title: 'Identifier les fonctionnalités liées aux BOX cuisine', project: 'analyse du site', who: zaina.name, priority: 'Moyenne', tone: 'mid', due: '—', status: 'Terminée', mine: true },
-  { id: '9', title: 'Supprimer les mentions "Box cuisine"', project: 'NETTOYAGE ET SUPPRESSION DES ANCIENNES FONCTIONNALITÉS', who: zaina.name, priority: 'Moyenne', tone: 'mid', due: '—', status: 'Terminée', mine: true },
-  { id: '10', title: "Retirer les éléments liés à la livraison d'ingrédients frais.", project: 'NETTOYAGE ET SUPPRESSION DES ANCIENNES FONCTIONNALITÉS', who: zaina.name, priority: 'Moyenne', tone: 'mid', due: '—', status: 'Terminée', mine: true },
-]
 
 const zainaProjects = [
   { id: 'marenova', name: 'creationn de site de marenova', client: 'Non renseigné', owner: zaina.name, progress: 100, status: 'Terminé', due: '10 sept. 2026' },
@@ -61,80 +77,17 @@ const zainaReports: { date: string; name: string; size: string; url?: string; ki
   { date: '21 juil. 2026', name: 'Rapport sans fichier', size: '—' },
 ]
 
-const zainaPermissions = [
-  { who: zaina.name, type: 'Permission', dates: '6 sept. – 16 sept. 2026', motif: 'Rendez-vous médical', status: 'Annulée' },
-  { who: zaina.name, type: 'Permission', dates: '25 sept. 2026', motif: 'Vacances', status: 'Approuvée' },
-  { who: zaina.name, type: 'Congé annuel', dates: '30 sept. – 7 nov. 2026', motif: 'Vacances', status: 'Refusée' },
+const zainaPermissions: LeaveRequest[] = [
+  { id: 'zp1', who: zaina.name, type: 'Permission', dates: '6 sept. – 16 sept. 2026', motif: 'Rendez-vous médical', status: 'Annulée' },
+  { id: 'zp2', who: zaina.name, type: 'Permission', dates: '25 sept. 2026', motif: 'Vacances', status: 'Approuvée' },
+  { id: 'zp3', who: zaina.name, type: 'Congé annuel', dates: '30 sept. – 7 nov. 2026', motif: 'Vacances', status: 'Refusée' },
 ]
 
 type Staff = { id: string; name: string; role: string; service: string; initials: string; tone: string; status: string; todo: string; seen: string; online: boolean; reports: number; presence: string; demo?: boolean }
 type ReportFile = { id: string; person: string; name: string; kind: string; size: string; date: string; scope: string; demo?: boolean; url?: string; html?: string }
 type PlanItem = { id: string; text: string; done: boolean }
 type DayPlan = { personId: string; items: PlanItem[] }
-type DemoBundle = { staff: Staff[]; files: ReportFile[]; plans: DayPlan[]; accounts: Account[] }
-
 const DEMO_PASSWORD = 'Demo-Racine-2026'
-const DEMO_PEOPLE: [string, string][] = [
-  ['Fatou', 'Diarra'], ['Mariama', 'Camara'], ['Awa', 'Traoré'], ['Aïcha', 'Touré'], ['Sophie', 'Koné'],
-  ['Mariam', 'Bah'], ['Rokia', 'Coulibaly'], ['Aminata', 'Sangaré'], ['Yao', 'Kouadio'], ['Ibrahim', 'Bah'],
-  ['Moussa', 'Diallo'], ['Sékou', 'Camara'], ['Amadou', 'Koné'], ['Oumar', 'Keita'], ['Cheick', 'Traoré'],
-  ['Abdoulaye', 'Cissé'], ['Nadia', 'Ouédraogo'], ['Kadiatou', 'Sidibé'], ['Jean', 'Koffi'], ['Paul', 'Mensah'],
-]
-const DEMO_JOBS = [
-  { role: 'Développeur web', service: 'Digital', tone: 'tone-green', tasks: ["Corriger la page d'accueil", 'Intégrer le formulaire de contact', "Vérifier l'affichage mobile", 'Mettre à jour les liens du menu'] },
-  { role: 'Graphiste', service: 'Création', tone: '', tasks: ['Finaliser la maquette du site', 'Préparer les visuels Facebook', 'Ajuster la couverture de campagne', 'Décliner le logo en petit format'] },
-  { role: 'Community manager', service: 'Communication', tone: 'tone-amber', tasks: ['Programmer les publications de la semaine', 'Répondre aux commentaires en attente', 'Préparer le calendrier éditorial', 'Relire les légendes des posts'] },
-  { role: 'Chargé de communication', service: 'Communication', tone: 'tone-sky', tasks: ['Rédiger le texte de la page services', 'Relire le communiqué client', 'Préparer le brief de la campagne', 'Mettre à jour la présentation commerciale'] },
-  { role: 'Chef de projet', service: 'Production', tone: 'tone-navy', tasks: ["Vérifier l'avancement avec le client", 'Mettre à jour le planning de livraison', 'Relancer les éléments manquants', "Préparer le point d'équipe"] },
-]
-
-function demoSlug(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
-}
-
-function buildDemo(count: number): DemoBundle {
-  const chosen = DEMO_PEOPLE.slice(0, count)
-  const staff: Staff[] = []
-  const files: ReportFile[] = []
-  const plans: DayPlan[] = []
-  const accounts: Account[] = []
-  chosen.forEach(([first, last], index) => {
-    const job = DEMO_JOBS[index % DEMO_JOBS.length]
-    const username = `demo.${demoSlug(first)}.${demoSlug(last)}`
-    const done = 3
-    staff.push({
-      id: username,
-      name: `${first} ${last}`,
-      role: job.role,
-      service: job.service,
-      initials: `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase(),
-      tone: job.tone,
-      status: 'Actif',
-      todo: `${done} / ${job.tasks.length} tâches`,
-      seen: 'À l’instant',
-      online: index % 3 !== 2,
-      reports: 1,
-      presence: '100 %',
-      demo: true,
-    })
-    plans.push({
-      personId: username,
-      items: job.tasks.map((text, taskIndex) => ({ id: `${username}-${taskIndex}`, text, done: taskIndex < done })),
-    })
-    files.push({
-      id: `demo-report-${username}`,
-      person: username,
-      name: `Rapport_05_octobre_${demoSlug(last)}.pdf`,
-      kind: 'PDF',
-      size: '640 Ko',
-      date: '5 oct. 2026',
-      scope: 'week',
-      demo: true,
-    })
-    accounts.push({ username, email: `${username}@demo.racin.local`, password: DEMO_PASSWORD, first, last })
-  })
-  return { staff, files, plans, accounts }
-}
 
 const reportFiles = [
   { id: 'f1', person: 'zaina', name: 'Rapport_05_octobre.pdf', kind: 'PDF', size: '1,2 Mo', date: '5 oct. 2026', scope: 'week' },
@@ -143,18 +96,6 @@ const reportFiles = [
   { id: 'f4', person: 'paul', name: 'Rapport_04_octobre.pdf', kind: 'PDF', size: '980 Ko', date: '4 oct. 2026', scope: 'month' },
   { id: 'f5', person: 'lucas', name: 'Rapport_05_octobre.pdf', kind: 'PDF', size: '740 Ko', date: '5 oct. 2026', scope: 'week' },
 ]
-
-const adminAnswers: Record<string, string> = {
-  "Qui n'a pas renseigné sa Todo List aujourd'hui ?": "Amina Diallo n'a pas renseigné sa Todo List. Elle est en congé aujourd'hui, ce n'est pas une absence non justifiée.",
-  'Quels projets sont en retard ?': "Aucun projet n'est en retard. Identité visuelle Hôtel Baie arrive à échéance le 11 octobre et demande un suivi.",
-  "Résume l'activité de l'équipe aujourd'hui.": "8 employés sont actifs. 18 activités sont terminées, 16 sont en cours et 3 sont en retard. Zaina a transmis son rapport.",
-}
-
-const employeeAnswers: Record<string, string> = {
-  'Quelles sont mes tâches en retard ?': "Aucune tâche en retard. Les 5 tâches attribuées à zaina zaina sont terminées.",
-  'Résume ma journée.': "Le rapport TIKO_TRANSIT__LOGISTICS_1 a été transmis le 5 octobre. Aucune tâche n'est ouverte aujourd'hui.",
-  'Quel est mon prochain délai ?': "Aucune échéance ouverte. La dernière échéance enregistrée était le 10 septembre 2026, pour le site Marenova.",
-}
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
   const props = {
@@ -175,6 +116,8 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
       return <svg {...props}><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.2" /><path d="M3.5 19c.7-2.6 2.8-4 5.5-4s4.8 1.4 5.5 4" /><path d="M14.5 15.2c1.5-.2 3 .3 4 1.6.6.8 1 1.6 1.1 2.2" /></svg>
     case 'folder':
       return <svg {...props}><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9z" /></svg>
+    case 'case':
+      return <svg {...props}><rect x="3" y="8" width="18" height="12" rx="2" /><path d="M8 8V6.5A2.5 2.5 0 0 1 10.5 4h3A2.5 2.5 0 0 1 16 6.5V8" /><path d="M3 13h18" /></svg>
     case 'tasks':
       return <svg {...props}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 12l2.2 2.2L16 9" /></svg>
     case 'list':
@@ -221,6 +164,8 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
       return <svg {...props}><path d="M4 16l5-5 3 3 7-8" /><path d="M14 6h6v6" /></svg>
     case 'download':
       return <svg {...props}><path d="M12 4v10M8 10l4 4 4-4M5 19h14" /></svg>
+    case 'sun':
+      return <svg {...props}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v2.2M12 19.3V21.5M2.5 12h2.2M19.3 12H21.5M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M18.9 5.1l-1.6 1.6M6.7 17.3l-1.6 1.6" /></svg>
     default:
       return null
   }
@@ -247,8 +192,8 @@ function Avatar({ initials, tone = '', size = '', online = false, src = '' }: { 
   )
 }
 
-function Button({ children, onClick, ghost = false, soft = false, type = 'button' }: { children: ReactNode; onClick?: () => void; ghost?: boolean; soft?: boolean; type?: 'button' | 'submit' }) {
-  return <button className={`btn${ghost ? ' ghost' : ''}${soft ? ' soft' : ''}`} type={type} onClick={onClick}>{children}</button>
+function Button({ children, onClick, ghost = false, soft = false, danger = false, type = 'button' }: { children: ReactNode; onClick?: () => void; ghost?: boolean; soft?: boolean; danger?: boolean; type?: 'button' | 'submit' }) {
+  return <button className={`btn${ghost ? ' ghost' : ''}${soft ? ' soft' : ''}${danger ? ' danger' : ''}`} type={type} onClick={onClick}>{children}</button>
 }
 
 function PageHeader({ kicker, title, subtitle, action }: { kicker?: string; title: string; subtitle: string; action?: ReactNode }) {
@@ -264,103 +209,300 @@ function PageHeader({ kicker, title, subtitle, action }: { kicker?: string; titl
   )
 }
 
-function Metric({ icon, tone, label, value, hint, hintTone = '', onClick, active = false }: { icon: string; tone: string; label: string; value: string; hint?: string; hintTone?: string; onClick?: () => void; active?: boolean }) {
-  const body = (
-    <>
-      <span className={`metric-ico ${tone}`}><Icon name={icon} size={15} /></span>
-      <span>
-        <span className="metric-label">{label}</span>
-        <strong className="metric-value">{value}</strong>
-        {hint ? <span className={`metric-hint ${hintTone}`}>{hint}</span> : null}
-      </span>
-    </>
-  )
-  if (onClick) return <button className={`card metric${active ? ' on' : ''}`} type="button" onClick={onClick}>{body}</button>
-  return <article className="card metric">{body}</article>
+type LiveMetrics = {
+  employees_active: number
+  employees_total: number
+  projects_total: number
+  projects_in_progress: number
+  projects_completed: number
+  projects_upcoming: number
+  tasks_total: number
+  tasks_completed: number
+  tasks_completed_today: number
+  tasks_in_progress: number
+  tasks_not_started: number
+  tasks_overdue: number
+  todo_lists_today: number
+  todo_lists_missing: number
+  reports_submitted_today: number
+  reports_missing_today: number
+  pending_permissions: number
+  difficulties_open: number
+  alerts_active: number
 }
 
-function LineChart() {
-  const w = 520
-  const h = 168
-  const pad = 22
-  const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-  const series = [
-    { color: '#10B981', data: [3, 4, 5, 4, 6, 5, 7] },
-    { color: '#38BDF8', data: [5, 6, 4, 7, 6, 5, 6] },
-    { color: '#F59E0B', data: [2, 3, 2, 3, 2, 2, 1] },
-    { color: '#EF4444', data: [1, 1, 2, 1, 2, 1, 1] },
-  ]
-  const max = 8
-  const x = (i: number) => pad + (i * (w - pad * 2)) / 6
-  const y = (v: number) => h - pad - (v / max) * (h - pad * 2)
-  const path = (data: number[]) => data.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ')
-  const area = `${path(series[1].data)} L${x(6)},${h - pad} L${x(0)},${h - pad} Z`
-  return (
-    <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Évolution des activités">
-      {[0, 1, 2, 3].map((i) => {
-        const gy = pad + (i * (h - pad * 2)) / 3
-        return <line key={i} x1={pad} x2={w - pad} y1={gy} y2={gy} stroke="rgba(185,204,224,.18)" />
-      })}
-      <path d={area} fill="rgba(37,99,235,.18)" />
-      {series.map((item) => <path key={item.color} d={path(item.data)} fill="none" stroke={item.color} strokeWidth="2" />)}
-      {labels.map((label, i) => <text key={label} x={x(i)} y={h - 4} textAnchor="middle" fill="#87A2BB" fontSize="10">{label}</text>)}
-    </svg>
-  )
+type LiveDash = {
+  authenticated: boolean
+  manager_name: string
+  metrics: LiveMetrics
+  series: { labels: string[]; completed: number[]; in_progress: number[]; late: number[]; empty: boolean }
+  donut: { total: number; empty: boolean; rows: { label: string; count: number; color: string; percent: number }[] }
+  team: { rank: string; initials: string; name: string; role: string; width: string; score: string }[]
+  alerts: { title: string; text: string }[]
+  brief: string
 }
 
-function Donut() {
-  const parts = [
-    { label: 'En cours', value: 6, color: '#2563EB' },
-    { label: 'Terminés', value: 3, color: '#10B981' },
-    { label: 'En attente', value: 2, color: '#F59E0B' },
-    { label: 'En retard', value: 1, color: '#EF4444' },
+function seriesPath(values: number[], peak: number) {
+  const width = 700
+  const height = 200
+  const top = Math.max(peak, 1)
+  if (!values.length) return ''
+  return values.map((value, index) => {
+    const x = values.length === 1 ? 0 : (index / (values.length - 1)) * width
+    const y = height - 8 - (value / top) * (height - 24)
+    return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
+  }).join(' ')
+}
+
+function csrfToken() {
+  const raw = document.cookie.split('; ').find((item) => item.startsWith('csrftoken='))?.split('=')[1] ?? ''
+  return decodeURIComponent(raw)
+}
+
+function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const [live, setLive] = useState<LiveDash | null>(null)
+  const [notice, setNotice] = useState('')
+  const [reportState, setReportState] = useState<'idle' | 'loading' | 'done'>('idle')
+  const [synthesis, setSynthesis] = useState('')
+  const [synthesisError, setSynthesisError] = useState('')
+  useEffect(() => {
+    let cancel = false
+    function load() {
+      fetch('/dashboard/indicateurs.json', { credentials: 'same-origin' })
+        .then(async (response) => {
+          if (!response.ok) throw new Error('unavailable')
+          return response.json() as Promise<LiveDash>
+        })
+        .then((data) => { if (!cancel) setLive(data) })
+        .catch(() => {
+          if (!cancel) setNotice('Les indicateurs viennent de la base. Connectez-vous en responsable sur la plateforme de données pour les afficher. Aucun chiffre n’est inventé.')
+        })
+    }
+    load()
+    function onVisible() { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = window.setInterval(load, 15000)
+    return () => { cancel = true; document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer) }
+  }, [])
+  const metrics = live?.metrics
+  const kpis = [
+    { icon: 'users', tone: 'blue', label: 'Employés actifs', value: String(metrics?.employees_active ?? 0), detail: `${metrics?.employees_total ?? 0} au total`, page: 'employees', danger: false },
+    { icon: 'folder', tone: 'violet', label: 'Projets', value: String(metrics?.projects_total ?? 0), detail: `${metrics?.projects_completed ?? 0} terminé${(metrics?.projects_completed ?? 0) > 1 ? 's' : ''} · ${metrics?.projects_in_progress ?? 0} en cours`, page: 'projects', danger: false },
+    { icon: 'check', tone: 'green', label: 'Tâches terminées', value: String(metrics?.tasks_completed ?? 0), detail: `${metrics?.tasks_in_progress ?? 0} en cours · ${metrics?.tasks_not_started ?? 0} non commencées`, page: 'tasks', danger: false },
+    { icon: 'clock', tone: 'orange', label: 'Terminées aujourd’hui', value: String(metrics?.tasks_completed_today ?? 0), detail: `${metrics?.tasks_total ?? 0} tâches au total`, page: 'tasks', danger: false },
+    { icon: 'file', tone: 'cyan', label: 'Rapports reçus', value: `${metrics?.reports_submitted_today ?? 0}/${metrics?.employees_active ?? 0}`, detail: `${metrics?.reports_missing_today ?? 0} non soumis`, page: 'reports', danger: false },
+    { icon: 'alert', tone: 'red', label: 'Alertes actives', value: String(metrics?.alerts_active ?? 0), detail: `${metrics?.tasks_overdue ?? 0} en retard`, page: 'alerts', danger: true },
   ]
-  const r = 42
-  const c = 2 * Math.PI * r
+  const series = live?.series
+  const peak = Math.max(0, ...(series?.completed ?? []), ...(series?.in_progress ?? []), ...(series?.late ?? []))
+  const axis = [1, 0.75, 0.5, 0.25, 0].map((step) => String(Math.round(Math.max(peak, 4) * step)))
+  const slices = (live?.donut.rows ?? []).filter((row) => row.count > 0)
   let cursor = 0
-  const arcs = parts.map((part) => {
-    const len = (part.value / 12) * c
-    const start = cursor
-    cursor += len
-    return { ...part, len, start }
-  })
+  const gradient = slices.length
+    ? `conic-gradient(${slices.map((row) => {
+        const start = cursor
+        cursor += row.percent
+        return `${row.color} ${start}% ${cursor}%`
+      }).join(',')})`
+    : '#e8edf4'
+  const firstName = (live?.manager_name || '').split(' ')[0] || ''
+  async function generateSynthesis() {
+    setReportState('loading')
+    setSynthesisError('')
+    try {
+      const response = await fetch('/reports/synthese/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
+        body: new URLSearchParams({ date: new Date().toISOString().slice(0, 10) }),
+      })
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; error?: string } | null
+      if (!response.ok || !data?.ok || !data.synthesis) {
+        setSynthesisError(data?.error || 'Le service IA est momentanément indisponible.')
+        setReportState('idle')
+        return
+      }
+      setSynthesis(data.synthesis)
+      setReportState('done')
+    } catch {
+      setSynthesisError('Le service IA est momentanément indisponible.')
+      setReportState('idle')
+    }
+  }
   return (
-    <div className="donut-row">
-      <svg width="132" height="132" viewBox="0 0 140 140" role="img" aria-label="12 projets">
-        <g transform="rotate(-90 70 70)">
-          {arcs.map((arc) => (
-            <circle key={arc.label} cx="70" cy="70" r={r} fill="none" stroke={arc.color} strokeWidth="12" strokeDasharray={`${arc.len - 2} ${c - arc.len + 2}`} strokeDashoffset={-arc.start} />
-          ))}
-        </g>
-        <text x="70" y="68" textAnchor="middle" fill="#F8FAFC" fontSize="20" fontWeight="600">12</text>
-        <text x="70" y="84" textAnchor="middle" fill="#87A2BB" fontSize="10">projets</text>
-      </svg>
-      <div className="donut-legend">
-        {arcs.map((arc) => (
-          <div key={arc.label}><span><i style={{ background: arc.color }} />{arc.label}</span><strong>{arc.value}</strong></div>
+    <section className="africa">
+      <div className="af-head">
+        <div>
+          <span className="af-eyebrow">{todayLabel}</span>
+          <h1>Bonjour{firstName ? `, ${firstName}` : ''}</h1>
+          <p>Voici ce qui se passe dans votre entreprise aujourd’hui.</p>
+        </div>
+        <button className={`af-primary${reportState === 'done' ? ' done' : ''}`} type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>
+          <span className={reportState === 'loading' ? 'af-spin' : ''}><Icon name={reportState === 'done' ? 'check' : 'spark'} size={16} /></span>
+          {reportState === 'loading' ? 'Analyse des rapports...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}
+        </button>
+      </div>
+      {notice ? <p className="lp-note">{notice}</p> : null}
+
+      <div className="af-kpis">
+        {kpis.map((item) => (
+          <button className="af-kpi" type="button" key={item.label} onClick={() => onNavigate(item.page)}>
+            <div className="af-kpi-top">
+              <span className={`af-kpi-icon ${item.tone}`}><Icon name={item.icon} size={16} /></span>
+              <span className="af-kpi-label">{item.label}</span>
+            </div>
+            <strong>{item.value}</strong>
+            <small><b className={item.danger ? 'danger' : ''}>{item.danger ? <Icon name="alert" size={12} /> : null}{item.detail}</b></small>
+          </button>
         ))}
       </div>
-    </div>
-  )
-}
 
-function FilterBar({ children }: { children: ReactNode }) {
-  return <div className="filters">{children}</div>
-}
+      <div className="af-grid">
+        <article className="af-panel af-wide">
+          <div className="af-panel-head">
+            <div>
+              <h2>Évolution des tâches</h2>
+              <p>Comptes réels des 7 derniers jours</p>
+            </div>
+            <div className="af-legend">
+              <span><i className="blue" /> Terminées</span>
+              <span><i className="green" /> En cours</span>
+              <span><i className="red" /> En retard</span>
+              <em>7 derniers jours</em>
+            </div>
+          </div>
+          <div className="af-chart">
+            <div className="af-ylabs">{axis.map((label, index) => <span key={index}>{label}</span>)}</div>
+            <div className="af-gridlines"><span /><span /><span /><span /><span /></div>
+            <svg viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Évolution des tâches">
+              <path className="af-line blue" d={seriesPath(series?.completed ?? [], peak)} />
+              <path className="af-line green" d={seriesPath(series?.in_progress ?? [], peak)} />
+              <path className="af-line red" d={seriesPath(series?.late ?? [], peak)} />
+            </svg>
+            <div className="af-xlabs">{(series?.labels ?? ['—']).map((label) => <span key={label}>{label}</span>)}</div>
+          </div>
+        </article>
 
-function AttentionCard({ icon, tone, flag, flagTone, value, label, action, onClick }: { icon: string; tone: string; flag: string; flagTone: string; value: string; label: string; action: string; onClick: () => void }) {
-  return (
-    <button className="card attn-card" type="button" onClick={onClick}>
-      <div className="attn-top">
-        <span className={`metric-ico ${tone}`}><Icon name={icon} size={14} /></span>
-        <span className={`flag ${flagTone}`}>{flag}</span>
+        <AgencyCalendar />
+
+        <article className="af-panel">
+          <div className="af-panel-head">
+            <div>
+              <h2>Répartition globale</h2>
+            </div>
+          </div>
+          <div className="af-donut-row">
+            <div className="af-donut" style={{ background: gradient }}><div><strong>{live?.donut.total ?? 0}</strong><small>PROJETS</small></div></div>
+            <div className="af-donut-legend">
+              {(live?.donut.rows ?? []).filter((row) => ['En cours', 'Terminés', 'À venir', 'En retard'].includes(row.label)).map((row) => (
+                <div key={row.label}><i style={{ background: row.color }} /><span>{row.label}<small>{row.count} projet{row.count > 1 ? 's' : ''}</small></span><b>{row.percent}%</b></div>
+              ))}
+              {live?.donut.empty || !live ? <div><span>Aucune tâche de répartition<small>0 projet enregistré</small></span></div> : null}
+            </div>
+          </div>
+        </article>
+
+        <article className="af-ai">
+          <div className="af-ai-head">
+            <span className="af-ai-icon"><Icon name="spark" size={18} /></span>
+            <div>
+              <small>Réel</small>
+              <h2>Synthèse intelligente</h2>
+            </div>
+            <em>{synthesis ? 'Généré par IA' : 'Faits enregistrés'}</em>
+          </div>
+          <p>{synthesisError || synthesis || live?.brief || 'Aucune activité enregistrée pour cette date.'}</p>
+          <div className="af-ai-stats">
+            <span><strong>{metrics?.todo_lists_today ?? 0}</strong><small>Todo Lists du jour</small></span>
+            <span><strong>{metrics?.todo_lists_missing ?? 0}</strong><small>Todo Lists manquantes</small></span>
+            <span><strong>{metrics?.difficulties_open ?? 0}</strong><small>Difficultés ouvertes</small></span>
+          </div>
+          <button type="button" onClick={() => onNavigate('assistant')}>Voir l’analyse complète <Icon name="chevron" size={14} /></button>
+        </article>
+
+        <article className="af-panel af-team">
+          <div className="af-panel-head">
+            <div>
+              <h2>Performance des équipes</h2>
+              <p>Tâches terminées ce mois</p>
+            </div>
+            <button type="button" onClick={() => onNavigate('employees')}>Voir tous <Icon name="chevron" size={14} /></button>
+          </div>
+          <div className="af-team-list">
+            {(live?.team ?? []).map((person, index) => (
+              <div className="af-person" key={person.name}>
+                <span className="af-rank">{person.rank}</span>
+                <span className={`af-chip ${['violet', '', 'orange', 'green'][index] ?? ''}`}>{person.initials}</span>
+                <span className="af-who"><strong>{person.name}</strong><small>{person.role}</small></span>
+                <span className="af-bar"><i style={{ width: person.width }} /></span>
+                <b>{person.score}</b>
+              </div>
+            ))}
+            {live && live.team.length === 0 ? <p className="muted">Aucune tâche terminée ce mois.</p> : null}
+          </div>
+        </article>
+
+        <article className="af-panel af-alerts">
+          <div className="af-panel-head">
+            <div>
+              <h2>Centre d’alertes</h2>
+              <p>Éléments nécessitant votre attention</p>
+            </div>
+            <button type="button" onClick={() => onNavigate('alerts')}>Tout voir <Icon name="chevron" size={14} /></button>
+          </div>
+          {(live?.alerts ?? []).map((alert) => (
+            <button className="af-alert" type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
+              <span className="red"><Icon name="alert" size={14} /></span>
+              <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
+            </button>
+          ))}
+          {live && live.alerts.length === 0 ? <p className="muted">Aucune alerte active.</p> : null}
+          {!live && !notice ? <p className="muted">Calcul des indicateurs...</p> : null}
+        </article>
       </div>
-      <strong>{value}</strong>
-      <p>{label}</p>
-      <em>{action}</em>
-    </button>
+    </section>
   )
 }
+
+function AgencyCalendar() {
+  const today = new Date()
+  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7
+  const count = new Date(year, month + 1, 0).getDate()
+  const cells = [...Array(lead).fill(0), ...Array.from({ length: count }, (_, index) => index + 1)]
+  while (cells.length % 7) cells.push(0)
+  const title = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  function isToday(day: number) {
+    return day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+  }
+  return (
+    <article className="af-panel af-cal">
+      <div className="af-panel-head">
+        <div>
+          <h2>Calendrier</h2>
+          <p>Vue d’ensemble de l’équipe</p>
+        </div>
+      </div>
+      <div className="af-cal-nav">
+        <button type="button" aria-label="Mois précédent" onClick={() => setCursor(new Date(year, month - 1, 1))}><Icon name="chevron" size={14} /></button>
+        <strong>{title}</strong>
+        <button type="button" aria-label="Mois suivant" onClick={() => setCursor(new Date(year, month + 1, 1))}><Icon name="chevron" size={14} /></button>
+      </div>
+      <div className="af-cal-grid af-cal-week">
+        {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+      </div>
+      <div className="af-cal-grid">
+        {cells.map((day, index) => (
+          <span key={index} className={day && isToday(day) ? 'today' : ''}>{day || ''}</span>
+        ))}
+      </div>
+    </article>
+  )
+}
+
 
 function statusClass(status: string) {
   if (status === 'Actif' || status === 'Terminée' || status === 'Terminé' || status === 'Approuvée' || status === 'Soumis') return 'ok'
@@ -369,328 +511,1150 @@ function statusClass(status: string) {
   return 'wait'
 }
 
-function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
-  const [sheet, setSheet] = useState(false)
+function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; onToggle: (id: string) => void; onNavigate: Go; receivedProjects: ProjectCard[]; receivedTasks: AssignedTask[]; name?: string }) {
+  const today = new Date()
+  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7
+  const count = new Date(year, month + 1, 0).getDate()
+  const cells = [...Array(lead).fill(0), ...Array.from({ length: count }, (_, index) => index + 1)]
+  while (cells.length % 7) cells.push(0)
+  const monthTitle = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  const [priorities, setPriorities] = useState([
+    { n: '1', tone: 'pink', title: 'Aucune tâche pour le moment', project: 'Vos tâches apparaîtront ici', time: '—' },
+  ])
+  const [kpis, setKpis] = useState({ tasks: 0, done: 0, projects: 0, progress: '—', due: '—' })
+  useEffect(() => {
+    Promise.all([deskCall('/api/taches/'), deskCall('/api/projets/')]).then(([taskData, projectData]) => {
+      const tasks = ((taskData.tasks ?? []) as { title: string; project: string; due_date: string; status_label: string; planned_date: string }[]).filter((item) => !(item.planned_date && !item.due_date))
+      const projects = (projectData.projects ?? []) as { name: string; progress: number }[]
+      const done = tasks.filter((item) => item.status_label === 'Terminée').length
+      setKpis({
+        tasks: tasks.length,
+        done,
+        projects: projects.length,
+        progress: projects[0] ? `${projects[0].progress} % ${projects[0].name}` : 'Aucun projet',
+        due: tasks.find((item) => item.due_date)?.due_date || '—',
+      })
+      if (tasks.length) {
+        setPriorities(tasks.slice(0, 3).map((item, index) => ({
+          n: String(index + 1),
+          tone: ['pink', 'violet', 'blue'][index] || 'blue',
+          title: item.title,
+          project: item.project || 'Sans projet',
+          time: item.due_date || '—',
+        })))
+      }
+    }).catch(() => undefined)
+  }, [])
   return (
-    <section>
-      <PageHeader
-        title="Tableau de bord"
-        subtitle="Vue d'ensemble de l'activité de l'agence"
-        action={<Button onClick={() => setSheet(true)}><Icon name="spark" size={14} /> Générer la synthèse IA</Button>}
-      />
-      <div className="metrics m5">
-        <Metric icon="users" tone="blue" label="Employés actifs" value="8 / 10" hint="+1 ce mois" hintTone="up" />
-        <Metric icon="list" tone="cyan" label="Activités totales" value="42" />
-        <Metric icon="check" tone="green" label="Activités terminées" value="18" hint="+12 % cette semaine" hintTone="up" />
-        <Metric icon="clock" tone="orange" label="Activités en cours" value="16" />
-        <Metric icon="alert" tone="red" label="Activités en retard" value="3" hint="À traiter" hintTone="warn" />
-      </div>
-      <div className="dash-grid">
-        <article className="card card-pad">
-          <h2>Évolution des activités</h2>
-          <p className="sub">Nombre d'activités par statut au cours des 7 derniers jours</p>
-          <LineChart />
-          <div className="legend">
-            <span><i style={{ background: '#10B981' }} />Terminées</span>
-            <span><i style={{ background: '#38BDF8' }} />En cours</span>
-            <span><i style={{ background: '#F59E0B' }} />Non commencées</span>
-            <span><i style={{ background: '#EF4444' }} />En retard</span>
-          </div>
-        </article>
-        <article className="card card-pad">
-          <h2>État des projets</h2>
-          <p className="sub">Répartition des projets enregistrés</p>
-          <Donut />
-        </article>
-      </div>
-      <h2 className="card-title" style={{ margin: '4px 0 8px' }}>Points d'attention</h2>
-      <div className="attn">
-        <AttentionCard icon="alert" tone="red" flag="À traiter" flagTone="" value="3" label="activités en retard" action="Ouvrir les activités" onClick={() => onNavigate('tasks')} />
-        <AttentionCard icon="clock" tone="orange" flag="Cette semaine" flagTone="warn" value="2" label="projets proches de l'échéance" action="Voir les projets" onClick={() => onNavigate('projects')} />
-        <AttentionCard icon="file" tone="blue" flag="Aujourd'hui" flagTone="info" value="1" label="difficulté signalée" action="Lire le détail" onClick={() => onNavigate('alerts')} />
-      </div>
-      {sheet ? (
-        <article className="card card-pad" style={{ marginTop: 12 }}>
-          <h2>Synthèse IA</h2>
-          <p className="sub" style={{ marginTop: 6 }}>Lundi 5 octobre 2026 · 8 rapports analysés</p>
-          <p style={{ marginTop: 8, color: 'var(--muted)', lineHeight: 1.5 }}>L'équipe avance sur Tiko Transit et l'identité Hôtel Baie. Trois activités restent en retard, surtout la validation du logo. Amina est en congé et n'a pas déposé de rapport.</p>
-        </article>
-      ) : null}
-    </section>
-  )
-}
-
-function EmployeeDashboard({ checks, onToggle, onNavigate }: { checks: string[]; onToggle: (id: string) => void; onNavigate: Go }) {
-  const done = zainaTasks.filter((task) => checks.includes(task.id)).length
-  const rate = Math.round((done / zainaTasks.length) * 100)
-  return (
-    <section>
-      <PageHeader title={`Bonjour ${zaina.first}`} subtitle="Voici un aperçu de vos activités aujourd'hui." />
-      <div className="metrics m5">
-        <Metric icon="list" tone="cyan" label="Tâches attribuées" value={String(zainaTasks.length)} hint={`${done} terminée${done > 1 ? 's' : ''}`} />
-        <Metric icon="check" tone="green" label="Taux d'achèvement" value={`${rate} %`} />
-        <Metric icon="file" tone="orange" label="Rapport du jour" value="Envoyé" hint="5 oct. 2026" />
-        <Metric icon="folder" tone="blue" label="Projets actifs" value={`0 / ${zainaProjects.length}`} />
-        <Metric icon="calendar" tone="red" label="Prochaine échéance" value="—" hint="Aucune échéance ouverte" />
-      </div>
-      <div className="dash-grid">
-        <article className="card card-pad">
-          <div className="page-head" style={{ marginBottom: 4 }}>
-            <h2>Mes tâches</h2>
-            <button className="linkish" type="button" onClick={() => onNavigate('tasks')}>Voir toutes</button>
-          </div>
-          {zainaTasks.map((task) => {
-            const on = checks.includes(task.id)
-            return (
-              <div className={`task-line${on ? ' done' : ''}`} key={task.id}>
-                <button className={`check${on ? ' on' : ''}`} type="button" aria-label={task.title} onClick={() => onToggle(task.id)}>{on ? <Icon name="check" size={12} /> : null}</button>
-                <span className="grow"><strong>{task.title}</strong><small className="muted">{task.project}</small></span>
-                <span className={`prio ${task.tone}`}>{task.priority}</span>
-              </div>
-            )
-          })}
-        </article>
-        <div className="stack">
-          <article className="card card-pad">
-            <h2>Votre rapport a été transmis</h2>
-            <p className="sub" style={{ margin: '6px 0 10px' }}>TIKO_TRANSIT__LOGISTICS_1_qm2FN9H.pdf · 5 oct. 2026</p>
-            <Button onClick={() => onNavigate('reports')}>Voir mon rapport</Button>
-          </article>
-          <article className="card card-pad">
-            <h2>Mes projets</h2>
-            <p className="sub">Aucun projet en cours. Les trois projets attribués sont terminés.</p>
-            {zainaProjects.map((item) => (
-              <div key={item.id} style={{ marginTop: 10 }}>
-                <div className="project-meta"><span>{item.name}</span><strong>{item.progress} %</strong></div>
-                <div className="bar done" style={{ marginTop: 6 }}><span style={{ width: `${item.progress}%` }} /></div>
-              </div>
-            ))}
-          </article>
+    <section className="eh">
+      <header className="eh-head">
+        <div>
+          <h1>Bonjour, {name}</h1>
+          <p>Voici vos priorités et rendez-vous pour aujourd’hui.</p>
         </div>
+        <button className="lp-btn" type="button" onClick={() => onNavigate('tasks')}><Icon name="plus" size={14} /> Créer une tâche</button>
+      </header>
+      <div className="eh-kpis">
+        <article>
+          <span className="eh-ico blue"><Icon name="check" size={15} /></span>
+          <span>Tâches aujourd’hui</span>
+          <strong>{kpis.tasks}</strong>
+          <small className="up"><Icon name="trend" size={12} /> {kpis.done} terminées sur {kpis.tasks} tâches</small>
+        </article>
+        <article>
+          <span className="eh-ico violet"><Icon name="folder" size={15} /></span>
+          <span>Projet actif</span>
+          <strong>{kpis.projects}</strong>
+          <small className="up"><Icon name="trend" size={12} /> {kpis.progress}</small>
+        </article>
+        <article>
+          <span className="eh-ico orange"><Icon name="clock" size={15} /></span>
+          <span>Temps déclaré</span>
+          <strong>5h 30</strong>
+          <small className="up"><Icon name="trend" size={12} /> 1h 30 à compléter</small>
+        </article>
+        <article>
+          <span className="eh-ico green"><Icon name="calendar" size={15} /></span>
+          <span>Prochaine échéance</span>
+          <strong>{kpis.due}</strong>
+          <small className="up"><Icon name="trend" size={12} /> Prochaine date limite</small>
+        </article>
+      </div>
+      <div className="eh-grid">
+        <article className="eh-card">
+          <header>
+            <div><h2>Mes priorités du jour</h2><p>Activités recommandées selon vos échéances</p></div>
+            <button type="button" onClick={() => onNavigate('tasks')}>Voir ma liste <Icon name="chevron" size={13} /></button>
+          </header>
+          {priorities.map((item) => (
+            <button className="eh-task" type="button" key={item.n} onClick={() => onNavigate('tasks')}>
+              <b className={item.tone}>{item.n}</b>
+              <span><strong>{item.title}</strong><small>{item.project}</small></span>
+              <time><Icon name="clock" size={13} /> {item.time}</time>
+              <Icon name="chevron" size={14} />
+            </button>
+          ))}
+        </article>
+        <article className="eh-card eh-cal">
+          <header>
+            <div><h2>Calendrier</h2><p>Vos rendez-vous et échéances</p></div>
+          </header>
+          <div className="af-cal-nav">
+            <button type="button" aria-label="Mois précédent" onClick={() => setCursor(new Date(year, month - 1, 1))}><Icon name="chevron" size={14} /></button>
+            <strong>{monthTitle}</strong>
+            <button type="button" aria-label="Mois suivant" onClick={() => setCursor(new Date(year, month + 1, 1))}><Icon name="chevron" size={14} /></button>
+          </div>
+          <div className="af-cal-grid af-cal-week">
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+          </div>
+          <div className="af-cal-grid">
+            {cells.map((day, index) => {
+              const current = day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+              return <span key={index} className={current ? 'today' : ''}>{day || ''}</span>
+            })}
+          </div>
+          <div className="eh-meet">
+            <span><Icon name="calendar" size={14} /></span>
+            <p><strong>Revue du modèle prédictif</strong><small>Aujourd’hui · 14:30 – 15:15</small></p>
+          </div>
+        </article>
+      </div>
+      <div className="eh-bottom">
+        <article className="eh-week">
+          <span><Icon name="spark" size={16} /></span>
+          <div>
+            <small>Votre semaine</small>
+            <strong>Vous êtes sur la bonne voie</strong>
+            <p>4 tâches sur 7 sont déjà terminées. Gardez votre concentration sur le modèle prédictif avant la revue de 14:30.</p>
+          </div>
+          <b>57%</b>
+        </article>
+        <article className="eh-card eh-msg">
+          <header>
+            <div><h2>Message de votre responsable</h2><p>Dernière communication</p></div>
+            <em>Nouveau</em>
+          </header>
+          <div className="eh-note">
+            <b>AM</b>
+            <span>
+              <strong>Amadou Mensah</strong>
+              <p>Bonjour Aïcha, le client a validé les nouveaux indicateurs. Nous en parlons pendant la revue.</p>
+              <small>Il y a 18 min</small>
+            </span>
+          </div>
+          <button type="button" onClick={() => onNavigate('messaging')}><Icon name="message" size={14} /> Ouvrir la conversation</button>
+        </article>
       </div>
     </section>
   )
 }
 
-function EmployeesPage({ staff }: { staff: Staff[] }) {
+function LightHead({ kicker, title, text, action }: { kicker: string; title: string; text: string; action?: ReactNode }) {
+  return (
+    <div className="lp-head">
+      <div>
+        {kicker ? <span>{kicker}</span> : null}
+        <h1>{title}</h1>
+        <p>{text}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
+const directory = [
+  { initials: 'AK', tone: 'violet', name: 'Aïcha Konaté', email: 'aicha.konate@racin.africa', role: 'Data Analyst', project: 'Nova Analytics', tasks: '24 tâches', status: 'Actif', seen: 'Il y a 8 min' },
+  { initials: 'MD', tone: 'blue', name: 'Moussa Diallo', email: 'moussa.diallo@racin.africa', role: 'Développeur Full Stack', project: 'Portail Finance', tasks: '19 tâches', status: 'Actif', seen: 'Il y a 24 min' },
+  { initials: 'SN', tone: 'orange', name: 'Sarah N’Guessan', email: 'sarah.nguessan@racin.africa', role: 'UX/UI Designer', project: 'Mobile Banking', tasks: '16 tâches', status: 'Absent', seen: 'Hier, 18:32' },
+  { initials: 'IT', tone: 'green', name: 'Ibrahim Traoré', email: 'ibrahim.traore@racin.africa', role: 'Data Engineer', project: 'Nova Analytics', tasks: '21 tâches', status: 'Actif', seen: 'Il y a 41 min' },
+  { initials: 'FN', tone: 'pink', name: 'Fatou Ndiaye', email: 'fatou.ndiaye@racin.africa', role: 'Cheffe de projet', project: 'Portail Finance', tasks: '28 tâches', status: 'En congé', seen: 'Vendredi, 17:45' },
+]
+
+function EmployeesPage() {
   const [query, setQuery] = useState('')
-  const [service, setService] = useState('')
-  const [status, setStatus] = useState('')
-  const actifs = staff.filter((person) => person.status === 'Actif').length
-  const demoCount = staff.filter((person) => person.demo).length
-  const rows = staff.filter((person) => {
-    const blob = `${person.name} ${person.role} ${person.service}`.toLowerCase()
-    return blob.includes(query.toLowerCase()) && (!service || person.service === service) && (!status || person.status === status)
+  const [status, setStatus] = useState('Tous')
+  const [adding, setAdding] = useState(false)
+  const [live, setLive] = useState<typeof directory | null>(null)
+  useEffect(() => {
+    deskCall('/api/employes/').then((data) => {
+      const people = (data.employees ?? []) as { name: string; username: string; initials: string }[]
+      setLive(people.map((person) => ({
+        initials: person.initials,
+        tone: 'violet',
+        name: person.name,
+        email: person.username === 'nouzou' ? 'zaina' : person.username,
+        role: 'Employé',
+        project: '—',
+        tasks: '—',
+        status: 'Actif',
+        seen: 'En base',
+      })))
+    }).catch(() => undefined)
+  }, [])
+  const rows = (live ?? directory).filter((person) => {
+    const blob = `${person.name} ${person.role} ${person.project}`.toLowerCase()
+    return blob.includes(query.toLowerCase()) && (status === 'Tous' || person.status === status)
   })
   return (
-    <section>
-      <PageHeader title="Employés" subtitle="Gérez les membres de votre équipe et suivez leur activité." action={<Button><Icon name="plus" size={14} /> Ajouter un employé</Button>} />
-      <div className="metrics m4">
-        <Metric icon="users" tone="cyan" label="Effectif total" value={String(staff.length)} />
-        <Metric icon="check" tone="green" label="Présents aujourd'hui" value={String(actifs)} />
-        <Metric icon="clock" tone="orange" label="Absents aujourd'hui" value={String(staff.length - actifs)} />
-        <Metric icon="user" tone="blue" label="Démonstration" value={String(demoCount)} />
+    <section className="lp">
+      <LightHead kicker="Équipe" title="Gestion des employés" text="Gérez votre équipe et suivez les performances individuelles." action={<button className="lp-btn" type="button" onClick={() => setAdding((value) => !value)}><Icon name="plus" size={14} /> Ajouter un employé</button>} />
+      {adding ? <p className="lp-note">Les comptes de test sont déjà en base : awa.traore, mamadou.kone, fatou.diarra, ibrahim.bah. Mot de passe Employe-2026.</p> : null}
+      <div className="lp-stats">
+        <span><Icon name="users" size={15} /> <b>{(live ?? directory).length}</b> Employés</span>
+        <span className="ok"><i /> <b>43</b> Actifs</span>
+        <span className="bad"><i /> <b>2</b> Absents</span>
+        <span className="warn"><i /> <b>3</b> En congé</span>
       </div>
-      <FilterBar>
-        <label className="search-field"><Icon name="search" size={14} /><input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un employé..." /></label>
-        <select className="field" value={service} onChange={(event) => setService(event.target.value)}>
-          <option value="">Service</option>
-          <option>Création</option>
-          <option>Production</option>
-          <option>Communication</option>
-          <option>Digital</option>
-        </select>
-        <select className="field" value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="">Statut</option>
-          <option>Actif</option>
-          <option>En congé</option>
-        </select>
-        <Button ghost onClick={() => { setQuery(''); setService(''); setStatus('') }}>Réinitialiser</Button>
-      </FilterBar>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Employé</th><th>Poste</th><th>Service</th><th>Statut</th><th>Todo List du jour</th><th>Dernière activité</th><th>Actions</th></tr></thead>
+      <div className="lp-panel">
+        <div className="lp-tools">
+          <label><Icon name="search" size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un employé..." /></label>
+          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtres">
+            <option>Tous</option>
+            <option>Actif</option>
+            <option>Absent</option>
+            <option>En congé</option>
+          </select>
+        </div>
+        <table className="lp-table">
+          <thead><tr><th>Employé</th><th>Fonction</th><th>Projet actuel</th><th>Tâches</th><th>Statut</th><th>Dernière activité</th><th></th></tr></thead>
           <tbody>
             {rows.map((person) => (
-              <tr key={person.id}>
-                <td><span className="who"><Avatar initials={person.initials} tone={person.tone} size="sm" online={person.online} />{person.name}</span></td>
+              <tr key={person.email}>
+                <td><span className="lp-person"><b className={person.tone}>{person.initials}</b><span><strong>{person.name}</strong><small>{person.email}</small></span></span></td>
                 <td>{person.role}</td>
-                <td>{person.service}</td>
-                <td><span className={`status ${statusClass(person.status)}`}>{person.status}</span></td>
-                <td>{person.todo}</td>
+                <td className="link">{person.project}</td>
+                <td>{person.tasks}</td>
+                <td><em className={person.status === 'Actif' ? 'ok' : person.status === 'Absent' ? 'bad' : 'warn'}>{person.status}</em></td>
                 <td className="muted">{person.seen}</td>
-                <td><span className="icon-actions"><button type="button" aria-label="Voir"><Icon name="eye" size={13} /></button></span></td>
+                <td><button type="button" aria-label="Actions">•••</button></td>
               </tr>
             ))}
             {rows.length === 0 ? <tr><td colSpan={7} className="empty">Aucun employé ne correspond.</td></tr> : null}
           </tbody>
         </table>
+        <div className="lp-pages"><span>Affichage de 1 à {rows.length} sur {(live ?? directory).length} employés</span></div>
       </div>
     </section>
   )
 }
 
-function ProjectsPage({ role }: { role: Role }) {
-  const [open, setOpen] = useState<string | null>(null)
-  const list = role === 'employee' ? zainaProjects : projects
-  const current = list.find((item) => item.id === open)
-  return (
-    <section>
-      <PageHeader
-        title={role === 'admin' ? 'Projets' : 'Mes projets'}
-        subtitle={role === 'admin' ? 'Gérez tous vos projets et suivez leur progression.' : 'Les projets auxquels vous participez.'}
-        action={role === 'admin' ? <Button><Icon name="plus" size={14} /> Nouveau projet</Button> : undefined}
-      />
-      <div className="project-grid">
-        {list.map((item) => (
-          <article className="card project-card" key={item.id}>
-            <div className="project-top">
-              <span className="metric-ico blue"><Icon name="folder" size={14} /></span>
-              <span className={`status ${statusClass(item.status)}`}>{item.status}</span>
-            </div>
-            <h2>{item.name}</h2>
-            <p className="sub">{item.client}</p>
-            <p className="muted">Responsable : {item.owner}</p>
-            <div className={`bar${item.progress === 100 ? ' done' : ''}`}><span style={{ width: `${item.progress}%` }} /></div>
-            <div className="project-meta"><span>{item.progress} %</span><span>Échéance {item.due}</span></div>
-            <button className="linkish" type="button" onClick={() => setOpen(item.id)}>Voir le projet</button>
-          </article>
-        ))}
-      </div>
-      {current ? (
-        <article className="card card-pad" style={{ marginTop: 12 }}>
-          <h2>{current.name}</h2>
-          <p className="sub" style={{ marginTop: 4 }}>{current.client} · {current.owner} · {current.status}</p>
-          <p style={{ marginTop: 8, color: 'var(--muted)' }}>Échéance le {current.due}. Avancement {current.progress} %. L'équipe prépare les livrables de la semaine.</p>
-        </article>
-      ) : null}
-    </section>
-  )
-}
-
-function TasksPage({ role, checks, onToggle }: { role: Role; checks: string[]; onToggle: (id: string) => void }) {
-  const [tab, setTab] = useState('Tous')
-  const [query, setQuery] = useState('')
-  const source = role === 'admin' ? tasks : zainaTasks
-  const counts = {
-    Tous: source.length,
-    'À faire': source.filter((task) => task.status === 'À faire').length,
-    'En cours': source.filter((task) => task.status === 'En cours').length,
-    'En retard': source.filter((task) => task.status === 'En retard').length,
-    Terminées: source.filter((task) => task.status === 'Terminée').length,
+function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (project: ProjectCard, tasks: AssignedTask[]) => void }) {
+  const [name, setName] = useState('')
+  const [client, setClient] = useState('')
+  const [owner, setOwner] = useState('Paul Mbia')
+  const [description, setDescription] = useState('')
+  const [start, setStart] = useState('2026-10-05')
+  const [end, setEnd] = useState('2026-10-30')
+  const [status, setStatus] = useState('Planifié')
+  const [priority, setPriority] = useState('Normale')
+  const [roster, setRoster] = useState(people)
+  const [rawFile, setRawFile] = useState<File | null>(null)
+  const [selected, setSelected] = useState<string[]>(['zaina', 'paul'])
+  const [rows, setRows] = useState([
+    { id: 1, title: '', who: 'zaina zaina', priority: 'Élevée', due: '2026-10-12' },
+  ])
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState(false)
+  const [attachment, setAttachment] = useState<ProjectFile | null>(null)
+  const [fileError, setFileError] = useState('')
+  const picker = useRef<HTMLInputElement>(null)
+  const tones = ['tone-purple', 'tone-sky', 'tone-amber', 'tone-green']
+  useEffect(() => {
+    deskCall('/api/employes/').then((data) => {
+      const rows = (data.employees ?? []) as { id: number; name: string; initials: string; username: string }[]
+      if (!rows.length) return
+      setRoster(rows.map((person) => ({ id: String(person.id), name: person.name, role: 'Employé', service: 'Agence', initials: person.initials, tone: '', status: 'Actif', todo: '', seen: '', online: true, reports: 0, presence: '' })))
+      const zaina = rows.find((person) => person.username === 'nouzou' || /zaina/i.test(person.name)) ?? rows[0]
+      setSelected([String(zaina.id)])
+      setOwner(rows[0].name)
+      setRows((prev) => prev.map((row) => ({ ...row, who: zaina.name })))
+    }).catch(() => undefined)
+  }, [])
+  function toggleMember(id: string) {
+    setSelected((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id])
   }
-  const rows = source.filter((task) => (tab === 'Tous' || task.status === (tab === 'Terminées' ? 'Terminée' : tab)) && `${task.title} ${task.project}`.toLowerCase().includes(query.toLowerCase()))
+  async function takeFile(list: FileList | null) {
+    const file = list?.[0]
+    if (picker.current) picker.current.value = ''
+    if (!file) return
+    const lower = file.name.toLowerCase()
+    const pdf = lower.endsWith('.pdf')
+    const docx = lower.endsWith('.docx')
+    if (!pdf && !docx) {
+      setFileError('Formats acceptés : PDF ou DOCX.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError('Le fichier dépasse 10 Mo.')
+      return
+    }
+    let html = ''
+    let url = ''
+    if (docx) {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() })
+      html = result.value
+    } else {
+      url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(file)
+      })
+    }
+    setRawFile(file)
+    setAttachment({ name: file.name, kind: pdf ? 'PDF' : 'DOC', size: formatSize(file.size), url: url || undefined, html: html || undefined })
+    setFileError('')
+  }
+  async function create() {
+    if (!name.trim()) {
+      setError('Indiquez le nom du projet.')
+      setDraft(false)
+      return
+    }
+    const id = `p-${Date.now()}`
+    const projectName = name.trim()
+    const made = rows.filter((row) => row.title.trim()).map((row, index) => {
+      const person = people.find((item) => item.name === row.who)
+      return {
+        id: `nt-${id}-${index}`,
+        title: row.title.trim(),
+        project: projectName,
+        projectId: id,
+        who: row.who,
+        whoId: person?.id ?? '',
+        priority: row.priority,
+        tone: priorityTone(row.priority),
+        due: formatFrenchDate(row.due),
+        status: 'À faire',
+      }
+    })
+    const ownerId = roster.find((item) => item.name === owner)?.id
+    const members = [...new Set([...selected, ...made.map((task) => task.whoId), ownerId].filter((item): item is string => Boolean(item)))]
+    const priorityCode = priority === 'Urgente' ? 'urgent' : priority === 'Élevée' ? 'high' : 'medium'
+    const employeeIds = selected.map(Number).filter((id) => id > 0)
+    if (!employeeIds.length) {
+      setError('Choisissez des employés enregistrés. Si la liste est vide, rechargez la page.')
+      return
+    }
+    if (!rows.some((row) => row.title.trim())) {
+      setError('Indiquez le titre de la tâche. Sans titre, Zaina ne reçoit pas la tâche.')
+      return
+    }
+    try {
+      const saved = await deskCall('/api/projets/', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: projectName,
+          client: client.trim() || 'Non renseigné',
+          description: description.trim(),
+          start_date: start,
+          end_date: end,
+          priority: priorityCode,
+          employees: employeeIds,
+        }),
+      })
+      const projectId = saved.project.id as number
+      const filled = rows.filter((item) => item.title.trim())
+      const fileRow = filled.find((item) => /zaina/i.test(item.who)) ?? filled[0]
+      for (const row of filled) {
+        const who = roster.find((person) => person.name === row.who)
+        const body = new FormData()
+        body.set('title', row.title.trim())
+        body.set('project', String(projectId))
+        body.set('employee', who?.id || String(employeeIds[0]))
+        body.set('priority', row.priority === 'Urgente' ? 'urgent' : row.priority === 'Élevée' ? 'high' : 'medium')
+        body.set('due_date', row.due)
+        body.set('description', description.trim())
+        if (rawFile && row === fileRow) body.append('documents', rawFile)
+        await deskCall('/api/taches/', { method: 'POST', body })
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Enregistrement impossible.')
+      return
+    }
+    onCreate({
+      id,
+      name: projectName,
+      client: client.trim() || 'Non renseigné',
+      owner,
+      progress: 0,
+      status,
+      due: formatFrenchDate(end),
+      start: formatFrenchDate(start),
+      description: description.trim(),
+      priority,
+      members,
+      file: attachment ?? undefined,
+    }, made)
+  }
   return (
     <section>
-      <PageHeader
-        kicker={role === 'admin' ? 'Espace responsable' : 'Mon espace'}
-        title={role === 'admin' ? 'Tâches' : 'Mes tâches'}
-        subtitle={role === 'admin' ? 'Gérez et attribuez les tâches de votre équipe.' : 'Les tâches qui vous ont été attribuées.'}
-        action={role === 'admin' ? <Button><Icon name="plus" size={14} /> Nouvelle tâche</Button> : undefined}
-      />
-      <div className="metrics m5">
-        {Object.entries(counts).map(([label, value]) => (
-          <Metric key={label} icon="tasks" tone={label === 'En retard' ? 'red' : label === 'Terminées' ? 'green' : 'blue'} label={label} value={String(value)} onClick={() => setTab(label)} active={tab === label} />
-        ))}
+      <div className="create-head">
+        <span />
+        <div className="create-title">
+          <h1>Créer un nouveau projet</h1>
+          <p>Renseignez le projet, constituez l'équipe et attribuez les premières tâches.</p>
+        </div>
+        <Button ghost onClick={onBack}>Retour aux projets</Button>
       </div>
-      <FilterBar>
-        <label className="search-field"><Icon name="search" size={14} /><input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titre, projet..." /></label>
-        {role === 'admin' ? <select className="field" defaultValue=""><option value="">Employé</option>{people.map((person) => <option key={person.id}>{person.name}</option>)}</select> : null}
-      </FilterBar>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr>{role === 'employee' ? <th></th> : null}<th>Titre</th><th>Projet</th>{role === 'admin' ? <th>Assigné à</th> : null}<th>Priorité</th><th>Échéance</th><th>Statut</th><th>Actions</th></tr></thead>
-          <tbody>
-            {rows.map((task) => (
-              <tr key={task.id}>
-                {role === 'employee' ? <td><button className={`check${checks.includes(task.id) ? ' on' : ''}`} type="button" aria-label={task.title} onClick={() => onToggle(task.id)}>{checks.includes(task.id) ? <Icon name="check" size={12} /> : null}</button></td> : null}
-                <td>{task.title}</td>
-                <td>{task.project}</td>
-                {role === 'admin' ? <td>{task.who}</td> : null}
-                <td><span className={`prio ${task.tone}`}>{task.priority}</span></td>
-                <td>{task.due}</td>
-                <td><span className={`status ${statusClass(task.status)}`}>{task.status}</span></td>
-                <td><span className="icon-actions"><button type="button" aria-label="Voir"><Icon name="eye" size={13} /></button></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
-}
-
-function TodosPage({ role, staff, plans, username }: { role: Role; staff: Staff[]; plans: DayPlan[]; username: string }) {
-  const [items, setItems] = useState<string[]>([])
-  const [draft, setDraft] = useState('')
-  const [done, setDone] = useState<string[]>([])
-  if (role === 'admin') {
-    return (
-      <section>
-        <PageHeader title="Todo Lists du jour" subtitle="Consultez et suivez les Todo Lists de tous les employés pour la journée." action={<Button ghost><Icon name="download" size={14} /> Exporter</Button>} />
-        <div className="card table-wrap">
-          <table>
-            <thead><tr><th>Employé</th><th>Service</th><th>Tâches du jour</th><th>Avancement</th><th>État</th></tr></thead>
-            <tbody>
-              {staff.map((person) => {
-                const plan = plans.find((item) => item.personId === person.id)
-                const total = plan?.items.length ?? 0
-                const finished = plan?.items.filter((item) => item.done).length ?? 0
-                const filled = plan ? total > 0 : person.id !== 'amina'
-                const width = plan ? `${total ? Math.round((finished / total) * 100) : 0}%` : person.id === 'amina' ? '0%' : '75%'
+      <div className="create-layout">
+        <div className="create-main">
+          <article className="card card-pad create-card">
+            <div className="step-top">
+              <h2><span className="step-num">01</span>Informations du projet</h2>
+            </div>
+            <p className="sub" style={{ marginTop: -8, marginBottom: 10 }}>Les informations principales utilisées par toute l'équipe.</p>
+            <label>Nom du projet<input className="field" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex. Campagne digitale Octobre" /></label>
+            <div className="form-2">
+              <label>Client<input className="field" value={client} onChange={(event) => setClient(event.target.value)} placeholder="Nom du client" /></label>
+              <label>Responsable du projet
+                <select className="field" value={owner} onChange={(event) => setOwner(event.target.value)}>
+                  {roster.map((person) => <option key={person.id}>{person.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <label style={{ marginTop: 10 }}>Description<textarea className="field" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Décrivez les objectifs, les livrables attendus et le contexte du projet..." /></label>
+            <div className="form-2">
+              <label>Date de début<input className="field" type="date" value={start} onChange={(event) => setStart(event.target.value)} /></label>
+              <label>Date de fin<input className="field" type="date" value={end} onChange={(event) => setEnd(event.target.value)} /></label>
+              <label>Statut initial
+                <select className="field" value={status} onChange={(event) => setStatus(event.target.value)}>
+                  <option>Planifié</option>
+                  <option>En cours</option>
+                  <option>Terminé</option>
+                </select>
+              </label>
+              <label>Priorité du projet
+                <select className="field" value={priority} onChange={(event) => setPriority(event.target.value)}>
+                  <option>Normale</option>
+                  <option>Élevée</option>
+                  <option>Urgente</option>
+                </select>
+              </label>
+            </div>
+            <div
+              className="project-drop"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => { event.preventDefault(); void takeFile(event.dataTransfer.files) }}
+            >
+              <input ref={picker} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={(event) => { void takeFile(event.target.files) }} />
+              <span className={`file-ico${attachment ? ' ok' : ''}`}><Icon name={attachment ? 'check' : 'file'} size={16} /></span>
+              <span className="grow">
+                <strong>{attachment ? attachment.name : 'Importer un fichier'}</strong>
+                <small>{attachment ? `${attachment.kind} · ${attachment.size}` : 'PDF ou DOCX, 10 Mo maximum'}</small>
+              </span>
+              <Button onClick={() => picker.current?.click()}>{attachment ? 'Remplacer' : 'Choisir un fichier'}</Button>
+            </div>
+            {fileError ? <p className="sub" style={{ color: '#fca5a5', marginTop: 8 }}>{fileError}</p> : null}
+          </article>
+          <article className="card card-pad">
+            <div className="step-top">
+              <div>
+                <h2><span className="step-num">02</span>Équipe du projet</h2>
+                <p className="sub">Sélectionnez les collaborateurs qui participeront au projet.</p>
+              </div>
+              <span className="step-count">{selected.length} sélectionné{selected.length > 1 ? 's' : ''}</span>
+            </div>
+            <div className="team-grid">
+              {roster.map((person, index) => {
+                const on = selected.includes(person.id)
                 return (
-                  <tr key={person.id}>
-                    <td><span className="who"><Avatar initials={person.initials} tone={person.tone} size="sm" />{person.name}</span></td>
-                    <td>{person.service}</td>
-                    <td className="muted">{plan && total ? plan.items.map((item) => item.text).join(' · ') : '—'}</td>
-                    <td style={{ width: 160 }}><div className="bar"><span style={{ width }} /></div></td>
-                    <td><span className={`status ${filled ? 'ok' : 'leave'}`}>{filled ? (plan ? `${finished} / ${total}` : 'Renseignée') : 'Non renseignée'}</span></td>
-                  </tr>
+                  <button className={`member-card${on ? ' on' : ''}`} type="button" key={person.id} onClick={() => toggleMember(person.id)}>
+                    <span className={`member-pill ${tones[index]}`}>{person.initials}</span>
+                    <span className="grow"><strong>{person.name}</strong><small>{person.role} · {person.service}</small></span>
+                    <span className="member-mark">{on ? <Icon name="check" size={12} /> : <Icon name="plus" size={12} />}</span>
+                  </button>
                 )
               })}
+            </div>
+          </article>
+          <article className="card card-pad create-card">
+            <div className="step-top task-head">
+              <div>
+                <h2><span className="step-num">03</span>Premières tâches à attribuer</h2>
+                <p className="sub">Préparez le démarrage du projet en affectant chaque tâche au bon collaborateur.</p>
+              </div>
+              <button className="linkish" type="button" onClick={() => setRows((prev) => [...prev, { id: Date.now(), title: '', who: roster[0]?.name || 'Zaina Nouzou', priority: 'Moyenne', due: end }])}><Icon name="plus" size={12} /> Ajouter</button>
+            </div>
+            {rows.map((row, index) => (
+              <div className="task-row" key={row.id}>
+                <span className="idx">{String(index + 1).padStart(2, '0')}</span>
+                <div className="task-box">
+                  <label>Tâche<input className="field" value={row.title} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, title: event.target.value } : item))} placeholder="Intitulé de la tâche" /></label>
+                  <label>Attribuer à
+                    <select className="field" value={row.who} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, who: event.target.value } : item))}>
+                      {roster.map((person) => <option key={person.id}>{person.name}</option>)}
+                    </select>
+                  </label>
+                  <label>Priorité
+                    <select className="field" value={row.priority} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, priority: event.target.value } : item))}>
+                      <option>Élevée</option>
+                      <option>Moyenne</option>
+                      <option>Urgente</option>
+                    </select>
+                  </label>
+                  <label>Échéance<input className="field" type="date" value={row.due} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, due: event.target.value } : item))} /></label>
+                </div>
+                <button className="task-x" type="button" aria-label="Retirer la tâche" onClick={() => setRows((prev) => prev.filter((item) => item.id !== row.id))}>×</button>
+              </div>
+            ))}
+          </article>
+        </div>
+        <div className="stack">
+          <article className="card card-pad ready">
+            <span className="metric-ico blue"><Icon name="folder" size={16} /></span>
+            <h2>Prêt à lancer le projet ?</h2>
+            <p className="sub">Une notification sera envoyée à chaque collaborateur assigné dès la création.</p>
+            <div className="ready-line"><span>Membres</span><strong>{selected.length}</strong></div>
+            <div className="ready-line"><span>Tâches initiales</span><strong>{rows.length}</strong></div>
+            <div className="ready-people">
+              {roster.filter((person) => selected.includes(person.id)).map((person, index) => <Avatar key={person.id} initials={person.initials} tone={tones[index] ?? ''} size="sm" />)}
+            </div>
+            {error ? <p className="sub" style={{ color: '#fca5a5' }}>{error}</p> : null}
+            {draft ? <p className="sub">Brouillon enregistré sur cet écran.</p> : null}
+            <Button onClick={create}><Icon name="plus" size={14} /> Créer le projet</Button>
+            <button className="linkish" type="button" onClick={() => { setDraft(true); setError('') }}>Enregistrer comme brouillon</button>
+          </article>
+          <article className="card card-pad advice">
+            <Icon name="spark" size={14} />
+            <span><strong>Conseil RAC'IN</strong>Attribuer des tâches précises avec une échéance réaliste pour faciliter les Todo List quotidiennes de chaque employé.</span>
+          </article>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ProjectSheet({ project, tasks, onBack, role = 'admin', onChanged }: { project: ProjectCard; tasks: AssignedTask[]; onBack: () => void; role?: Role; onChanged?: () => void }) {
+  const tones = ['tone-purple', 'tone-sky', 'tone-amber', 'tone-green']
+  const members = project.team?.length ? project.team : (project.members ?? []).map((name) => ({ name, initials: name.slice(0, 2).toUpperCase() }))
+  const files = project.files?.length ? project.files : project.file ? [project.file] : []
+  const [openedFile, setOpenedFile] = useState<ProjectFile | null>(null)
+  async function archive() {
+    await deskCall(`/api/projets/${project.id}/`, { method: 'POST', body: JSON.stringify({ archive: true }) })
+    onBack()
+  }
+  async function remove() {
+    if (!window.confirm(`Supprimer le projet « ${project.name} » et ses tâches ?`)) return
+    await deskCall(`/api/projets/${project.id}/`, { method: 'POST', body: JSON.stringify({ delete: true }) })
+    onBack()
+  }
+  return (
+    <section>
+      <div className="create-head">
+        <span />
+        <div className="create-title">
+          <h1>{project.name}</h1>
+          <p>Les informations enregistrées à la création du projet.</p>
+        </div>
+        <span>
+          <Button ghost onClick={onBack}>Retour aux projets</Button>
+          {role === 'admin' ? <Button ghost onClick={() => { void archive() }}>Archiver</Button> : null}
+          {role === 'admin' ? <Button danger onClick={() => { void remove() }}>Supprimer</Button> : null}
+        </span>
+      </div>
+      <div className="create-layout">
+        <div className="create-main">
+          <article className="card card-pad create-card">
+            <div className="step-top">
+              <h2><span className="step-num">01</span>Informations du projet</h2>
+            </div>
+            <p className="sub" style={{ marginTop: -8, marginBottom: 10 }}>Les informations principales utilisées par toute l'équipe.</p>
+            <label>Nom du projet<input className="field" readOnly value={project.name} /></label>
+            <div className="form-2">
+              <label>Client<input className="field" readOnly value={project.client} /></label>
+              <label>Responsable du projet<input className="field" readOnly value={project.owner} /></label>
+            </div>
+            <label style={{ marginTop: 10 }}>Description<textarea className="field" readOnly value={project.description || 'Non renseignée'} /></label>
+            <div className="form-2">
+              <label>Date de début<input className="field" readOnly value={project.start || 'Non renseignée'} /></label>
+              <label>Date de fin<input className="field" readOnly value={project.due} /></label>
+              <label>Statut initial<input className="field" readOnly value={project.status} /></label>
+              <label>Priorité du projet<input className="field" readOnly value={project.priority || 'Non renseignée'} /></label>
+            </div>
+            {files.length === 0 ? (
+              <div className="project-drop">
+                <span className="file-ico"><Icon name="file" size={16} /></span>
+                <span className="grow"><strong>Aucun fichier importé</strong><small>Le responsable peut joindre un PDF ou un DOCX à la création.</small></span>
+              </div>
+            ) : files.map((file) => (
+              <div className="project-drop" key={file.url || file.name}>
+                <span className="file-ico ok"><Icon name="check" size={16} /></span>
+                <span className="grow"><strong>{file.name}</strong><small>{file.kind || 'Document'}{file.size ? ` · ${file.size}` : ''}</small></span>
+                <Button ghost onClick={() => { setOpenedFile(file); openInBrowser(file) }}>Ouvrir</Button>
+              </div>
+            ))}
+            {openedFile ? <FileViewer file={openedFile} /> : null}
+          </article>
+          <article className="card card-pad">
+            <div className="step-top">
+              <div>
+                <h2><span className="step-num">02</span>Équipe du projet</h2>
+                <p className="sub">Les collaborateurs sélectionnés à la création.</p>
+              </div>
+              <span className="step-count">{members.length} sélectionné{members.length > 1 ? 's' : ''}</span>
+            </div>
+            <div className="team-grid">
+              {members.map((person, index) => (
+                <div className="member-card on" key={`${person.initials}-${person.name}`}>
+                  <span className={`member-pill ${tones[index % tones.length]}`}>{person.initials}</span>
+                  <span className="grow"><strong>{person.name}</strong><small>Employé · Agence</small></span>
+                  <span className="member-mark"><Icon name="check" size={12} /></span>
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="card card-pad create-card">
+            <div className="step-top task-head">
+              <div>
+                <h2><span className="step-num">03</span>Premières tâches à attribuer</h2>
+                <p className="sub">Les tâches attribuées au moment de la création.</p>
+              </div>
+            </div>
+            {tasks.length === 0 ? <p className="muted">Aucune tâche n'a été enregistrée.</p> : null}
+            {tasks.map((task, index) => (
+              <div className="task-row view" key={task.id}>
+                <span className="idx">{String(index + 1).padStart(2, '0')}</span>
+                <div className="task-box">
+                  <label>Tâche<input className="field" readOnly value={task.title} /></label>
+                  <label>Attribuer à<input className="field" readOnly value={task.who} /></label>
+                  <label>Priorité<input className="field" readOnly value={task.priority} /></label>
+                  <label>Échéance<input className="field" readOnly value={task.due} /></label>
+                  <label>Statut<input className="field" readOnly value={task.status} /></label>
+                  {role === 'admin' ? <Button danger onClick={() => { if (!window.confirm(`Supprimer la tâche « ${task.title} » ?`)) return; void deskCall(`/api/taches/${task.id}/`, { method: 'POST', body: JSON.stringify({ delete: true }) }).then(() => onChanged?.()) }}>Supprimer</Button> : null}
+                </div>
+              </div>
+            ))}
+          </article>
+        </div>
+        <div className="stack">
+          <article className="card card-pad ready">
+            <span className="metric-ico blue"><Icon name="folder" size={16} /></span>
+            <h2>{project.name}</h2>
+            <p className="sub">Avancement {project.progress} % · {project.status}</p>
+            <div className="ready-line"><span>Membres</span><strong>{members.length}</strong></div>
+            <div className="ready-line"><span>Tâches initiales</span><strong>{tasks.length}</strong></div>
+            <div className="ready-people">
+              {members.map((person, index) => <Avatar key={`${person.initials}-${index}`} initials={person.initials} tone={tones[index % tones.length] ?? ''} size="sm" />)}
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ProjectsPage({ role, onCreate }: { role: Role; list: ProjectCard[]; duties: AssignedTask[]; onCreate: (project: ProjectCard, tasks: AssignedTask[]) => void }) {
+  const [open, setOpen] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [projectQuery, setProjectQuery] = useState('')
+  const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  const [stamp, setStamp] = useState(0)
+  const [liveCards, setLiveCards] = useState<ProjectCard[]>([])
+  const [liveTasks, setLiveTasks] = useState<AssignedTask[]>([])
+  useEffect(() => {
+    Promise.all([deskCall('/api/projets/'), deskCall('/api/taches/')]).then(([projectData, taskData]) => {
+      setLiveCards((projectData.projects as { id: number; name: string; client: string; end_date: string; start_date: string; status_label: string; priority_label: string; progress: number; description: string; employees: { id: number; name: string; initials: string }[] }[]).map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        client: item.client,
+        owner: 'Responsable',
+        progress: item.progress,
+        status: item.status_label,
+        due: formatFrenchDate(item.end_date),
+        start: formatFrenchDate(item.start_date),
+        description: item.description,
+        priority: item.priority_label,
+        members: item.employees.map((person) => person.initials || String(person.id)),
+        team: item.employees.map((person) => ({ name: person.name, initials: person.initials || person.name.slice(0, 2).toUpperCase() })),
+      })))
+      setLiveTasks((taskData.tasks as { id: number; title: string; project: string; project_id: number | null; employee: string; employee_id: number | null; priority_label: string; due_date: string; status_label: string; planned_date?: string; documents: { name: string; url: string }[]; result_url: string; result_name: string }[])
+        .filter((item) => !(item.planned_date && !item.due_date))
+        .map((item) => ({
+          id: String(item.id),
+          title: item.title,
+          project: item.project,
+          projectId: String(item.project_id ?? ''),
+          who: item.employee,
+          whoId: String(item.employee_id ?? ''),
+          priority: item.priority_label,
+          tone: priorityTone(item.priority_label),
+          due: item.due_date,
+          status: item.status_label,
+          docs: item.documents,
+          resultUrl: item.result_url,
+          resultName: item.result_name,
+        })))
+    }).catch(() => undefined)
+  }, [role, stamp])
+  const current = liveCards.find((item) => item.id === open)
+  const currentTasks = liveTasks.filter((task) => task.projectId === current?.id)
+  if (current) {
+    const files = currentTasks.flatMap((task) => (task.docs ?? []).map((document) => ({
+      name: document.name,
+      kind: document.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'DOC',
+      size: '',
+      url: document.url,
+    })))
+    return <ProjectSheet role={role} project={{ ...current, file: files[0], files }} tasks={currentTasks} onBack={() => { setOpen(null); setStamp((value) => value + 1) }} onChanged={() => setStamp((value) => value + 1)} />
+  }
+  if (creating) {
+    return <NewProject onBack={() => setCreating(false)} onCreate={(project, tasks) => { onCreate(project, tasks); setCreating(false); setStamp((value) => value + 1); setOpen(null) }} />
+  }
+  const cards = liveCards.filter((item) => `${item.name} ${item.client} ${item.owner}`.toLowerCase().includes(projectQuery.trim().toLowerCase())).map((item) => ({ ...item, tasks: `${liveTasks.filter((task) => task.projectId === item.id).length} tâches`, tone: item.progress >= 90 ? 'green' : item.progress < 40 ? 'orange' : 'violet' }))
+    return (
+      <section className="lp">
+        <LightHead kicker="Portefeuille" title="Projets" text="Planifiez, pilotez et suivez tous vos projets en un seul endroit." action={role === 'admin' ? <button className="lp-btn" type="button" onClick={() => setCreating(true)}><Icon name="plus" size={14} /> Nouveau projet</button> : undefined} />
+        <div className="lp-panel">
+          <div className="lp-tools">
+            <label><Icon name="search" size={15} /><input value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Rechercher un projet..." /></label>
+            <button className="lp-filter" type="button">Filtres <b>2</b></button>
+            <span className="lp-views">
+              <button className={layout === 'grid' ? 'on' : ''} type="button" aria-label="Grille" onClick={() => setLayout('grid')}><Icon name="grid" size={14} /></button>
+              <button className={layout === 'list' ? 'on' : ''} type="button" aria-label="Liste" onClick={() => setLayout('list')}><Icon name="list" size={14} /></button>
+            </span>
+          </div>
+          <div className={`lp-projects${layout === 'list' ? ' list' : ''}`}>
+            {cards.map((item) => (
+              <article key={item.id} onClick={() => setOpen(item.id)} style={{ cursor: 'pointer' }}>
+                <div className="lp-card-top"><span className="lp-folder"><Icon name="folder" size={16} /></span><em className={item.status === 'À venir' || item.status === 'Planifié' ? 'wait' : 'ok'}>{item.status}</em>{role === 'admin' ? <button type="button" onClick={(event) => { event.stopPropagation(); if (!window.confirm(`Supprimer le projet « ${item.name} » et ses tâches ?`)) return; void deskCall(`/api/projets/${item.id}/`, { method: 'POST', body: JSON.stringify({ delete: true }) }).then(() => setStamp((value) => value + 1)) }}>Supprimer</button> : <button type="button" aria-label="Ouvrir le projet" onClick={(event) => { event.stopPropagation(); setOpen(item.id) }}>•••</button>}</div>
+                <h2>{item.name}</h2>
+                <p>{item.client}</p>
+                <div className="lp-meta"><span>Responsable<small>{item.owner}</small></span><span>Échéance<small>{item.due}</small></span></div>
+                <div className="lp-progress"><span>Progression</span><b>{item.progress}%</b></div>
+                <div className={`lp-bar ${item.tone}`}><i style={{ width: `${item.progress}%` }} /></div>
+                <footer>
+                  <span><Icon name="check" size={13} /> {item.tasks}</span>
+                  <span className="lp-faces">
+                    {(item.team ?? []).slice(0, 3).map((face) => <b key={face.initials}>{face.initials}</b>)}
+                    <button type="button" aria-label="Ouvrir" onClick={(event) => { event.stopPropagation(); setOpen(item.id) }}>→</button>
+                  </span>
+                </footer>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+}
+
+function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggle: (id: string) => void; assigned: AssignedTask[]; focus?: string }) {
+  const [tab, setTab] = useState('Toutes')
+  const [query, setQuery] = useState('')
+  const [stamp, setStamp] = useState(0)
+  const [rows, setRows] = useState<{ code: string; title: string; project: string; who: string; initials: string; tone: string; priority: string; due: string; status: string; progress: number; docs: { name: string; url: string }[]; resultUrl: string; resultName: string; description: string }[]>([])
+  const [picked, setPicked] = useState(focus ? `#${focus}` : '')
+  useEffect(() => { if (focus) setPicked(`#${focus}`) }, [focus])
+  const [note, setNote] = useState('')
+  const [composer, setComposer] = useState(false)
+  const [projectsList, setProjectsList] = useState<{ id: number; name: string }[]>([])
+  const [peopleList, setPeopleList] = useState<{ id: number; name: string }[]>([])
+  const [draft, setDraft] = useState({ title: '', project: '', employee: '', due: '', priority: 'medium' })
+  useEffect(() => {
+    deskCall('/api/taches/').then((data) => {
+      const tasks = (data.tasks ?? []) as { id: number; title: string; description: string; project: string; employee: string; priority_label: string; due_date: string; status_label: string; planned_date: string; documents: { name: string; url: string }[]; result_url: string; result_name: string }[]
+      setRows(tasks.filter((item) => !(item.planned_date && !item.due_date)).map((item) => ({
+        code: `#${item.id}`,
+        title: item.title,
+        project: item.project || '—',
+        who: item.employee || 'Zaina Zaina',
+        initials: (item.employee || 'ZZ').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+        tone: 'violet',
+        priority: item.priority_label === 'Haute' ? 'Élevée' : item.priority_label,
+        due: item.due_date,
+        status: item.status_label === 'Non commencée' ? 'À faire' : item.status_label,
+        progress: item.status_label === 'Terminée' ? 100 : item.status_label === 'En cours' ? 50 : 0,
+        docs: item.documents ?? [],
+        resultUrl: item.result_url,
+        resultName: item.result_name || '',
+        description: item.description || '',
+      })))
+    }).catch(() => undefined)
+    if (role === 'admin') {
+      Promise.all([deskCall('/api/projets/'), deskCall('/api/employes/')]).then(([projectData, peopleData]) => {
+        const projects = (projectData.projects ?? []) as { id: number; name: string }[]
+        const people = (peopleData.employees ?? []) as { id: number; name: string; username: string }[]
+        const zaina = people.find((person) => person.username === 'nouzou' || /zaina/i.test(person.name)) ?? people[0]
+        setProjectsList(projects)
+        setPeopleList(people)
+        setDraft((prev) => ({ ...prev, project: prev.project || String(projects[0]?.id ?? ''), employee: prev.employee || String(zaina?.id ?? '') }))
+      }).catch(() => undefined)
+    }
+  }, [role, stamp])
+  const shown = rows.filter((task) => (tab === 'Toutes' || task.status === (tab === 'Terminées' ? 'Terminée' : tab)) && `${task.title} ${task.project} ${task.who}`.toLowerCase().includes(query.toLowerCase()))
+  const chips = [
+    ['Toutes', String(rows.length)],
+    ['À faire', String(rows.filter((item) => item.status === 'À faire').length)],
+    ['En cours', String(rows.filter((item) => item.status === 'En cours').length)],
+    ['Terminées', String(rows.filter((item) => item.status === 'Terminée').length)],
+    ['En retard', String(rows.filter((item) => item.status === 'En retard').length)],
+  ]
+  async function act(id: string, status: string) {
+    const data = await deskCall(`/api/taches/${id.slice(1)}/statut/`, { method: 'POST', body: JSON.stringify({ status }) })
+    setNote(data.message || 'Statut enregistré.')
+    setStamp((value) => value + 1)
+  }
+  async function removeTask(id: string, title: string) {
+    if (!window.confirm(`Supprimer la tâche « ${title} » ?`)) return
+    const data = await deskCall(`/api/taches/${id.slice(1)}/`, { method: 'POST', body: JSON.stringify({ delete: true }) })
+    setNote(data.message || 'Tâche supprimée.')
+    setPicked('')
+    setStamp((value) => value + 1)
+  }
+  async function deposit(id: string, list: FileList | null) {
+    const file = list?.[0]
+    if (!file) return
+    const body = new FormData()
+    body.set('result', file)
+    const data = await deskCall(`/api/taches/${id.slice(1)}/resultat/`, { method: 'POST', body })
+    setNote(data.message || 'Fichier envoyé.')
+    setStamp((value) => value + 1)
+  }
+  async function createTask(event: FormEvent) {
+    event.preventDefault()
+    const body = new FormData()
+    body.set('title', draft.title)
+    body.set('project', draft.project)
+    body.set('employee', draft.employee)
+    body.set('priority', draft.priority)
+    body.set('due_date', draft.due)
+    const data = await deskCall('/api/taches/', { method: 'POST', body })
+    setNote(data.message || 'Tâche attribuée.')
+    setComposer(false)
+    setDraft((prev) => ({ ...prev, title: '' }))
+    setStamp((value) => value + 1)
+  }
+  if (role === 'employee') {
+    const current = rows.find((task) => task.code === picked) ?? rows.find((task) => task.status !== 'Terminée') ?? rows[0]
+    const stateLabel = current?.status === 'À faire' ? 'Non commencé' : current?.status ?? ''
+    return (
+      <section className="emp-task">
+        {current ? (
+          <>
+            <div className="emp-task-top">
+              <div>
+                <p className="emp-task-kicker">Détail de ma tâche · {current.code.replace('#', '#TSK-')}</p>
+                <h1>{current.title}</h1>
+                <p className="emp-task-lead">Consultez les informations, mettez à jour votre progression et déposez votre livrable.</p>
+              </div>
+              <span className="emp-task-status"><i /> {stateLabel}</span>
+            </div>
+            {rows.length > 1 ? (
+              <div className="emp-task-switch">
+                {rows.map((task) => <button key={task.code} className={task.code === current.code ? 'on' : ''} type="button" onClick={() => setPicked(task.code)}>{task.title}</button>)}
+              </div>
+            ) : null}
+            {note ? <p className="emp-task-note">{note}</p> : null}
+            <div className="emp-task-grid">
+              <article className="emp-task-card">
+                <h2>Description</h2>
+                <h3>Objectif de la tâche</h3>
+                <p>{current.description || 'Préparer et finaliser ce livrable pour assurer l’avancement du projet. Vérifiez les données, documentez les choix effectués et transmettez une version prête pour validation.'}</p>
+                <div className="emp-task-meta">
+                  <span><small>Projet</small><strong>{current.project}</strong></span>
+                  <span><small>Échéance</small><strong>{formatFrenchDate(current.due) || current.due || '—'}</strong></span>
+                  <span><small>Priorité</small><strong>{current.priority}</strong></span>
+                  <span><small>Assignée à</small><strong>Zaina Zaina</strong></span>
+                </div>
+                {current.docs.map((document) => <a key={document.url} href={`${document.url}?telecharger=1`}>Télécharger le brief</a>)}
+                {current.resultUrl ? <a href={current.resultUrl} target="_blank" rel="noopener">Voir le fichier déposé{current.resultName ? ` · ${current.resultName}` : ''}</a> : null}
+              </article>
+              <article className="emp-task-card emp-task-side">
+                <h2>Progression</h2>
+                <b>{current.progress}%</b>
+                <p>{current.status === 'Terminée' ? 'La tâche est terminée.' : current.status === 'En cours' ? 'La tâche est en cours.' : 'Commencez la tâche lorsque vous êtes prêt.'}</p>
+              </article>
+            </div>
+            <article className="emp-task-card emp-task-work">
+              <h2>Actions</h2>
+              <h3>Mettre à jour la tâche</h3>
+              <p>Votre responsable sera automatiquement informé de chaque changement.</p>
+              <div className="emp-task-actions">
+                {current.status === 'À faire' || current.status === 'En retard' ? <button className="emp-task-go" type="button" onClick={() => { void act(current.code, 'in_progress') }}>→ Commencer</button> : null}
+                <label className="emp-task-file">Déposer mon travail<input type="file" hidden onChange={(event) => { void deposit(current.code, event.target.files) }} /></label>
+                {current.status !== 'Terminée' ? <button className="emp-task-done" type="button" onClick={() => { void act(current.code, 'completed') }}>Marquer comme terminée</button> : null}
+              </div>
+            </article>
+          </>
+        ) : <h1>Aucune tâche pour le moment</h1>}
+      </section>
+    )
+  }
+    return (
+      <section className="lp">
+        <LightHead kicker="Activités" title="Gestion des tâches" text="Assignez les priorités et suivez l’exécution des activités." action={role === 'admin' ? <button className="lp-btn" type="button" onClick={() => setComposer((value) => !value)}><Icon name="plus" size={14} /> Nouvelle tâche</button> : undefined} />
+        {composer ? (
+          <form className="lp-panel lp-form" onSubmit={(event) => { void createTask(event) }}>
+            <div className="form-grid">
+              <label>Tâche<input className="field" value={draft.title} onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))} required /></label>
+              <label>Projet<select className="field" value={draft.project} onChange={(event) => setDraft((prev) => ({ ...prev, project: event.target.value }))}>{projectsList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label>Employé<select className="field" value={draft.employee} onChange={(event) => setDraft((prev) => ({ ...prev, employee: event.target.value }))}>{peopleList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label>Priorité<select className="field" value={draft.priority} onChange={(event) => setDraft((prev) => ({ ...prev, priority: event.target.value }))}><option value="medium">Moyenne</option><option value="high">Élevée</option><option value="urgent">Urgente</option><option value="low">Faible</option></select></label>
+              <label>Échéance<input className="field" type="date" value={draft.due} onChange={(event) => setDraft((prev) => ({ ...prev, due: event.target.value }))} /></label>
+            </div>
+            <Button type="submit">Créer et attribuer</Button>
+          </form>
+        ) : null}
+        {note ? <p className="lp-note">{note}</p> : null}
+        <div className="lp-chips">
+          {chips.map(([label, count]) => <button key={label} className={tab === label ? 'on' : ''} type="button" onClick={() => setTab(label)}>{label} <b>{count}</b></button>)}
+        </div>
+        <div className="lp-panel">
+          <div className="lp-tools">
+            <label><Icon name="search" size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une tâche..." /></label>
+            <button className="lp-filter" type="button">Filtres <b>2</b></button>
+          </div>
+          <table className="lp-table">
+            <thead><tr><th>Tâche</th><th>Projet</th><th>Responsable</th><th>Priorité</th><th>Date limite</th><th>Statut</th><th>Progression</th><th></th></tr></thead>
+            <tbody>
+              {shown.map((task) => (
+                <Fragment key={task.code}>
+                <tr onClick={() => setPicked(task.code)} style={{ cursor: 'pointer' }}>
+                  <td><strong>{task.title}</strong><small>{task.code}</small>{task.resultUrl ? <a className="lp-open" href={task.resultUrl} target="_blank" rel="noopener" onClick={(event) => event.stopPropagation()}>Ouvrir le travail{task.resultName ? ` · ${task.resultName}` : ''}</a> : null}</td>
+                  <td className="link">{task.project}</td>
+                  <td><span className="lp-person"><b className={task.tone}>{task.initials}</b><span>{task.who}</span></span></td>
+                  <td><em className={task.priority === 'Élevée' ? 'bad' : task.priority === 'Moyenne' ? 'warn' : 'muted-pill'}>{task.priority}</em></td>
+                  <td>{task.due}</td>
+                  <td><em className={task.status === 'Terminée' ? 'ok' : task.status === 'En retard' ? 'bad' : task.status === 'À faire' ? 'wait' : 'info'}>{task.status}</em></td>
+                  <td><span className="lp-mini"><i style={{ width: `${task.progress}%` }} /></span> {task.progress}%</td>
+                  <td>
+                    <button type="button" aria-label="Actions" onClick={(event) => { event.stopPropagation(); setPicked(picked === task.code ? '' : task.code) }}>•••</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void removeTask(task.code, task.title) }}>Supprimer</button>
+                  </td>
+                </tr>
+                {picked === task.code ? (
+                  <tr key={`${task.code}-actions`}>
+                    <td colSpan={8}>
+                      {task.docs.map((document) => <a key={document.url} href={`${document.url}?telecharger=1`}>Télécharger le brief</a>)}
+                      {task.resultUrl ? <a className="lp-btn" href={task.resultUrl} target="_blank" rel="noopener">Ouvrir le document déposé</a> : <span className="muted">Aucun travail déposé.</span>}
+                      <Button danger onClick={() => { void removeTask(task.code, task.title) }}>Supprimer</Button>
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>
       </section>
     )
+}
+
+function properName(value: string) {
+  return value.replace(/\S+/g, (word) => word.charAt(0).toLocaleUpperCase('fr-FR') + word.slice(1))
+}
+
+function lead(value: string) {
+  const text = value.trim()
+  return text ? text.charAt(0).toLocaleUpperCase('fr-FR') + text.slice(1) : text
+}
+
+function TodosPage({ role, focusEmployee = '' }: { role: Role; staff: Staff[]; plans: DayPlan[]; username: string; assigned: AssignedTask[]; focusEmployee?: string }) {
+  const [draft, setDraft] = useState('')
+  const [link, setLink] = useState('')
+  const [links, setLinks] = useState<{ id: number; title: string }[]>([])
+  const [stamp, setStamp] = useState(0)
+  const [note, setNote] = useState('')
+  const [noteOk, setNoteOk] = useState(true)
+  const [sent, setSent] = useState(false)
+  const [revised, setRevised] = useState(false)
+  const [sentAt, setSentAt] = useState('')
+  const [openId, setOpenId] = useState(focusEmployee)
+  const [board, setBoard] = useState<{ employee: { id: number; name: string; initials: string }; sent: boolean; sentAt: string; items: { id: number; title: string; project: string; priority_label: string; status_label: string }[] }[]>([])
+  const draftRef = useRef<HTMLInputElement>(null)
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' })
+  const [sort, setSort] = useState<'time' | 'priority'>('time')
+  const [plan, setPlan] = useState<{ id: string; time: string; title: string; project: string; priority: string; tone: string; done: boolean }[]>([])
+  useEffect(() => { if (focusEmployee) setOpenId(focusEmployee) }, [focusEmployee])
+  useEffect(() => {
+    deskCall('/api/todos/').then((data) => {
+      if (role === 'admin') {
+        const rows = (data.board ?? []) as { employee: { id: number; name: string; initials: string }; sent: boolean; sent_at: string; items: { id: number; title: string; project: string; priority_label: string; status_label: string }[] }[]
+        setBoard(rows.map((row) => ({ employee: row.employee, sent: row.sent, sentAt: row.sent_at || '', items: row.items || [] })))
+        return
+      }
+      setSent(Boolean(data.sent))
+      setRevised(Boolean(data.revised))
+      setSentAt(String(data.sent_at || ''))
+      const rows = (data.items ?? []) as { id: number; title: string; project: string; priority_label: string; status: string }[]
+      setPlan(rows.map((item) => ({
+        id: String(item.id),
+        time: '—',
+        title: item.title,
+        project: item.project || 'Ma journée',
+        priority: item.priority_label === 'Haute' ? 'Élevée' : item.priority_label || 'Moyenne',
+        tone: item.priority_label === 'Haute' || item.priority_label === 'Urgente' ? 'bad' : 'warn',
+        done: item.status === 'completed',
+      })))
+    }).catch(() => undefined)
+    if (role === 'employee') {
+      deskCall('/api/taches/').then((data) => {
+        setLinks(((data.tasks ?? []) as { id: number; title: string; planned_date: string; due_date: string }[]).filter((item) => item.due_date || !item.planned_date).map((item) => ({ id: item.id, title: item.title })))
+      }).catch(() => undefined)
+    }
+  }, [role, stamp])
+  async function addTodo() {
+    if (role !== 'employee') return
+    const title = draft.trim()
+    if (title.length < 2) {
+      setNoteOk(false)
+      setNote('Écrivez l’activité dans le champ, puis cliquez sur Ajouter.')
+      draftRef.current?.focus()
+      return
+    }
+    try {
+      await openSession()
+      const data = await deskCall('/api/todos/', { method: 'POST', body: JSON.stringify({ title, task: link }) })
+      setNoteOk(true)
+      setNote(data.message || 'Activité ajoutée.')
+      setDraft('')
+      setLink('')
+      setStamp((value) => value + 1)
+    } catch (error) {
+      setNoteOk(false)
+      setNote(error instanceof Error ? error.message : 'Impossible d’ajouter l’activité.')
+    }
   }
-  const mine = plans.find((item) => item.personId === username)
-  if (mine) {
+  async function sendTodo() {
+    if (role !== 'employee') return
+    if (plan.length === 0) {
+      setNoteOk(false)
+      setNote('Ajoutez au moins une activité avant d’envoyer la Todo List.')
+      draftRef.current?.focus()
+      return
+    }
+    try {
+      await openSession()
+      const data = await deskCall('/api/todos/', { method: 'POST', body: JSON.stringify({ send: true }) })
+      setNoteOk(true)
+      setNote(data.message || 'Todo List envoyée au responsable.')
+      setStamp((value) => value + 1)
+    } catch (error) {
+      setNoteOk(false)
+      setNote(error instanceof Error ? error.message : 'Impossible d’envoyer la Todo List.')
+    }
+  }
+  async function toggleTodo(item: { id: string; done: boolean }) {
+    if (!/^\d+$/.test(item.id)) return
+    await deskCall(`/api/taches/${item.id}/statut/`, { method: 'POST', body: JSON.stringify({ status: item.done ? 'todo' : 'completed' }) })
+    setStamp((value) => value + 1)
+  }
+    const weight = (priority: string) => priority === 'Élevée' ? 0 : priority === 'Moyenne' ? 1 : 2
+    const ordered = sort === 'time' ? plan : [...plan].sort((a, b) => weight(a.priority) - weight(b.priority))
+    const doneCount = plan.filter((item) => item.done).length
+    const ratio = plan.length ? Math.round((doneCount / plan.length) * 100) : 0
+    const sendLabel = sent && revised ? 'Renvoyer la Todo List' : sent ? 'Envoyée au responsable' : 'Valider et envoyer'
+    if (role === 'admin') {
+      const sheet = board.find((row) => String(row.employee.id) === openId)
+      if (sheet) {
+        const personName = properName(sheet.employee.name)
+        const when = sheet.sentAt.includes(' ') ? `Reçue le ${sheet.sentAt.replace(' ', ' à ')}` : 'Pas encore envoyée'
+        return (
+          <section className="lp">
+            <LightHead kicker={todayLabel} title={`Todo List de ${personName}`} text={sheet.sent ? `${when} · ${sheet.items.length} activité${sheet.items.length > 1 ? 's' : ''}` : 'Cette Todo List n’a pas encore été envoyée.'} action={<button className="lp-btn light" type="button" onClick={() => setOpenId('')}>Retour</button>} />
+            <article className="lp-panel todo-sheet">
+              <header className="todo-who">
+                <b>{sheet.employee.initials || personName.slice(0, 2).toUpperCase()}</b>
+                <div>
+                  <strong>{personName}</strong>
+                  <small>Employée · {todayLabel}</small>
+                </div>
+                <em className={sheet.sent ? 'ok' : 'wait'}>{sheet.sent ? 'Reçue' : 'Non reçue'}</em>
+              </header>
+              <div className="todo-facts">
+                <span><b>{sheet.items.length}</b> activité{sheet.items.length > 1 ? 's' : ''}</span>
+                <span>{sheet.sent ? when : 'En attente d’envoi'}</span>
+              </div>
+              {sheet.items.length === 0 ? <p className="muted todo-empty">Aucune activité dans cette Todo List.</p> : null}
+              {sheet.items.map((item, index) => (
+                <div className="lp-line" key={item.id}>
+                  <b className="todo-idx">{String(index + 1).padStart(2, '0')}</b>
+                  <span><strong>{lead(item.title)}</strong><small>{item.project || 'Journée'}</small></span>
+                  <em className="info">{item.priority_label || 'Moyenne'}</em>
+                  <em className={item.status_label === 'Terminée' ? 'ok' : 'wait'}>{item.status_label || 'Non commencée'}</em>
+                </div>
+              ))}
+            </article>
+          </section>
+        )
+      }
+      const received = board.filter((row) => row.sent).length
+      return (
+        <section className="lp">
+          <LightHead kicker={todayLabel} title="Todo Lists du jour" text="Ouvrez la liste transmise par chaque employé." />
+          <div className="lp-stats">
+            <span><i className="ok" /><b>{received}</b> reçue{received > 1 ? 's' : ''}</span>
+            <span><i className="warn" /><b>{board.length - received}</b> en attente</span>
+          </div>
+          <article className="lp-panel">
+            <header><div><h2>Réception</h2><p>Todo Lists transmises aujourd’hui</p></div></header>
+            {board.map((row) => (
+              <button className="lp-act" type="button" key={row.employee.id} onClick={() => setOpenId(String(row.employee.id))}>
+                <span className="lp-person"><b>{row.employee.initials || row.employee.name.slice(0, 2).toUpperCase()}</b></span>
+                <span className="grow"><strong>{properName(row.employee.name)}</strong><small>{row.sent ? `${row.items.length} activité${row.items.length > 1 ? 's' : ''}` : 'Todo List non envoyée'}</small></span>
+                <em className={row.sent ? 'ok' : 'wait'}>{row.sent ? 'Reçue' : 'Non reçue'}</em>
+                <time>{row.sent ? row.sentAt : '—'}</time>
+                <Icon name="chevron" size={16} />
+              </button>
+            ))}
+          </article>
+        </section>
+      )
+    }
     return (
-      <section>
-        <PageHeader kicker="Mon espace" title="Todo List du jour" subtitle="Les tâches préparées pour votre journée." />
-        <article className="card card-pad">
-          {mine.items.map((item) => (
-            <div className={`task-line${item.done ? ' done' : ''}`} key={item.id}>
-              <span className={`check${item.done ? ' on' : ''}`}>{item.done ? <Icon name="check" size={12} /> : null}</span>
-              <strong>{item.text}</strong>
+      <section className="lp">
+        <LightHead kicker={todayLabel} title="Ma Todo List du jour" text="Organisez votre journée, puis envoyez la liste au responsable." action={<button className="lp-btn" type="button" disabled={sent && !revised} onClick={() => { void sendTodo() }}><Icon name="check" size={14} /> {sendLabel}</button>} />
+        {note ? <p className={`lp-note${noteOk ? '' : ' bad'}`}>{note}</p> : null}
+        <div className="lp-todo">
+          <div>
+            <div className="lp-banner">
+              <span><Icon name="check" size={16} /> <b>{doneCount} / {plan.length} tâches terminées</b><small>Vous avancez très bien, continuez ainsi.</small></span>
+              <strong>{ratio}%</strong>
+              <i><b style={{ width: `${ratio}%` }} /></i>
             </div>
-          ))}
-        </article>
+            <article className="lp-panel">
+              <header>
+                <div><h2>Planning du jour</h2><p>Vos activités planifiées</p></div>
+                <button type="button" onClick={() => setSort((current) => current === 'time' ? 'priority' : 'time')}>Trier</button>
+              </header>
+              {ordered.map((item) => (
+                  <div className={`lp-line${item.done ? ' on' : ''}`} key={item.id}>
+                    <button type="button" aria-label={item.title} onClick={() => { void toggleTodo(item) }}>{item.done ? <Icon name="check" size={12} /> : null}</button>
+                    <time>{item.time}</time>
+                    <span><strong>{item.title}</strong><small>{item.project}</small></span>
+                    <em className={item.tone}>{item.priority}</em>
+                    <button className="lp-more" type="button" aria-label="Terminer" onClick={() => { void toggleTodo(item) }}>•••</button>
+                  </div>
+              ))}
+              {role === 'employee' ? (
+              <>
+              {sent && !revised ? <p className="todo-sent">Todo List envoyée au responsable{sentAt ? ` le ${sentAt}` : ''}.</p> : null}
+              <form className="lp-add" onSubmit={(event) => { event.preventDefault(); void addTodo() }}>
+                <input ref={draftRef} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Écrire l’activité du jour..." />
+                <select value={link} onChange={(event) => setLink(event.target.value)} aria-label="Lier à une tâche">
+                  <option value="">Sans lien</option>
+                  {links.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                </select>
+                <button className="lp-btn" type="submit">Ajouter</button>
+              </form>
+              </>
+              ) : null}
+            </article>
+          </div>
+          <aside className="lp-advice">
+            <span><Icon name="spark" size={16} /></span>
+            <small>Conseil IA</small>
+            <h2>Votre priorité du jour</h2>
+            <p>Concentrez-vous sur le modèle prédictif avant 12 h. Cette tâche bloque deux activités du projet.</p>
+            <button type="button">Voir la tâche →</button>
+          </aside>
+        </div>
       </section>
     )
-  }
-  return (
-    <section>
-      <PageHeader kicker="Mon espace" title="Todo List du jour" subtitle="Préparez et cochez les tâches de votre journée." />
-      <article className="card card-pad">
-        {items.length === 0 ? <p className="muted">Aucune tâche dans la Todo List du jour.</p> : null}
-        {items.map((item) => {
-          const on = done.includes(item)
-          return (
-            <div className={`task-line${on ? ' done' : ''}`} key={item}>
-              <button className={`check${on ? ' on' : ''}`} type="button" onClick={() => setDone((prev) => on ? prev.filter((entry) => entry !== item) : [...prev, item])}>{on ? <Icon name="check" size={12} /> : null}</button>
-              <strong>{item}</strong>
-            </div>
-          )
-        })}
-        <form className="ask" onSubmit={(event) => { event.preventDefault(); if (!draft.trim()) return; setItems((prev) => [...prev, draft.trim()]); setDraft('') }}>
-          <input className="field" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ajouter une tâche..." />
-          <Button type="submit">Ajouter</Button>
-        </form>
-      </article>
-    </section>
-  )
 }
 
 function formatSize(bytes: number) {
@@ -698,152 +1662,263 @@ function formatSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} Ko`
 }
 
+function blobUrlFromData(dataUrl: string) {
+  const comma = dataUrl.indexOf(',')
+  const mime = /data:([^;,]+)/.exec(dataUrl.slice(0, comma))?.[1] || 'application/octet-stream'
+  const binary = atob(dataUrl.slice(comma + 1))
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return URL.createObjectURL(new Blob([bytes], { type: mime }))
+}
+
+function openableUrl(url?: string) {
+  if (!url) return ''
+  return url.startsWith('data:') ? blobUrlFromData(url) : url
+}
+
 function openInBrowser(file: { name: string; url?: string; html?: string; kind?: string }) {
   if (file.html && file.kind !== 'PDF') {
     const title = file.name.replace(/[&<>"]/g, '')
     const page = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:Georgia,serif;max-width:760px;margin:40px auto;padding:0 16px;line-height:1.55;color:#10283f}img{max-width:100%}</style></head><body>${file.html}</body></html>`
-    window.open(URL.createObjectURL(new Blob([page], { type: 'text/html' })), '_blank', 'noopener')
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(new Blob([page], { type: 'text/html' }))
+    link.target = '_blank'
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
     return
   }
-  if (file.url) window.open(file.url, '_blank', 'noopener')
+  const href = openableUrl(file.url)
+  if (!href) return
+  const link = document.createElement('a')
+  link.href = href
+  link.target = '_blank'
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
 }
 
 function FileViewer({ file }: { file?: { name: string; url?: string; html?: string; kind?: string } | null }) {
+  const src = useMemo(() => openableUrl(file?.url), [file?.url])
   if (!file) return null
-  if (file.url && file.kind !== 'DOC') return <iframe className="doc-frame" title={file.name} src={file.url} />
+  if (src && file.kind !== 'DOC') return <iframe className="doc-frame" title={file.name} src={src} />
   if (file.html) return <div className="doc-preview doc-html" dangerouslySetInnerHTML={{ __html: file.html }} />
   return <p className="empty">Aucun fichier joint. Il pourra être ouvert ici dès qu'il aura été importé.</p>
 }
 
-function ReportsPage({ staff, library }: { staff: Staff[]; library: ReportFile[] }) {
-  const firstOpenable = library.find((file) => file.url || file.html)
-  const [personId, setPersonId] = useState(firstOpenable?.person ?? 'nouzou')
-  const [scope, setScope] = useState('all')
-  const [opened, setOpened] = useState(firstOpenable?.id ?? '')
-  const person = staff.find((item) => item.id === personId) ?? staff[0]
-  const files = library.filter((file) => (personId === 'all' || file.person === personId) && (scope === 'all' || (scope === 'week' ? file.scope === 'week' : true)))
-  const current = library.find((file) => file.id === opened)
+const dailyReports = [
+  { initials: 'AK', tone: 'violet', name: 'Aïcha Konaté', role: 'Data Analyst', date: '09 juin 2025', project: 'Nova Analytics', status: 'Soumis', time: '17:20', tasks: '6 tâches' },
+  { initials: 'MD', tone: 'blue', name: 'Moussa Diallo', role: 'Développeur Full Stack', date: '09 juin 2025', project: 'Portail Finance', status: 'Soumis', time: '16:21', tasks: '5 tâches' },
+  { initials: 'SN', tone: 'orange', name: 'Sarah N’Guessan', role: 'UX/UI Designer', date: '09 juin 2025', project: 'Mobile Banking', status: 'Brouillon', time: '—', tasks: '4 tâches' },
+  { initials: 'IT', tone: 'green', name: 'Ibrahim Traoré', role: 'Data Engineer', date: '09 juin 2025', project: 'Nova Analytics', status: 'Soumis', time: '14:23', tasks: '3 tâches' },
+  { initials: 'FN', tone: 'pink', name: 'Fatou Ndiaye', role: 'Cheffe de projet', date: '09 juin 2025', project: 'Portail Finance', status: 'Soumis', time: '13:24', tasks: '2 tâches' },
+]
+
+function EmployeeReportPage() {
+  const picker = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+  const [history, setHistory] = useState<{ date: string; name: string; time: string; url?: string }[]>([])
+  const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+  useEffect(() => {
+    deskCall('/api/rapports/').then((data) => {
+      const rows = (data.reports ?? []) as { date: string; name: string; sent_at: string; url: string }[]
+      setHistory(rows.map((item) => ({ date: item.date, name: item.name, time: item.sent_at, url: item.url })))
+    }).catch(() => undefined)
+  }, [sent])
+  function take(list: FileList | null) {
+    const picked = list?.[0]
+    if (picker.current) picker.current.value = ''
+    if (!picked) return
+    if (!/\.(pdf|docx)$/i.test(picked.name)) {
+      setError('Formats acceptés : PDF ou DOCX.')
+      return
+    }
+    if (picked.size > 10 * 1024 * 1024) {
+      setError('Le fichier dépasse 10 Mo.')
+      return
+    }
+    setFile(picked)
+    setError('')
+    setSent(false)
+  }
+  function downloadTemplate() {
+    const text = 'Rapport journalier\n\nDate :\nActivités réalisées :\nDifficultés rencontrées :\nBesoins :\n'
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
+    link.download = 'modele-rapport-journalier.txt'
+    link.click()
+  }
+  async function submit() {
+    if (!file) {
+      setError('Importez votre rapport avant de l’envoyer à Amadou.')
+      return
+    }
+    const body = new FormData()
+    body.set('file', file)
+    try {
+      const data = await deskCall('/api/rapports/', { method: 'POST', body })
+      setSent(true)
+      setError('')
+      setMessage(data.message || 'Rapport envoyé.')
+      setHistory((prev) => [{ date: data.report.date, name: data.report.name, time: data.report.sent_at, url: data.report.url }, ...prev])
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Envoi impossible.')
+    }
+  }
   return (
-    <section>
-      <PageHeader title="Rapports journaliers" subtitle="Consultez et gérez les rapports de votre équipe." />
-      <FilterBar>
-        <div className="chips">
-          {[['all', 'Tous les rapports'], ['week', 'Cette semaine'], ['month', 'Ce mois']].map(([id, label]) => (
-            <button key={id} className={`chip${scope === id ? ' on' : ''}`} type="button" onClick={() => setScope(id)}>{label}</button>
+    <section className="lp my-report">
+      <LightHead
+        kicker=""
+        title="Mon rapport journalier"
+        text="Importez votre compte rendu et transmettez-le directement à votre responsable."
+        action={<button className="lp-btn" type="button" onClick={downloadTemplate}><Icon name="download" size={14} /> Télécharger le modèle</button>}
+      />
+      <div className="my-report-grid">
+        <article>
+          <div className="my-report-top">
+            <div>
+              <h2>Rapport du {today}</h2>
+              <p>Formats acceptés : PDF ou DOCX · 10 Mo maximum</p>
+            </div>
+            <em className={sent ? 'ok' : 'wait'}>{sent ? 'Soumis' : 'Brouillon'}</em>
+          </div>
+          <button
+            className="my-drop"
+            type="button"
+            onClick={() => picker.current?.click()}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => { event.preventDefault(); take(event.dataTransfer.files) }}
+          >
+            <span><Icon name="download" size={18} /></span>
+            <strong>{file ? file.name : 'Importez votre rapport de la journée'}</strong>
+            <small>{file ? formatSize(file.size) : 'Cliquez pour sélectionner un fichier depuis votre appareil'}</small>
+          </button>
+          <input ref={picker} type="file" accept=".pdf,.docx,.txt,application/pdf,text/plain" hidden onChange={(event) => take(event.target.files)} />
+          <label className="my-note">
+            <span>Message pour votre responsable <em>Optionnel</em></span>
+            <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ajoutez un contexte, une difficulté ou une information importante..." />
+          </label>
+          {error ? <p className="my-error">{error}</p> : null}
+          {sent ? <p className="my-ok">Rapport transmis à Amadou Mensah.</p> : null}
+          <footer>
+            <small><Icon name="shield" size={14} /> Visible uniquement par votre responsable</small>
+            <button className="lp-btn" type="button" onClick={() => { void submit() }}><Icon name="send" size={14} /> Envoyer à Amadou</button>
+          </footer>
+        </article>
+        <aside>
+          <h2>Derniers rapports</h2>
+          <p>Votre historique récent</p>
+          {history.map((item) => (
+            <a className="my-history" key={`${item.date}-${item.name}`} href={item.url || undefined}>
+              <span><Icon name="file" size={16} /></span>
+              <div><strong>{item.date}</strong><small>{item.name}</small></div>
+              <em><b>Soumis</b><small>{item.time}</small></em>
+            </a>
           ))}
-        </div>
-      </FilterBar>
-      <div className="reports">
-        <aside className="card card-pad">
-          <h2 className="col-title">Employés</h2>
-          <div className="scroll-list">
-            <button className={`person${personId === 'all' ? ' on' : ''}`} type="button" onClick={() => setPersonId('all')}>
-              <Avatar initials="+" tone="tone-navy" size="sm" />
-              <span className="grow"><strong>Tous les employés</strong></span>
-              <span className="count">{staff.length}</span>
-            </button>
-            {staff.map((item) => (
-              <button className={`person${personId === item.id ? ' on' : ''}`} type="button" key={item.id} onClick={() => { setPersonId(item.id); const first = library.find((file) => file.person === item.id); if (first) setOpened(first.id) }}>
-                <Avatar initials={item.initials} tone={item.tone} size="sm" online={item.online} />
-                <span className="grow"><strong>{item.name}</strong><small>{item.role}</small></span>
-                <span className="count">{library.filter((file) => file.person === item.id).length}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-        <section className="card card-pad">
-          <h2 className="col-title">Rapports de {personId === 'all' ? "l'équipe" : person.name} {person.online && personId !== 'all' ? <span className="online">En ligne</span> : null}</h2>
-          <div className="scroll-list">
-            {files.map((file) => (
-              <div className={`file-row${opened === file.id ? ' on' : ''}`} key={file.id}>
-                <span className={`ext${file.kind === 'DOC' ? ' doc' : ''}`}>{file.kind}</span>
-                <span className="grow"><strong>{file.name}</strong><small>{file.size} · {file.date}</small></span>
-                <span className="status ok">Soumis</span>
-                <button className="btn ghost" type="button" onClick={() => { setOpened(file.id); openInBrowser(file) }} disabled={!file.url && !file.html}><Icon name="eye" size={13} /> Ouvrir</button>
-              </div>
-            ))}
-            {files.length === 0 ? <p className="empty">Aucun rapport sur cette période.</p> : null}
-          </div>
-          {current ? <FileViewer file={current} /> : null}
-        </section>
-        <aside className="card card-pad report-side">
-          <div className="profile">
-            <Avatar initials={person.initials} tone={person.tone} size="lg" online={person.online} />
-            <h2>{person.name}</h2>
-            <p className="muted">{person.role} · {person.service}</p>
-            {person.online ? <span className="online">En ligne</span> : null}
-          </div>
-          <div className="mini-stats">
-            <div><strong>{person.reports}</strong><span>Rapports</span></div>
-            <div><strong>{person.presence}</strong><span>Présence</span></div>
-            <div><strong>8 min</strong><span>Activité</span></div>
-          </div>
-          <p className="muted">Dernier rapport</p>
-          <p style={{ margin: '4px 0 10px', fontWeight: 600 }}>{current?.name ?? 'Aucun fichier'}</p>
-          <Button ghost onClick={() => current && openInBrowser(current)}>Ouvrir dans le navigateur</Button>
         </aside>
       </div>
     </section>
   )
 }
 
-function EmployeeReport({ latest, history, error, onFile }: { latest: { name: string } | null; history: { date: string; name: string; size: string; url?: string; html?: string; kind?: string }[]; error: string; onFile: (file: File) => void }) {
-  const picker = useRef<HTMLInputElement>(null)
-  function take(list: FileList | null) {
-    const file = list?.[0]
-    if (file) onFile(file)
-    if (picker.current) picker.current.value = ''
+function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('Tous')
+  const [note, setNote] = useState('')
+  const [opened, setOpened] = useState<ReportFile | null>(null)
+  const [live, setLive] = useState<(typeof dailyReports[number] & { url?: string })[] | null>(null)
+  useEffect(() => {
+    deskCall('/api/rapports/').then((data) => {
+      const reports = (data.reports ?? []) as { name: string; username: string; submitted: boolean; filename: string; url: string; sent_at: string }[]
+      setLive(reports.map((item) => ({
+        initials: item.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '—',
+        tone: 'violet',
+        name: item.name,
+        role: item.username,
+        date: String(data.date || ''),
+        project: item.filename || '—',
+        status: item.submitted ? 'Soumis' : 'Manquant',
+        time: item.sent_at || '—',
+        tasks: item.filename || '—',
+        url: item.url,
+      })))
+    }).catch(() => undefined)
+  }, [])
+  const source = (live ?? dailyReports) as (typeof dailyReports[number] & { url?: string })[]
+  const received = source.filter((item) => item.status === 'Soumis').length
+  const ratio = source.length ? Math.round((received / source.length) * 100) : 0
+  const rows = source.filter((item) => {
+    const blob = `${item.name} ${item.project} ${item.role}`.toLowerCase()
+    return blob.includes(query.toLowerCase()) && (status === 'Tous' || item.status === status)
+  })
+  function exportReports() {
+    const text = ['Employé;Date;Projet;Statut;Soumis à;Activités', ...rows.map((item) => `${item.name};${item.date};${item.project};${item.status};${item.time};${item.tasks}`)].join('\n')
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
+    link.download = 'rapports-journaliers.txt'
+    link.click()
+  }
+  function openReport(name: string, url?: string) {
+    if (url) {
+      window.open(url, '_blank', 'noopener')
+      return
+    }
+    const file = library.find((item) => item.url || item.html) ?? null
+    setOpened(file)
+    if (file) openInBrowser(file)
+    else setNote(`Rapport de ${name}`)
   }
   return (
-    <section>
-      <PageHeader title="Mon rapport journalier" subtitle="Importez votre rapport de la journée afin de le transmettre au responsable." />
-      {latest ? <div className="notice"><Icon name="check" size={14} /> Vous avez importé <strong style={{ marginLeft: 4 }}>{latest.name}</strong>.</div> : null}
-      <div className="two">
-        <div
-          className="drop"
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => { event.preventDefault(); take(event.dataTransfer.files) }}
-        >
-          <input ref={picker} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={(event) => take(event.target.files)} />
-          <span className={`file-ico${latest ? ' ok' : ''}`}><Icon name={latest ? 'check' : 'file'} size={20} /></span>
-          <h2>{latest ? 'Vous avez importé' : 'Importer mon rapport'}</h2>
-          <p>{latest ? latest.name : 'Déposez votre fichier ici ou choisissez-le depuis votre PC'}</p>
-          {latest ? <p>Ce fichier a été transmis au responsable.</p> : null}
-          {error ? <p style={{ color: '#fca5a5' }}>{error}</p> : null}
-          <Button onClick={() => picker.current?.click()}><Icon name="folder" size={14} /> {latest ? 'Choisir un autre fichier' : 'Choisir un fichier'}</Button>
-          <p className="muted">Formats acceptés : PDF, DOCX<br />Taille maximale : 10 Mo</p>
+    <section className="lp">
+      <LightHead kicker="Suivi quotidien" title="Rapports journaliers" text="Centralisez et analysez les comptes rendus de vos équipes." action={<button className="lp-btn" type="button" onClick={exportReports}><Icon name="download" size={14} /> Exporter les rapports</button>} />
+      <div className="lp-day">
+        <span className="lp-folder"><Icon name="file" size={16} /></span>
+        <div>
+          <small>Rapports du jour</small>
+          <strong>{received} rapports reçus sur {source.length}</strong>
+          <i><b style={{ width: `${ratio}%` }} /></i>
         </div>
-        <aside className="card tips">
-          <h2>Quelques conseils</h2>
-          <ul>
-            <li><Icon name="check" size={13} /> Votre rapport doit contenir les principales activités de la journée.</li>
-            <li><Icon name="check" size={13} /> Vous pouvez utiliser le format de votre choix, PDF ou Word.</li>
-            <li><Icon name="check" size={13} /> Assurez-vous que le fichier soit lisible et bien nommé.</li>
-          </ul>
-        </aside>
+        <b>{ratio}%</b>
+        <button type="button" onClick={() => setNote('Les 9 employés ont été relancés.')}>Relancer les 9 employés <Icon name="send" size={14} /></button>
       </div>
-      <article className="card table-wrap" style={{ marginTop: 12 }}>
-        <div className="card-pad" style={{ paddingBottom: 0 }}><h2>Mes rapports précédents</h2></div>
-        <table>
-          <thead><tr><th>Date d'envoi</th><th>Nom du fichier</th><th>Taille</th><th>Statut</th><th>Action</th></tr></thead>
+      {note ? <p className="lp-note">{note}</p> : null}
+      <div className="lp-panel">
+        <div className="lp-tools">
+          <label><Icon name="search" size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un rapport..." /></label>
+          <button className="lp-filter" type="button" onClick={() => setStatus(status === 'Tous' ? 'Soumis' : status === 'Soumis' ? 'Brouillon' : 'Tous')}>Filtres <b>2</b></button>
+        </div>
+        <table className="lp-table">
+          <thead><tr><th>Employé</th><th>Date</th><th>Projet</th><th>Statut</th><th>Soumis à</th><th>Activités</th><th>Actions</th></tr></thead>
           <tbody>
-            {history.map((item) => (
-              <tr key={`${item.date}-${item.name}`}>
+            {rows.map((item) => (
+              <tr key={item.name}>
+                <td><span className="lp-person"><b className={item.tone}>{item.initials}</b><span><strong>{item.name}</strong><small>{item.role}</small></span></span></td>
                 <td>{item.date}</td>
-                <td>{item.name}</td>
-                <td>{item.size}</td>
-                <td><span className="status ok">Soumis</span></td>
-                <td>{item.url || item.html ? <button className="linkish" type="button" onClick={() => openInBrowser(item)}>Voir</button> : <span className="muted">Aucun fichier</span>}</td>
+                <td className="link">{item.project}</td>
+                <td><em className={item.status === 'Soumis' ? 'ok' : 'warn'}>{item.status}</em></td>
+                <td className="muted">{item.time}</td>
+                <td>{item.tasks}</td>
+                <td className="lp-actions">
+                  <button type="button" aria-label="Voir" onClick={() => openReport(item.name, item.url)}><Icon name="eye" size={14} /></button>
+                  <button type="button" aria-label="Télécharger" onClick={() => { if (item.url) window.open(item.url, '_blank', 'noopener'); else exportReports() }}><Icon name="download" size={14} /></button>
+                  <button type="button" aria-label="Actions">•••</button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </article>
+        {opened ? <FileViewer file={opened} /> : null}
+      </div>
     </section>
   )
 }
 
-type Note = { id: number; author: 'admin' | 'employee'; text: string }
+type Note = { id: number; author: 'admin' | 'employee'; text: string; file?: ProjectFile }
 type Account = { username: string; email: string; password: string; first: string; last: string }
 
 const zainaThread: Note[] = [
@@ -856,182 +1931,599 @@ const zainaThread: Note[] = [
   { id: 7, author: 'employee', text: 'passe' },
 ]
 
-function MessagingPage({ role, account, contacts, threads, unread, onSend, onRead }: { role: Role; account: Account; contacts: Account[]; threads: Record<string, Note[]>; unread: Record<string, { admin: number; employee: number }>; onSend: (username: string, text: string) => void; onRead: (username: string) => void }) {
-  const extras = [
-    { id: 'paul', name: 'Paul Mbia', initials: 'PM', tone: 'tone-sky', photo: '', online: false, time: '09:15', unread: 2, messages: [
-      { id: 101, author: 'employee' as const, text: 'Le client Tiko a validé le calendrier.' },
-      { id: 102, author: 'employee' as const, text: 'Je t’envoie le rétroplanning.' },
-    ] },
-    { id: 'lucas', name: 'Lucas Nguema', initials: 'LN', tone: 'tone-green', photo: '', online: true, time: 'Hier', unread: 0, messages: [
-      { id: 201, author: 'admin' as const, text: 'Le formulaire de contact est en ligne ?' },
-      { id: 202, author: 'employee' as const, text: 'Oui, il est prêt pour la recette.' },
-    ] },
-  ]
-  const mine = role === 'admin' ? 'admin' : 'employee'
-  const live = contacts.map((person) => ({
-    id: person.username,
-    name: role === 'admin' ? `${person.first} ${person.last}` : 'Responsable',
-    initials: role === 'admin' ? `${person.first[0] ?? ''}${person.last[0] ?? ''}`.toUpperCase() : 'R',
-    tone: role === 'admin' ? '' : 'tone-navy',
-    photo: role === 'admin' && person.username === zaina.username ? zaina.photo : '',
-    online: true,
-    time: 'À l’instant',
-    unread: (unread[person.username] ?? { admin: 0, employee: 0 })[mine],
-    messages: threads[person.username] ?? [],
-  }))
-  const rows = role === 'admin' ? [...live, ...extras] : [live.find((item) => item.id === account.username) ?? live[0]]
-  const [active, setActive] = useState(role === 'admin' ? zaina.username : account.username)
+function attachmentKind(name: string) {
+  const lower = name.toLowerCase()
+  if (lower.endsWith('.pdf')) return 'PDF'
+  if (/\.(jpe?g|png|webp|gif)$/.test(lower)) return 'Image'
+  if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'DOC'
+  if (lower.endsWith('.xls') || lower.endsWith('.xlsx')) return 'Excel'
+  if (lower.endsWith('.txt')) return 'Texte'
+  return ''
+}
+
+function readDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+type MailNote = { id: number; mine: boolean; text: string; time: string; file?: ProjectFile }
+type MailThread = {
+  id: string
+  name: string
+  initials: string
+  tone: string
+  role: string
+  online: boolean
+  time: string
+  unread: number
+  project: string
+  progress: string
+  files: { name: string; meta: string }[]
+  messages: MailNote[]
+}
+
+function MessagingPage({ role, focus = '' }: { role: Role; focus?: string }) {
+  const [active, setActive] = useState(focus)
+  const [mailbox, setMailbox] = useState<MailThread[]>([])
   const [filter, setFilter] = useState('all')
+  const [query, setQuery] = useState('')
+  const [stamp, setStamp] = useState(0)
   const [draft, setDraft] = useState('')
-  const [file, setFile] = useState(false)
-  const [local, setLocal] = useState<Record<string, Note[]>>({})
-  const chat = rows.find((item) => item.id === active) ?? rows[0]
-  const shared = contacts.some((person) => person.username === chat.id)
-  useEffect(() => { if (shared) onRead(chat.id) }, [chat.id, shared, onRead])
-  const messages = shared ? (threads[chat.id] ?? []) : (local[chat.id] ?? chat.messages)
-  const visible = rows.filter((item) => filter === 'all' || (filter === 'unread' ? item.unread > 0 : true))
-  function send() {
+  const [attachment, setAttachment] = useState<ProjectFile | null>(null)
+  const [fileError, setFileError] = useState('')
+  const picker = useRef<HTMLInputElement>(null)
+  const stream = useRef<HTMLDivElement>(null)
+  const activeRef = useRef(active)
+  activeRef.current = active
+  useEffect(() => { if (focus) setActive(focus) }, [focus])
+  useEffect(() => {
+    let stop = false
+    async function pull() {
+      const chosen = activeRef.current
+      if (role === 'employee') {
+        const data = await deskCall('/api/messages/')
+        const contact = (data.contact ?? {}) as { name?: string; initials?: string }
+        const messages = (data.messages ?? []) as { id: number; mine: boolean; text: string; at: string }[]
+        if (stop) return
+        setMailbox([{
+          id: 'boss',
+          name: properName(contact.name || 'Amadou Mensah'),
+          initials: contact.initials || 'AM',
+          tone: 'blue',
+          role: 'Responsable',
+          online: true,
+          time: messages.at(-1)?.at || '',
+          unread: 0,
+          project: '',
+          progress: '',
+          files: [],
+          messages: messages.map((item) => ({ id: item.id, mine: item.mine, text: item.text, time: item.at })),
+        }])
+        setActive('boss')
+        return
+      }
+      const data = await deskCall(chosen ? `/api/messages/?with=${chosen}` : '/api/messages/')
+      const people = (data.contacts ?? []) as { id: number; name: string; initials: string; preview: string; time: string; unread: number }[]
+      const openMessages = (data.messages ?? []) as { id: number; mine: boolean; text: string; at: string }[]
+      if (stop) return
+      const preferred = chosen || String(people[0]?.id ?? '')
+      setMailbox(people.map((person, index) => ({
+        id: String(person.id),
+        name: properName(person.name),
+        initials: person.initials || person.name.slice(0, 2).toUpperCase(),
+        tone: ['blue', 'violet', 'green', 'orange', 'pink'][index % 5],
+        role: 'Employé',
+        online: true,
+        time: String(person.id) === preferred ? (openMessages.at(-1)?.at || person.time) : person.time,
+        unread: String(person.id) === preferred ? 0 : person.unread,
+        project: '',
+        progress: '',
+        files: [],
+        messages: String(person.id) === preferred
+          ? openMessages.map((item) => ({ id: item.id, mine: item.mine, text: item.text, time: item.at }))
+          : (person.preview ? [{ id: person.id, mine: false, text: person.preview, time: person.time }] : []),
+      })))
+      if (preferred) setActive(preferred)
+    }
+    pull().catch((error: unknown) => { if (!stop) setFileError(error instanceof Error ? error.message : 'Messagerie indisponible.') })
+    const timer = window.setInterval(() => { pull().catch(() => undefined) }, 4000)
+    return () => { stop = true; window.clearInterval(timer) }
+  }, [role, stamp, focus, active])
+  const visible = mailbox.filter((item) => {
+    const matches = item.name.toLowerCase().includes(query.trim().toLowerCase())
+    if (!matches) return false
+    if (filter === 'unread') return item.unread > 0
+    return true
+  })
+  const opened = mailbox.find((item) => item.id === active) ?? visible[0] ?? mailbox[0]
+  const unreadTotal = mailbox.filter((item) => item.unread > 0).length
+  useEffect(() => { setAttachment(null) }, [opened?.id])
+  useEffect(() => {
+    const node = stream.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [opened?.messages.length, opened?.id])
+  async function takeAttachment(list: FileList | null) {
+    const picked = list?.[0]
+    if (picker.current) picker.current.value = ''
+    if (!picked) return
+    const kind = attachmentKind(picked.name)
+    if (!kind) {
+      setFileError('Formats acceptés : PDF, image, Word, Excel ou texte.')
+      return
+    }
+    if (picked.size > 10 * 1024 * 1024) {
+      setFileError('Le fichier dépasse 10 Mo.')
+      return
+    }
+    let html = ''
+    if (picked.name.toLowerCase().endsWith('.docx')) {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.convertToHtml({ arrayBuffer: await picked.arrayBuffer() })
+      html = result.value
+    }
+    const url = await readDataUrl(picked)
+    setAttachment({ name: picked.name, kind, size: formatSize(picked.size), url, html: html || undefined })
+    setFileError('')
+  }
+  async function send() {
+    if (!opened) return
     const text = draft.trim()
-    if (!text) return
-    if (shared) onSend(chat.id, text)
-    else setLocal((prev) => ({ ...prev, [chat.id]: [...(prev[chat.id] ?? chat.messages), { id: Date.now(), author: 'admin', text }] }))
-    setDraft('')
-    setFile(false)
+    const payload = text || (attachment ? `Pièce jointe : ${attachment.name}` : '')
+    if (!payload) return
+    try {
+      await openSession()
+      if (role === 'employee') await deskCall('/api/messages/', { method: 'POST', body: JSON.stringify({ text: payload }) })
+      else await deskCall('/api/messages/', { method: 'POST', body: JSON.stringify({ text: payload, with: opened.id }) })
+      setDraft('')
+      setAttachment(null)
+      setFileError('')
+      setStamp((value) => value + 1)
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : 'Le message n’a pas été envoyé.')
+    }
   }
   return (
-    <section className="card msg-app">
-      <aside className="msg-list">
-        <h1 className="page-title">Messagerie</h1>
-        <p className="page-sub" style={{ marginBottom: 10 }}>Communiquez directement avec votre équipe</p>
-        <label className="search-field" style={{ marginBottom: 8 }}><Icon name="search" size={14} /><input className="field" placeholder="Rechercher une conversation..." style={{ width: '100%' }} /></label>
-        <div className="chips" style={{ marginBottom: 8 }}>
-          {[['all', 'Toutes'], ['unread', 'Non lus'], ['mine', 'Mes conversations']].map(([id, label]) => (
-            <button key={id} className={`chip${filter === id ? ' on' : ''}`} type="button" onClick={() => setFilter(id)}>{label}</button>
-          ))}
+    <section className="team-mail">
+      <header className="team-mail-head">
+        <div>
+          {role === 'employee' ? null : <span>Communication</span>}
+          <h1>{role === 'employee' ? 'Messagerie avec mon responsable' : 'Messagerie d’équipe'}</h1>
+          <p>{role === 'employee' ? 'Un canal privé et direct avec Amadou Mensah, votre responsable.' : 'Échangez avec votre équipe et centralisez les décisions importantes.'}</p>
         </div>
-        <div className="msg-scroll">
-          {visible.map((item) => (
-            <button className={`msg-row${item.id === chat.id ? ' on' : ''}`} type="button" key={item.id} onClick={() => setActive(item.id)}>
-              <Avatar initials={item.initials} tone={item.tone} online={item.online} src={item.photo} />
-              <span className="grow">
-                <span className="msg-top"><strong>{item.name}</strong><time>{item.time}</time></span>
-                <span className="msg-top"><p>{(contacts.some((person) => person.username === item.id) ? (threads[item.id] ?? []) : (local[item.id] ?? item.messages)).at(-1)?.text}</p>{item.unread ? <span className="pill blue">{item.unread}</span> : null}</span>
+        {role === 'employee' ? null : <button className="lp-btn" type="button" onClick={() => document.getElementById('team-search')?.focus()}><Icon name="plus" size={14} /> Nouvelle discussion</button>}
+      </header>
+      <div className="team-board">
+        <aside className="team-list">
+          <label className="team-search">
+            <Icon name="search" size={14} />
+            <input id="team-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une conversation..." />
+          </label>
+          <div className="team-filters">
+            <button className={filter === 'all' ? 'on' : ''} type="button" onClick={() => setFilter('all')}>Toutes <b>{mailbox.length}</b></button>
+            <button className={filter === 'unread' ? 'on' : ''} type="button" onClick={() => setFilter('unread')}>Non lues <b>{unreadTotal}</b></button>
+          </div>
+          <div className="team-scroll">
+            {visible.map((item) => (
+              <button className={`team-row${item.id === opened?.id ? ' on' : ''}`} type="button" key={item.id} onClick={() => setActive(item.id)}>
+                <span className={`tm-av ${item.tone}`}>{item.initials}{item.online ? <i /> : null}</span>
+                <span>
+                  <span className="team-row-top"><strong>{item.name}</strong><time>{item.time}</time></span>
+                  <span className="team-row-bot"><em>{item.messages.at(-1)?.text || 'Aucun message'}</em>{item.unread ? <b>{item.unread}</b> : null}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </aside>
+        {opened ? (
+          <section className="team-thread">
+            <header>
+              <span className={`tm-av ${opened.tone}`}>{opened.initials}{opened.online ? <i /> : null}</span>
+              <span>
+                <strong>{opened.name}</strong>
+                <small className={opened.online ? 'live' : ''}>{role === 'employee' ? 'Conversation privée' : 'En ligne'}</small>
               </span>
-            </button>
-          ))}
-        </div>
-      </aside>
-      <section className="msg-pane">
-        <div className="msg-head">
-          <Avatar initials={chat.initials} tone={chat.tone} online={chat.online} src={chat.photo} />
-          <span><strong>{chat.name}</strong><small className="muted" style={{ display: 'block' }}>{chat.online ? 'En ligne' : 'Hors ligne'}</small></span>
-        </div>
-        <div className="msg-stream">
-          {messages.map((message) => <div className={`bubble ${message.author === mine ? 'me' : 'them'}`} key={message.id}>{message.text}</div>)}
-        </div>
-        {file ? <p className="picked">Pièce jointe : Rapport_05_octobre.pdf</p> : null}
-        <form className="composer" onSubmit={(event) => { event.preventDefault(); send() }}>
-          <button className="icon-btn" type="button" aria-label="Joindre un fichier" onClick={() => setFile(true)}><Icon name="clip" size={14} /></button>
-          <input className="field" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Écrire un message..." />
-          <Button type="submit"><Icon name="send" size={13} /> Envoyer</Button>
-        </form>
-      </section>
+              {role === 'employee' ? <span className="team-secure"><i /> Sécurisée</span> : <span className="team-tools"><Icon name="search" size={15} /><Icon name="list" size={15} /></span>}
+            </header>
+            <div className="team-stream" ref={stream}>
+              <p className="team-day">Aujourd’hui</p>
+              {opened.messages.map((message) => (
+                <div className={`team-bubble${message.mine ? ' me' : ''}`} key={message.id}>
+                  {message.mine ? null : <span className={`tm-av sm ${opened.tone}`}>{opened.initials}</span>}
+                  <span>
+                    <p>{message.text}</p>
+                    {message.file ? <small>{message.file.name}</small> : null}
+                    <time>{message.time}{role === 'employee' && message.mine && message.id === opened.messages.filter((entry) => entry.mine).at(-1)?.id ? ' · Lu' : ''}</time>
+                  </span>
+                </div>
+              ))}
+              {opened.online ? <p className="team-typing"><i /><i /><i /> {opened.name} est en ligne</p> : null}
+            </div>
+            {attachment ? <p className="team-file">Pièce jointe : {attachment.name} <button type="button" onClick={() => setAttachment(null)}>Retirer</button></p> : null}
+            {fileError ? <p className="team-file err">{fileError}</p> : null}
+            <form onSubmit={(event) => { event.preventDefault(); void send() }}>
+              <input ref={picker} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*" hidden onChange={(event) => { void takeAttachment(event.target.files) }} />
+              <button type="button" aria-label="Joindre un fichier" onClick={() => picker.current?.click()}><Icon name="plus" size={16} /></button>
+              <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={role === 'employee' ? 'Écrivez à Amadou Mensah...' : 'Écrivez votre message...'} />
+              <button className="send" type="submit" aria-label="Envoyer"><Icon name="send" size={16} /></button>
+            </form>
+            {role === 'employee' ? (
+              <p className="team-file">
+                <button type="button" onClick={() => { void deskCall('/api/messages/', { method: 'POST', body: JSON.stringify({ kind: 'meeting' }) }).then(() => setDraft('Demande de rendez-vous envoyée.')) }}>Demander un rendez-vous</button>
+                <button type="button" onClick={() => { const description = draft.trim(); if (description.length < 5) { setFileError('Décrivez le problème dans le message (5 caractères minimum), puis cliquez sur Signaler.'); return }; void deskCall('/api/difficultes/', { method: 'POST', body: JSON.stringify({ description }) }).then(() => { setDraft(''); setFileError('') }) }}>Signaler un problème</button>
+              </p>
+            ) : null}
+          </section>
+        ) : <section className="team-thread" />}
+        {opened ? (
+          <aside className="team-side">
+            <span className={`tm-av lg ${opened.tone}`}>{opened.initials}</span>
+            <strong>{opened.name}</strong>
+            <small>{opened.role}</small>
+            <em className={opened.online ? 'on' : ''}><i /> {opened.online ? 'Disponible aujourd’hui' : 'Hors ligne'}</em>
+            {opened.project ? (
+              <div className="team-card">
+                <span>Projet partagé</span>
+                <p><Icon name="folder" size={14} /> <b>{opened.project}</b></p>
+                <small>Progression : {opened.progress}</small>
+              </div>
+            ) : null}
+            <div className="team-files">
+              <span>Fichiers partagés {opened.files.length ? <button type="button">Voir tout</button> : null}</span>
+              {opened.files.map((file) => (
+                <p key={file.name}><Icon name="file" size={14} /><b>{file.name}</b><small>{file.meta}</small></p>
+              ))}
+            </div>
+          </aside>
+        ) : null}
+      </div>
     </section>
   )
 }
 
 function AssistantPage({ role }: { role: Role }) {
   const prompts = role === 'admin'
-    ? ["Qui n'a pas renseigné sa Todo List aujourd'hui ?", 'Quels projets sont en retard ?', "Résume l'activité de l'équipe aujourd'hui."]
-    : ['Quelles sont mes tâches en retard ?', 'Résume ma journée.', 'Quel est mon prochain délai ?']
-  const bank = role === 'admin' ? adminAnswers : employeeAnswers
+    ? [
+        { text: 'Quels sont les projets actuellement en retard ?', icon: 'alert', tone: 'red' },
+        { text: "Quelles sont les activités qui n'ont pas été réalisées aujourd'hui ?", icon: 'tasks', tone: 'orange' },
+        { text: 'Quelles sont les activités encore en cours ?', icon: 'clock', tone: 'blue' },
+        { text: 'Quelles sont les activités urgentes ?', icon: 'alert', tone: 'red' },
+        { text: 'Quelles sont les activités moyennement urgentes ?', icon: 'clock', tone: 'orange' },
+        { text: 'Donne-moi la To-Do List de Zaina Zaina.', icon: 'list', tone: 'violet' },
+        { text: "Quelles activités Zaina Zaina a-t-elle réalisées aujourd'hui ?", icon: 'check', tone: 'green' },
+        { text: "Quelles activités Zaina Zaina n'a-t-elle pas terminées ?", icon: 'tasks', tone: 'orange' },
+        { text: "Quel est l'état d'avancement des projets ?", icon: 'folder', tone: 'blue' },
+        { text: 'Quels employés ont des tâches en retard ?', icon: 'users', tone: 'red' },
+        { text: 'Quels sont les projets qui nécessitent une attention immédiate ?', icon: 'alert', tone: 'orange' },
+        { text: "Fais-moi une synthèse des rapports d'aujourd'hui.", icon: 'file', tone: 'violet' },
+        { text: "Quels employés n'ont pas encore envoyé leur rapport ?", icon: 'users', tone: 'blue' },
+        { text: 'Quelles sont les activités les plus problématiques ?', icon: 'alert', tone: 'red' },
+      ]
+    : [
+        { text: 'Quelles sont mes tâches en cours ?', icon: 'tasks', tone: 'blue' },
+        { text: 'Quelles activités ai-je aujourd’hui ?', icon: 'spark', tone: 'violet' },
+        { text: 'Quels sont mes prochains délais ?', icon: 'clock', tone: 'orange' },
+      ]
   const [log, setLog] = useState<{ q: string; a: string }[]>([])
   const [draft, setDraft] = useState('')
-  function ask(question: string) {
+  async function ask(question: string) {
     const text = question.trim()
     if (!text) return
-    const answer = bank[text] ?? (role === 'admin'
-      ? "D'après les données du jour, 8 employés sont actifs, 3 activités sont en retard et 2 projets arrivent à échéance cette semaine."
-      : "Vos 5 tâches sont terminées et le rapport du 5 octobre a déjà été transmis.")
-    setLog((prev) => [...prev, { q: text, a: answer }])
     setDraft('')
+    const url = role === 'admin' ? '/decision-ai/chat/' : '/decision-ai/mon-assistant/question/'
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
+        body: new URLSearchParams({ question: text }),
+      })
+      const data = await response.json().catch(() => null) as { answer?: string; error?: string } | null
+      const answer = data?.answer || data?.error || 'Le service IA est momentanément indisponible.'
+      setLog((prev) => [...prev, { q: text, a: answer }])
+    } catch {
+      setLog((prev) => [...prev, { q: text, a: 'Le service IA est momentanément indisponible.' }])
+    }
   }
   return (
-    <section>
-      <PageHeader title={role === 'admin' ? 'Assistant IA' : 'Mon assistant'} subtitle={role === 'admin' ? 'Analysez les données de votre agence et obtenez des réponses en langage naturel.' : 'Posez vos questions sur vos activités et vos projets.'} />
-      <div className="banner">Votre assistant intelligent à votre service</div>
-      <div className="ai-layout">
-        <article className="card card-pad">
-          <h2>Suggestions rapides</h2>
+      <section className="ai-home">
+        <div className="ai-mark"><Icon name="spark" size={26} /></div>
+        <p className="ai-live"><i /> IA opérationnelle</p>
+        <h1>Comment puis-je vous aider ?</h1>
+        <p>{role === 'admin' ? 'J’analyse en temps réel les projets, tâches et rapports de votre organisation.' : 'Posez vos questions sur vos activités et vos projets.'}</p>
+        <div className="ai-grid">
           {prompts.map((prompt) => (
-            <button className="suggest" type="button" key={prompt} onClick={() => ask(prompt)}>
-              <span className="metric-ico cyan"><Icon name="spark" size={14} /></span>
-              <span><strong>{prompt}</strong><small>Réponse à partir des données du jour</small></span>
+            <button className="ai-suggest" type="button" key={prompt.text} onClick={() => ask(prompt.text)}>
+              <span className={prompt.tone}><Icon name={prompt.icon} size={15} /></span>
+              <span>{prompt.text}</span>
+              <em>→</em>
             </button>
           ))}
-        </article>
-        <article className="card card-pad">
-          <div className="thread">
-            {log.length === 0 ? <p className="muted">Choisissez une suggestion ou posez votre question.</p> : null}
+        </div>
+        {log.length > 0 ? (
+          <div className="ai-log">
             {log.map((entry) => (
               <div key={entry.q}>
-                <div className="bubble me">{entry.q}</div>
-                <div className="bubble them" style={{ marginTop: 8 }}>{entry.a}</div>
+                <p className="q">{entry.q}</p>
+                <p className="a">{entry.a}</p>
               </div>
             ))}
           </div>
-          <form className="ask" onSubmit={(event) => { event.preventDefault(); ask(draft) }}>
-            <input className="field" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Posez votre question..." />
-            <Button type="submit">Envoyer</Button>
-          </form>
-        </article>
-      </div>
-    </section>
-  )
+        ) : null}
+        <form className="ai-ask" onSubmit={(event) => { event.preventDefault(); ask(draft) }}>
+          <Icon name="spark" size={16} />
+          <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Posez une question sur l’activité de votre entreprise..." aria-label="Question" />
+          <button type="submit" aria-label="Envoyer"><Icon name="send" size={16} /></button>
+        </form>
+        <p className="ai-disclaimer">L’assistant peut commettre des erreurs. Vérifiez les informations importantes.</p>
+      </section>
+    )
 }
 
-function PermissionsPage({ role }: { role: Role }) {
-  const all = [
-    { who: 'Amina Diallo', type: 'Congé', dates: '7 oct. – 9 oct.', motif: 'Rendez-vous familial', status: 'En attente' },
-    { who: 'Lucas Nguema', type: 'Permission', dates: '6 oct.', motif: 'Rendez-vous médical', status: 'Approuvée' },
-    { who: 'Paul Mbia', type: 'Absence', dates: '2 oct.', motif: 'Mission client', status: 'Approuvée' },
-    { who: 'Zaina Nouzou', type: 'Permission', dates: '15 oct.', motif: 'Formation', status: 'En attente' },
-  ]
-  const rows = role === 'admin' ? all : zainaPermissions
+const permissionCatalogue: LeaveRequest[] = [
+  { id: 'seed-amina', who: 'Amina Diallo', type: 'Congé', dates: '7 oct. – 9 oct.', motif: 'Rendez-vous familial', status: 'En attente' },
+  { id: 'seed-lucas', who: 'Lucas Nguema', type: 'Permission', dates: '6 oct.', motif: 'Rendez-vous médical', status: 'Approuvée' },
+  { id: 'seed-paul', who: 'Paul Mbia', type: 'Absence', dates: '2 oct.', motif: 'Mission client', status: 'Approuvée' },
+  { id: 'seed-zaina', who: 'Zaina Nouzou', type: 'Permission', dates: '15 oct.', motif: 'Formation', status: 'En attente' },
+]
+
+function PermissionsPage({ role, extra, who, onSend, onDecide }: { role: Role; extra: LeaveRequest[]; who: string; onSend: (item: LeaveRequest) => void; onDecide: (id: string, status: string) => void }) {
+  const [decided, setDecided] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('racin-permission-decisions') || '{}') as Record<string, string> } catch { return {} }
+  })
+  useEffect(() => { localStorage.setItem('racin-permission-decisions', JSON.stringify(decided)) }, [decided])
+  function applyDecision(item: LeaveRequest) {
+    return decided[item.id] ? { ...item, status: decided[item.id] } : item
+  }
+  const [remote, setRemote] = useState<LeaveRequest[] | null>(null)
+  const [reloadLeaves, setReloadLeaves] = useState(0)
+  useEffect(() => {
+    deskCall('/api/permissions/').then((data) => {
+      const rows = (data.permissions ?? []) as { id: number; employee: string; start_date: string; end_date: string; reason: string; status_label: string }[]
+      setRemote(rows.map((item) => ({
+        id: String(item.id),
+        who: item.employee,
+        type: 'Permission',
+        dates: `${item.start_date} → ${item.end_date}`,
+        motif: item.reason,
+        status: item.status_label === 'Acceptée' ? 'Approuvée' : item.status_label,
+        seen: item.status_label !== 'En attente',
+      })))
+    }).catch(() => undefined)
+  }, [role, reloadLeaves])
+  function decide(id: string, status: string) {
+    setDecided((prev) => ({ ...prev, [id]: status }))
+    onDecide(id, status)
+    if (/^\d+$/.test(id)) {
+      void deskCall(`/api/permissions/${id}/`, { method: 'POST', body: JSON.stringify({ status: status === 'Approuvée' ? 'approved' : 'rejected' }) }).then(() => setReloadLeaves((value) => value + 1))
+    }
+  }
+  const mine = (remote ?? extra.filter((item) => item.who === who)).map(applyDecision)
+  const rows = (remote ?? (role === 'admin'
+    ? [...extra, ...permissionCatalogue]
+    : [...extra.filter((item) => item.who === who), ...permissionCatalogue.filter((item) => item.who === who), ...zainaPermissions])).map(applyDecision)
   const [filter, setFilter] = useState('Toutes')
+  const [focus, setFocus] = useState<string | null>(null)
+  const [localDecision, setLocalDecision] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
   const [sent, setSent] = useState(false)
+  const [kind, setKind] = useState('Permission')
+  const [motif, setMotif] = useState('Formation')
+  const [from, setFrom] = useState('2026-10-05')
+  const [to, setTo] = useState('')
+  const [proof, setProof] = useState<ProjectFile | null>(null)
+  const [proofError, setProofError] = useState('')
+  const picker = useRef<HTMLInputElement>(null)
+  const sick = needsProof(motif)
   const shown = rows.filter((item) => filter === 'Toutes' || item.status === filter)
+  async function takeProof(list: FileList | null) {
+    const file = list?.[0]
+    if (picker.current) picker.current.value = ''
+    if (!file) return
+    const lower = file.name.toLowerCase()
+    const pdf = lower.endsWith('.pdf')
+    const docx = lower.endsWith('.docx')
+    const image = /\.(jpe?g|png|webp)$/.test(lower)
+    if (!pdf && !docx && !image) {
+      setProofError('Formats acceptés : PDF, image ou DOCX.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setProofError('Le fichier dépasse 10 Mo.')
+      return
+    }
+    let html = ''
+    let url = ''
+    if (docx) {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() })
+      html = result.value
+    } else {
+      url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(file)
+      })
+    }
+    setProof({ name: file.name, kind: pdf ? 'PDF' : docx ? 'DOC' : 'IMG', size: formatSize(file.size), url: url || undefined, html: html || undefined })
+    setProofError('')
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (sick && !proof) {
+      setProofError('Joignez un justificatif pour une demande liée à une maladie.')
+      return
+    }
+    if (role !== 'employee') {
+      setProofError('Seul un employé envoie une demande. Passez en vue employé pour la créer.')
+      return
+    }
+    if (role === 'employee') {
+      try {
+        await deskCall('/api/permissions/', { method: 'POST', body: JSON.stringify({ start_date: from, end_date: to || from, reason: motif.trim() || 'Non renseigné' }) })
+        setReloadLeaves((value) => value + 1)
+      } catch (reason) {
+        setProofError(reason instanceof Error ? reason.message : 'Envoi impossible.')
+        return
+      }
+    }
+    onSend({
+      id: `leave-${Date.now()}`,
+      who,
+      type: kind,
+      dates: formatLeaveDates(from, to),
+      motif: motif.trim() || 'Non renseigné',
+      status: 'En attente',
+      file: sick && proof ? proof : undefined,
+      seen: false,
+    })
+    setOpen(false)
+    setSent(true)
+    setMotif('Formation')
+    setProof(null)
+    setProofError('')
+  }
+  const board = remote ? rows.map((item) => ({
+    id: item.id,
+    initials: item.who.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+    tone: 'violet',
+    name: item.who,
+    meta: `${item.type} · ${item.dates} · ${item.motif}`,
+    status: item.status,
+    time: 'Enregistré',
+    live: true,
+  })) : [
+    ...rows.filter((item) => item.status === 'En attente').map((item) => ({
+      id: item.id,
+      initials: item.who.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+      tone: 'violet',
+      name: item.who,
+      meta: `${item.type} · ${item.dates}`,
+      status: 'En attente',
+      time: 'À l’instant',
+      live: true,
+    })),
+    { id: '0205', initials: 'AK', tone: 'violet', name: 'Aïcha Konaté', meta: 'Permissions · demande #0205', status: localDecision['0205'] ? 'Traitée' : 'En attente', time: 'Il y a 1 h', live: false },
+    { id: '0206', initials: 'MD', tone: 'blue', name: 'Moussa Diallo', meta: 'Permissions · demande #0206', status: 'Traitée', time: 'Il y a 2 h', live: false },
+    { id: '0207', initials: 'SN', tone: 'orange', name: 'Sarah N’Guessan', meta: 'Permissions · demande #0207', status: 'Traitée', time: 'Il y a 3 h', live: false },
+    { id: '0208', initials: 'IT', tone: 'green', name: 'Ibrahim Traoré', meta: 'Permissions · demande #0208', status: 'Traitée', time: 'Il y a 4 h', live: false },
+  ]
+  if (role === 'admin') {
+    return (
+      <section className="lp">
+        <LightHead kicker="RAC’IN Africa" title="Permissions" text="Gérez les demandes d’absence et les autorisations de votre équipe." action={<button className="lp-btn" type="button" onClick={() => setOpen(true)}><Icon name="file" size={14} /> Nouvelle demande</button>} />
+        <div className="lp-kpis">
+          <article><span className="blue"><Icon name="calendar" size={16} /></span><small>En attente de validation</small><strong>{rows.filter((item) => item.status === 'En attente').length}</strong><em>Mis à jour aujourd’hui</em></article>
+          <article><span className="green"><Icon name="calendar" size={16} /></span><small>Traitées ce mois</small><strong>28</strong><em>Mis à jour aujourd’hui</em></article>
+          <article><span className="violet"><Icon name="calendar" size={16} /></span><small>Taux de complétion</small><strong>94%</strong><em>Mis à jour aujourd’hui</em></article>
+        </div>
+        {open ? (
+          <form className="lp-panel lp-form" onSubmit={submit}>
+            <div className="form-grid">
+              <label>Type<select className="field" value={kind} onChange={(event) => setKind(event.target.value)}><option>Permission</option><option>Congé</option><option>Absence</option></select></label>
+              <label>Motif<input className="field" list="motifs-admin" value={motif} onChange={(event) => { setMotif(event.target.value); setProofError('') }} /></label>
+              <label>Du<input className="field" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+              <label>Au<input className="field" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+            </div>
+            <datalist id="motifs-admin">
+              <option value="Formation" />
+              <option value="Vacances" />
+              <option value="Maladie" />
+              <option value="Rendez-vous médical" />
+            </datalist>
+            {sick ? (
+              <div className="project-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void takeProof(event.dataTransfer.files) }}>
+                <input ref={picker} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,image/*" hidden onChange={(event) => { void takeProof(event.target.files) }} />
+                <span className={`file-ico${proof ? ' ok' : ''}`}><Icon name={proof ? 'check' : 'file'} size={16} /></span>
+                <span className="grow"><strong>{proof ? proof.name : 'Justificatif médical'}</strong><small>{proof ? `${proof.kind} · ${proof.size}` : 'PDF, image ou DOCX, 10 Mo maximum'}</small></span>
+                <Button type="button" onClick={() => picker.current?.click()}>{proof ? 'Remplacer' : 'Choisir un fichier'}</Button>
+              </div>
+            ) : null}
+            {proofError ? <p className="lp-note">{proofError}</p> : null}
+            <div className="lp-form-actions"><Button type="submit">Envoyer</Button><Button ghost onClick={() => setOpen(false)}>Annuler</Button></div>
+          </form>
+        ) : null}
+        <div className="lp-panel">
+          <header><h2>Activité récente</h2><p>Dernières opérations enregistrées</p></header>
+          {board.map((item) => (
+            <div key={item.id}>
+              <div className="lp-act">
+                <span className="lp-person"><b className={item.tone}>{item.initials}</b></span>
+                <span className="grow"><strong>{item.name}</strong><small>{item.meta}</small></span>
+                <em className={item.status === 'En attente' ? 'warn' : 'ok'}>{item.status}</em>
+                <time>{item.time}</time>
+                <button type="button" aria-label="Ouvrir" onClick={() => setFocus(focus === item.id ? null : item.id)}><Icon name="chevron" size={16} /></button>
+              </div>
+              {focus === item.id && item.status === 'En attente' ? (
+                <div className="lp-decide">
+                  <Button onClick={() => { if (item.live) decide(item.id, 'Approuvée'); else setLocalDecision((prev) => ({ ...prev, [item.id]: 'Approuvée' })); setFocus(null) }}>Accepter</Button>
+                  <Button danger onClick={() => { if (item.live) decide(item.id, 'Refusée'); else setLocalDecision((prev) => ({ ...prev, [item.id]: 'Refusée' })); setFocus(null) }}>Refuser</Button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
   return (
     <section>
-      <PageHeader
-        title={role === 'admin' ? 'Permissions' : 'Mes permissions'}
-        subtitle={role === 'admin' ? 'Gérez les demandes de congés et permissions.' : 'Suivez vos demandes de congés et de permissions.'}
-        action={role === 'employee' ? <Button onClick={() => setOpen(true)}><Icon name="plus" size={14} /> Nouvelle demande</Button> : undefined}
-      />
+      <LightHead kicker="Mon espace" title="Mes permissions" text="Suivez vos demandes de congés et de permissions." action={<button className="lp-btn" type="button" onClick={() => setOpen(true)}><Icon name="plus" size={14} /> Nouvelle demande</button>} />
       <div className="chips" style={{ marginBottom: 12 }}>
-        {['Toutes', 'En attente', 'Approuvée'].map((item) => <button key={item} className={`chip${filter === item ? ' on' : ''}`} type="button" onClick={() => setFilter(item)}>{item}</button>)}
+        {['Toutes', 'En attente', 'Approuvée', 'Refusée'].map((item) => <button key={item} className={`chip${filter === item ? ' on' : ''}`} type="button" onClick={() => setFilter(item)}>{item}</button>)}
       </div>
-      {sent ? <div className="notice"><Icon name="check" size={14} /> Votre demande a été envoyée au responsable.</div> : null}
+      {sent && (!mine[0] || mine[0].status === 'En attente') ? <div className="notice"><Icon name="check" size={14} /> Votre demande et le justificatif ont été envoyés au responsable.</div> : null}
+      {mine[0] && mine[0].status !== 'En attente' ? <div className="notice"><Icon name="check" size={14} /> Le responsable a {mine[0].status === 'Approuvée' ? 'approuvé' : 'refusé'} votre demande.</div> : null}
       {open ? (
-        <form className="card card-pad stack" style={{ marginBottom: 12 }} onSubmit={(event) => { event.preventDefault(); setOpen(false); setSent(true) }}>
+        <form className="card card-pad stack" style={{ marginBottom: 12 }} onSubmit={submit}>
           <div className="form-grid">
-            <label>Type<select defaultValue="Permission"><option>Permission</option><option>Congé</option><option>Absence</option></select></label>
-            <label>Motif<input defaultValue="Formation" /></label>
+            <label>Type<select value={kind} onChange={(event) => setKind(event.target.value)}><option>Permission</option><option>Congé</option><option>Absence</option></select></label>
+            <label>Motif<input list="motifs" value={motif} onChange={(event) => { setMotif(event.target.value); setProofError('') }} /></label>
+            <label>Du<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+            <label>Au<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
           </div>
+          <datalist id="motifs">
+            <option value="Formation" />
+            <option value="Vacances" />
+            <option value="Maladie" />
+            <option value="Arrêt maladie" />
+            <option value="Rendez-vous médical" />
+          </datalist>
+          {sick ? (
+            <div>
+              <div
+                className="project-drop"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => { event.preventDefault(); void takeProof(event.dataTransfer.files) }}
+              >
+                <input ref={picker} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,image/*" hidden onChange={(event) => { void takeProof(event.target.files) }} />
+                <span className={`file-ico${proof ? ' ok' : ''}`}><Icon name={proof ? 'check' : 'file'} size={16} /></span>
+                <span className="grow">
+                  <strong>{proof ? proof.name : 'Justificatif médical'}</strong>
+                  <small>{proof ? `${proof.kind} · ${proof.size}` : 'Arrêt ou certificat, PDF, image ou DOCX, 10 Mo maximum'}</small>
+                </span>
+                <Button type="button" onClick={() => picker.current?.click()}>{proof ? 'Remplacer' : 'Choisir un fichier'}</Button>
+              </div>
+              {proofError ? <p className="sub" style={{ color: '#fca5a5', marginTop: 8 }}>{proofError}</p> : null}
+            </div>
+          ) : null}
           <div style={{ display: 'flex', gap: 8 }}><Button type="submit">Envoyer</Button><Button ghost onClick={() => setOpen(false)}>Annuler</Button></div>
         </form>
       ) : null}
       <div className="card table-wrap">
         <table>
-          <thead><tr>{role === 'admin' ? <th>Employé</th> : null}<th>Type</th><th>Dates</th><th>Motif</th><th>Statut</th></tr></thead>
+          <thead><tr><th>Type</th><th>Dates</th><th>Motif</th><th>Justificatif</th><th>Statut</th></tr></thead>
           <tbody>
             {shown.map((item) => (
-              <tr key={`${item.who}-${item.dates}`}>
-                {role === 'admin' ? <td>{item.who}</td> : null}
+              <tr key={item.id ?? `${item.who}-${item.dates}-${item.motif}`}>
                 <td>{item.type}</td>
                 <td>{item.dates}</td>
                 <td>{item.motif}</td>
+                <td>{item.file ? <Button ghost onClick={() => openInBrowser(item.file!)}>{item.file.name}</Button> : <span className="muted">—</span>}</td>
                 <td><span className={`status ${statusClass(item.status)}`}>{item.status}</span></td>
               </tr>
             ))}
@@ -1042,46 +2534,172 @@ function PermissionsPage({ role }: { role: Role }) {
   )
 }
 
-function AlertsPage() {
-  const alerts = [
-    { level: 'Critique', title: 'Tâche en retard — Validation du logo', meta: 'Paul Mbia · 4 oct. 2026' },
-    { level: 'Critique', title: 'Échéance proche — Identité Hôtel Baie', meta: 'Dans 6 jours' },
-    { level: 'Avertissement', title: 'Rapport non envoyé', meta: 'Paul Mbia · aujourd’hui' },
-    { level: 'Information', title: 'Todo List incomplète', meta: 'Amina Diallo · en congé' },
-  ]
+function DocumentsPage({ onNavigate }: { onNavigate: Go }) {
+  const [rows, setRows] = useState<{ id: string; name: string; initials: string; meta: string; project: string; status: string; time: string; url: string }[]>([])
+  const [counts, setCounts] = useState({ pending: 0, processed: 0, completion: 0 })
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    deskCall('/api/documents/').then((data) => {
+      setRows((data.documents ?? []) as typeof rows)
+      setCounts({ pending: Number(data.pending) || 0, processed: Number(data.processed) || 0, completion: Number(data.completion) || 0 })
+      setReady(true)
+    }).catch(() => setReady(true))
+  }, [])
   return (
-    <section>
-      <PageHeader title="Centre d'alertes" subtitle="Restez informé des événements importants et des points d'attention de votre agence." action={<Button ghost><Icon name="check" size={14} /> Marquer tout comme lu</Button>} />
-      <article className="card card-pad" style={{ marginBottom: 12 }}>
-        <h2>Points de vigilance</h2>
-        <p className="sub" style={{ marginTop: 6 }}>Trois activités restent ouvertes après leur échéance. Le projet Hôtel Baie arrive à terme cette semaine.</p>
-      </article>
-      <div className="card alert-list">
+    <section className="lp">
+      <LightHead kicker="RAC’IN Africa" title="Documents" text="Briefs, rendus et rapports enregistrés pour la journée." action={<button className="lp-btn" type="button" onClick={() => onNavigate('demo')}><Icon name="database" size={14} /> Générer des données</button>} />
+      <div className="lp-kpis">
+        <article><span className="blue"><Icon name="file" size={16} /></span><small>En attente de validation</small><strong>{counts.pending}</strong><em>Briefs encore ouverts</em></article>
+        <article><span className="green"><Icon name="file" size={16} /></span><small>Documents traités</small><strong>{counts.processed}</strong><em>Rendus et rapports</em></article>
+        <article><span className="violet"><Icon name="file" size={16} /></span><small>Taux de complétion</small><strong>{counts.completion}%</strong><em>Parmi les documents listés</em></article>
+      </div>
+      <div className="lp-panel">
+        <header><h2>Activité récente</h2><p>Derniers documents enregistrés</p></header>
+        {rows.map((item) => (
+          <a className="lp-act" key={item.id} href={item.url} target="_blank" rel="noreferrer">
+            <span className="lp-person"><b>{item.initials}</b></span>
+            <span className="grow"><strong>{item.name}</strong><small>{item.meta}{item.project ? ` · ${item.project}` : ''}</small></span>
+            <em className={item.status === 'En attente' ? 'warn' : 'ok'}>{item.status}</em>
+            <time>{item.time}</time>
+            <Icon name="chevron" size={16} />
+          </a>
+        ))}
+        {ready && rows.length === 0 ? <p className="muted" style={{ padding: 16 }}>Aucun document enregistré. Le générateur de données peut préparer des briefs, des rendus et des rapports.</p> : null}
+      </div>
+    </section>
+  )
+}
+
+function AlertsPage() {
+  const [alerts, setAlerts] = useState<{ id: string; level: string; tone: string; iconTone: string; icon: string; title: string; text: string; time: string }[]>([])
+  useEffect(() => {
+    deskCall('/api/alertes/').then((data) => {
+      const rows = (data.alerts ?? []) as { kind: string; title: string; text: string; tone: string }[]
+      setAlerts(rows.map((item, index) => ({
+        id: `${item.kind}-${index}`,
+        level: item.tone === 'danger' ? 'Priorité haute' : 'Information',
+        tone: item.tone === 'danger' ? 'high' : 'info',
+        iconTone: item.tone === 'danger' ? 'high' : 'info',
+        icon: item.kind === 'permission' || item.kind === 'todo' ? 'bell' : 'alert',
+        title: item.title,
+        text: item.text,
+        time: 'Aujourd’hui',
+      })))
+    }).catch(() => undefined)
+  }, [])
+  const [read, setRead] = useState<string[]>([])
+  return (
+    <section className="lp">
+      <LightHead kicker="RAC’IN Africa" title="Centre d'alertes" text="Priorisez les événements qui nécessitent une action rapide." action={<button className="lp-btn" type="button" onClick={() => setRead(alerts.map((item) => item.id))}><Icon name="bell" size={14} /> Tout marquer comme lu</button>} />
+      <div className="lp-alerts">
         {alerts.map((item) => (
-          <div className="alert-item" key={item.title}>
-            <span className={`metric-ico ${item.level === 'Critique' ? 'red' : item.level === 'Avertissement' ? 'orange' : 'blue'}`}><Icon name="bell" size={14} /></span>
-            <span><strong>{item.title}</strong><small className="muted" style={{ display: 'block' }}>{item.meta}</small></span>
-            <span className={`status ${statusClass(item.level === 'Critique' ? 'En retard' : item.level === 'Avertissement' ? 'En attente' : 'En cours')}`}>{item.level}</span>
-          </div>
+          <article className={`lp-alert-card ${item.tone}${read.includes(item.id) ? ' read' : ''}`} key={item.id}>
+            <span className={item.iconTone}><Icon name={item.icon} size={16} /></span>
+            <span>
+              <small>{item.level}</small>
+              <strong>{item.title}</strong>
+              <p>{item.text}</p>
+              <time>{item.time}</time>
+            </span>
+            <button type="button" aria-label="Ouvrir" onClick={() => setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id])}><Icon name="chevron" size={16} /></button>
+          </article>
         ))}
       </div>
     </section>
   )
 }
 
-function NotificationsPage() {
-  const items = [
-    { title: 'Nouveau rapport de Zaina Nouzou', meta: 'Rapports · il y a 8 min' },
-    { title: 'Nouvelle demande de permission', meta: 'Amina Diallo · il y a 1 h' },
-    { title: 'Message non lu de Paul Mbia', meta: 'Messagerie · il y a 2 h' },
+function downloadSynthesis(day: string, text: string) {
+  const blob = new Blob([`Synthèse\n${day}\n\n${text}`], { type: 'text/plain' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'synthese-rapports.txt'
+  link.click()
+}
+
+function AiReportsPage() {
+  const [text, setText] = useState('')
+  const [html, setHtml] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const reportDay = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const reportLabel = reportDay.charAt(0).toUpperCase() + reportDay.slice(1)
+  async function generate() {
+    setLoading(true)
+    setError('')
+    const now = new Date()
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    try {
+      const response = await fetch('/reports/synthese/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
+        body: new URLSearchParams({ date: day }),
+      })
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; html?: string; error?: string } | null
+      if (!response.ok || !data?.ok || !data.synthesis) {
+        setText('')
+        setHtml('')
+        setError(data?.error || 'Aucun rapport soumis ne permet de rédiger la synthèse.')
+      } else {
+        setText(data.synthesis)
+        setHtml(data.html || '')
+      }
+    } catch {
+      setText('')
+      setHtml('')
+      setError('La synthèse n’a pas pu être affichée.')
+    }
+    setLoading(false)
+  }
+  return (
+    <section className="lp">
+      <LightHead kicker="RAC’IN Africa" title="Rapports IA" text="La synthèse est produite à partir des rapports réellement soumis." action={<button className="lp-btn" type="button" disabled={loading} onClick={() => { void generate() }}><Icon name="spark" size={14} /> {loading ? 'Analyse...' : 'Générer la synthèse IA'}</button>} />
+      {error ? <p className="lp-note bad">{error}</p> : null}
+      {text ? (
+        <div className="lp-synth">
+          <aside>
+            <span><Icon name="spark" size={18} /></span>
+            <em>Rapports soumis</em>
+            <h2>Synthèse des rapports</h2>
+            <time>{reportLabel}</time>
+          </aside>
+          <div>
+            {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : <p style={{ whiteSpace: 'pre-wrap' }}>{text}</p>}
+            <button className="lp-btn" type="button" onClick={() => downloadSynthesis(reportLabel, text)}><Icon name="download" size={14} /> Télécharger</button>
+          </div>
+        </div>
+      ) : <p className="muted">Aucune synthèse n’est affichée tant que les rapports du jour n’ont pas été analysés.</p>}
+    </section>
+  )
+}
+
+function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenTodo, onOpenMessage }: { incoming: LeaveRequest[]; onOpen: (id: string) => void; onOpenTask?: (id: string) => void; onOpenTodo?: (id: string) => void; onOpenMessage?: (id: string) => void }) {
+  const [live, setLive] = useState<{ id: string; title: string; meta: string; fresh: boolean; read: boolean; taskId: string; todoId: string; fileUrl: string; chatId: string }[] | null>(null)
+  useEffect(() => {
+    deskCall('/api/notifications/').then((data) => {
+      const rows = (data.notifications ?? []) as { id: number; title: string; message: string; created_at: string; read: boolean; link?: string }[]
+      setLive(rows.map((item) => {
+        const link = item.link || ''
+        const file = /\/taches\/\d+\/(fichier|resultat)\/?$/.test(link)
+        return { id: String(item.id), title: item.title, meta: `${item.message} · ${item.created_at}`, fresh: false, read: item.read, taskId: /\/tasks\/(\d+)/.exec(link)?.[1] || '', todoId: /employe=(\d+)/.exec(link)?.[1] || '', fileUrl: file ? link.replace(/\/resultat\/?$/, '/fichier/') : '', chatId: /messages|messaging/.test(link) ? (/avec=(\d+)/.exec(link)?.[1] || 'boss') : '' }
+      }))
+    }).catch(() => undefined)
+  }, [])
+  const items = live ?? [
+    ...incoming.map((item) => ({ id: item.id, title: `Demande de permission de ${item.who}`, meta: `${item.type} · ${item.motif}${item.file ? ` · ${item.file.name}` : ''} · à l’instant`, fresh: true, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' })),
+    { id: 'n1', title: 'Nouveau rapport de Zaina Nouzou', meta: 'Rapports · il y a 8 min', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
+    { id: 'n2', title: 'Nouvelle demande de permission', meta: 'Amina Diallo · il y a 1 h', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
+    { id: 'n3', title: 'Message non lu de Paul Mbia', meta: 'Messagerie · il y a 2 h', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
   ]
   const [read, setRead] = useState<string[]>([])
   return (
     <section>
-      <PageHeader title="Notifications" subtitle="Retrouvez ici toutes les notifications de votre agence." />
+      <PageHeader title="Notifications" subtitle="Retrouvez ici toutes les notifications de votre agence." action={undefined} />
       <div className="card">
+        <div style={{ padding: 12 }}><Button ghost onClick={() => { void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ all: true }) }).then(() => setRead(items.map((item) => item.id))) }}>Tout marquer comme lu</Button></div>
         {items.map((item) => (
-          <button className={`notif-item${read.includes(item.title) ? ' read' : ''}`} type="button" key={item.title} onClick={() => setRead((prev) => prev.includes(item.title) ? prev : [...prev, item.title])}>
+          <button className={`notif-item${read.includes(item.id) || item.read ? ' read' : ''}`} type="button" key={item.id} onClick={() => { setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id]); if (/^\d+$/.test(item.id)) void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ id: item.id }) }); if (item.fileUrl) window.open(item.fileUrl, '_blank', 'noopener'); else if (item.chatId && onOpenMessage) onOpenMessage(item.chatId); else if (item.todoId && onOpenTodo) onOpenTodo(item.todoId); else if (item.taskId && onOpenTask) onOpenTask(item.taskId); else if (item.fresh) onOpen(item.id) }}>
             <span className="metric-ico blue"><Icon name="bell" size={14} /></span>
             <span><strong>{item.title}</strong><small className="muted" style={{ display: 'block' }}>{item.meta}</small></span>
           </button>
@@ -1100,19 +2718,66 @@ function GenericPage({ title, subtitle, children }: { title: string; subtitle: s
   )
 }
 
-function DemoPage({ counts, note, onGenerate, onReset, onNavigate }: { counts: { employees: number; reports: number; plans: number }; note: string; onGenerate: (count: number) => void; onReset: () => void; onNavigate: Go }) {
+function DemoPage({ onNavigate }: { onNavigate: Go }) {
   const [count, setCount] = useState('10')
   const [confirm, setConfirm] = useState(false)
   const [error, setError] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [counts, setCounts] = useState({ employees: 0, projects: 0, tasks: 0, reports: 0, documents: 0 })
+  async function load() {
+    const data = await deskCall('/api/demonstration/')
+    setCounts({
+      employees: Number(data.employees) || 0,
+      projects: Number(data.projects) || 0,
+      tasks: Number(data.tasks) || 0,
+      reports: Number(data.reports) || 0,
+      documents: Number(data.documents) || 0,
+    })
+  }
+  useEffect(() => { load().catch(() => undefined) }, [])
+  async function generate() {
+    setBusy(true)
+    setError('')
+    try {
+      await openSession()
+      const data = await deskCall('/api/demonstration/', { method: 'POST', body: JSON.stringify({ action: 'generate', employees: Number(count), projects: 4, tasks: 24, days: 7 }) })
+      setNote(String(data.message || 'Les données sont prêtes.'))
+      await load()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'La génération a échoué.')
+    }
+    setBusy(false)
+  }
+  async function reset() {
+    if (!confirm) {
+      setError('Cochez la confirmation avant de réinitialiser.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await openSession()
+      const data = await deskCall('/api/demonstration/', { method: 'POST', body: JSON.stringify({ action: 'reset', confirm: 'oui' }) })
+      setNote(String(data.message || 'Les données de démonstration ont été retirées.'))
+      setConfirm(false)
+      await load()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'La réinitialisation a échoué.')
+    }
+    setBusy(false)
+  }
   return (
-    <GenericPage title="Données de démonstration" subtitle="Ces enregistrements servent à la soutenance. Ils s'ajoutent aux employés déjà présents.">
+    <GenericPage title="Générateur de données" subtitle="Prépare un tableau de bord explicable : projets, tâches, rapports et documents PDF. Les comptes déjà présents, dont Zaina, restent en place.">
       <div className="stack" style={{ maxWidth: 720 }}>
         <article className="card card-pad">
           <h2>Déjà préparées</h2>
           <div className="chips" style={{ marginTop: 10 }}>
             <span className="chip">{counts.employees} employés</span>
+            <span className="chip">{counts.projects} projets</span>
+            <span className="chip">{counts.tasks} tâches</span>
             <span className="chip">{counts.reports} rapports</span>
-            <span className="chip">{counts.plans} todo lists</span>
+            <span className="chip">{counts.documents} documents</span>
           </div>
           <p className="muted" style={{ marginTop: 10 }}>Mot de passe des comptes générés : {DEMO_PASSWORD}. Identifiant du type demo.prenom.nom.</p>
         </article>
@@ -1126,24 +2791,24 @@ function DemoPage({ counts, note, onGenerate, onReset, onNavigate }: { counts: {
               <option value="20">20</option>
             </select>
           </label>
-          <div><Button onClick={() => onGenerate(Number(count))}><Icon name="database" size={14} /> Générer les données</Button></div>
+          <div><Button onClick={() => { void generate() }}><Icon name="database" size={14} /> {busy ? 'Préparation...' : 'Générer les données'}</Button></div>
+          {error ? <p className="lp-note bad">{error}</p> : null}
           {note ? (
             <div className="notice">
               <Icon name="check" size={14} /> {note}
               <span style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <button className="linkish" type="button" onClick={() => onNavigate('employees')}>Voir les employés</button>
-                <button className="linkish" type="button" onClick={() => onNavigate('reports')}>Voir les rapports</button>
-                <button className="linkish" type="button" onClick={() => onNavigate('todos')}>Voir les todo lists</button>
+                <button className="linkish" type="button" onClick={() => onNavigate('dashboard')}>Voir le tableau de bord</button>
+                <button className="linkish" type="button" onClick={() => onNavigate('documents')}>Voir les documents</button>
+                <button className="linkish" type="button" onClick={() => onNavigate('projects')}>Voir les projets</button>
               </span>
             </div>
           ) : null}
         </article>
         <article className="card card-pad stack">
-          <h2>Réinitialiser les données de démonstration</h2>
-          <p className="muted">Seuls les employés, rapports et todo lists générés ici sont supprimés.</p>
+          <h2>Retirer les données générées</h2>
+          <p className="muted">Seuls les employés, projets, tâches, rapports et documents créés par ce générateur sont supprimés.</p>
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={confirm} onChange={(event) => setConfirm(event.target.checked)} /> Je confirme la suppression.</label>
-          {error ? <p className="muted" style={{ color: '#fca5a5' }}>{error}</p> : null}
-          <div><Button ghost onClick={() => { if (!confirm) { setError('Cochez la confirmation avant de réinitialiser.'); return }; setError(''); onReset() }}>Réinitialiser</Button></div>
+          <div><Button ghost onClick={() => { void reset() }}>Réinitialiser</Button></div>
         </article>
       </div>
     </GenericPage>
@@ -1180,18 +2845,18 @@ function ProfilePage({ role, account }: { role: Role; account: Account }) {
     <GenericPage title={admin ? 'Paramètres' : 'Mon profil'} subtitle={admin ? 'Mettez à jour les informations du responsable.' : 'Consultez et mettez à jour vos informations.'}>
       <form className="card card-pad" style={{ maxWidth: 640 }} onSubmit={(event) => { event.preventDefault(); setSaved(true) }}>
         <div className="who" style={{ marginBottom: 14 }}>
-          <Avatar initials={admin ? 'KM' : initials} src={admin || !known ? '' : zaina.photo} size="lg" tone={admin ? 'tone-navy' : ''} />
+          <Avatar initials={admin ? 'AM' : initials} src={admin || !known ? '' : zaina.photo} size="lg" tone={admin ? 'tone-navy' : ''} />
           <span>
-            <strong>{admin ? 'Karim Menga' : fullName}</strong>
-            <small className="muted" style={{ display: 'block' }}>{admin ? 'Responsable' : known ? zaina.roleLabel : 'Employé'}</small>
+            <strong>{admin ? 'Amadou Mensah' : fullName}</strong>
+            <small className="muted" style={{ display: 'block' }}>{admin ? 'Administrateur' : known ? zaina.roleLabel : 'Employé'}</small>
             {admin ? null : <small className="muted" style={{ display: 'block' }}>{account.email}</small>}
             {admin || !known ? null : <small className="muted" style={{ display: 'block' }}>Membre depuis le {zaina.hired}</small>}
           </span>
         </div>
         <div className="form-grid">
-          <label>Nom complet<input defaultValue={admin ? 'Karim Menga' : fullName} /></label>
-          <label>Poste<input defaultValue={admin ? 'Responsable' : known ? zaina.job : 'Employé'} readOnly /></label>
-          <label>E-mail<input defaultValue={admin ? 'karim@racin-agency.com' : account.email} /></label>
+          <label>Nom complet<input defaultValue={admin ? 'Amadou Mensah' : fullName} /></label>
+          <label>Poste<input defaultValue={admin ? 'Administrateur' : known ? zaina.job : 'Employé'} readOnly /></label>
+          <label>E-mail<input defaultValue={admin ? 'amadou.mensah@racin.africa' : account.email} /></label>
           <label>Téléphone<input defaultValue="" placeholder="Non renseigné" /></label>
           <label>Date de naissance<input type="date" defaultValue="" /></label>
           <label>Genre<select defaultValue=""><option value="">Non renseigné</option><option>Femme</option><option>Homme</option></select></label>
@@ -1206,65 +2871,98 @@ function ProfilePage({ role, account }: { role: Role; account: Account }) {
   )
 }
 
-function Sidebar({ role, page, badge, onRole, onPage, onLogout }: { role: Role; page: string; badge: number; onRole: (role: Role) => void; onPage: Go; onLogout: () => void }) {
-  const items = role === 'admin'
-    ? [
-        ['dashboard', 'Tableau de bord', 'grid'],
-        ['employees', 'Employés', 'users'],
-        ['projects', 'Projets', 'folder'],
-        ['tasks', 'Tâches', 'tasks'],
-        ['todos', 'Todo Lists du jour', 'list'],
-        ['reports', 'Rapports journaliers', 'file'],
-        ['permissions', 'Permissions', 'calendar', '1', 'orange'],
-        ['alerts', "Centre d'alertes", 'bell', '4', 'blue'],
-        ['messaging', 'Messagerie', 'message', badge ? String(badge) : '', 'blue'],
-        ['notifications', 'Notifications', 'bell'],
-        ['assistant', 'Assistant IA', 'spark'],
-        ['demo', 'Données de démo', 'database'],
-        ['settings', 'Paramètres', 'settings'],
-      ]
-    : [
-        ['dashboard', 'Tableau de bord', 'grid'],
-        ['projects', 'Mes projets', 'folder'],
-        ['tasks', 'Mes tâches', 'tasks'],
-        ['todos', 'Todo List du jour', 'list'],
-        ['reports', 'Mon rapport', 'file'],
-        ['permissions', 'Mes permissions', 'calendar'],
-        ['messaging', 'Messagerie', 'message', badge ? String(badge) : '', 'blue'],
-        ['assistant', 'Mon assistant', 'spark'],
-        ['profile', 'Mon profil', 'user'],
-      ]
-  return (
-    <aside className="sidebar">
-      <Logo />
-      <div className="role-switch">
-        <button className={role === 'admin' ? 'on' : ''} type="button" onClick={() => onRole('admin')}>Responsable</button>
-        <button className={role === 'employee' ? 'on' : ''} type="button" onClick={() => onRole('employee')}>Employé</button>
-      </div>
-      <nav className="side-nav">
-        {items.map((item) => (
-          <button key={item[0]} className={`nav-link${page === item[0] ? ' active' : ''}`} type="button" onClick={() => onPage(item[0])}>
-            <Icon name={item[2]} size={15} />
-            <span className="label">{item[1]}</span>
-            {item[3] ? <span className={`pill ${item[4]}`}>{item[3]}</span> : null}
-          </button>
-        ))}
-      </nav>
-      <div className="side-foot">
-        <div className="ai-card">
-          <span className="metric-ico cyan"><Icon name="spark" size={14} /></span>
-          <h3>{role === 'admin' ? 'Assistant IA' : 'Mon assistant'}</h3>
-          <p>{role === 'admin' ? 'Posez vos questions et obtenez des analyses basées sur les données de votre plateforme.' : "Besoin d'aide ? Posez vos questions et obtenez des réponses sur vos activités et projets."}</p>
-          <button className="link" type="button" onClick={() => onPage('assistant')}>Ouvrir l’assistant →</button>
+function Sidebar({ role, page, badge, pendingPermissions, onRole, onPage, onLogout }: { role: Role; page: string; badge: number; pendingPermissions: number; onRole: (role: Role) => void; onPage: Go; onLogout: () => void }) {
+  const hot = new Set(['messaging', 'alerts'])
+  const link = (item: [string, string, string, string?]) => (
+    <button key={item[0]} className={`lt-link${page === item[0] ? ' on' : ''}`} type="button" onClick={() => onPage(item[0])}>
+      <Icon name={item[2]} size={16} />
+      <span>{item[1]}</span>
+      {item[3] ? <b className={hot.has(item[0]) ? 'hot' : ''}>{item[3]}</b> : null}
+    </button>
+  )
+  if (role === 'admin') {
+    const main: Array<[string, string, string, string?]> = [
+      ['dashboard', 'Tableau de bord', 'grid'],
+      ['employees', 'Employés', 'users'],
+      ['projects', 'Projets', 'folder'],
+      ['tasks', 'Tâches', 'tasks'],
+      ['todos', 'Todo Lists', 'list'],
+      ['reports', 'Rapports journaliers', 'file'],
+      ['permissions', 'Permissions', 'calendar', String(Math.max(3, pendingPermissions))],
+      ['documents', 'Documents', 'file'],
+      ['messaging', 'Messagerie', 'message', String(Math.max(2, badge))],
+      ['alerts', "Centre d'alertes", 'bell', '6'],
+    ]
+    const intel: Array<[string, string, string, string?]> = [
+      ['assistant', 'Assistant IA', 'spark'],
+      ['ai-reports', 'Rapports IA', 'trend'],
+      ['demo', 'Générateur de données', 'database'],
+    ]
+    return (
+      <aside className="sidebar lt-side lt-admin">
+        <div className="lt-logo">
+          <span className="lt-bars"><i /><i /><i /></span>
+          <span><strong>RAC’IN</strong><small>AFRICA</small></span>
         </div>
-        <button className="logout-btn" type="button" onClick={onLogout}><Icon name="logout" size={14} /> Déconnexion</button>
+        <div className="lt-work"><span><Icon name="case" size={16} /></span><span><small>ESPACE DE TRAVAIL</small><strong>Direction Générale</strong></span><Icon name="chevron" size={14} /></div>
+        <nav>
+          {main.map(link)}
+        </nav>
+        <div className="lt-intel">
+          <span className="lt-label">Intelligence</span>
+          {intel.map(link)}
+        </div>
+        <div className="lt-foot">
+          <button className={`lt-link${page === 'settings' ? ' on' : ''}`} type="button" onClick={() => onPage('settings')}>
+            <Icon name="settings" size={16} />
+            <span>Paramètres</span>
+          </button>
+          <div className="lt-user">
+            <b>AM</b>
+            <span><strong>Amadou Mensah</strong><small>Administrateur</small></span>
+            <button type="button" aria-label="Déconnexion" onClick={onLogout}><Icon name="logout" size={16} /></button>
+          </div>
+        </div>
+      </aside>
+    )
+  }
+  const items: Array<[string, string, string, string?]> = [
+    ['dashboard', 'Tableau de bord', 'grid'],
+    ['projects', 'Mes projets', 'folder'],
+    ['tasks', 'Mes tâches', 'tasks'],
+    ['todos', 'Todo List', 'list'],
+    ['reports', 'Mon rapport', 'file'],
+    ['permissions', 'Mes permissions', 'calendar'],
+    ['messaging', 'Messagerie', 'message', badge ? String(badge) : ''],
+    ['assistant', 'Assistant IA', 'spark'],
+  ]
+  return (
+    <aside className="sidebar lt-side">
+      <div className="lt-logo">
+        <span className="lt-bars"><i /><i /><i /></span>
+        <span><strong>RAC’IN</strong><small>AFRICA</small></span>
+      </div>
+        <div className="lt-work"><span><Icon name="case" size={16} /></span><span><small>ESPACE DE TRAVAIL</small><strong>Direction Générale</strong></span><Icon name="chevron" size={14} /></div>
+      <nav>
+        <span className="lt-label">Menu principal</span>
+        {items.map(link)}
+      </nav>
+      <div className="lt-foot">
+        <button className={`lt-link${page === 'profile' ? ' on' : ''}`} type="button" onClick={() => onPage('profile')}><Icon name="user" size={16} /><span>Mon profil</span></button>
+        <div className="lt-user">
+          <b>ZZ</b>
+          <span><strong>Zaina Zaina</strong><small>Employée</small></span>
+          <button type="button" aria-label="Déconnexion" onClick={onLogout}><Icon name="logout" size={16} /></button>
+        </div>
+        <button className="lt-employee" type="button" onClick={() => onRole('admin')}>Espace responsable</button>
       </div>
     </aside>
   )
 }
 
-function Topbar({ role, account, onNavigate }: { role: Role; account: Account; onNavigate: Go }) {
+function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; notifCount: number; onNavigate: Go; onRole: (next: Role) => void; page: string }) {
   const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const catalog = role === 'admin'
     ? [
         { label: 'Zaina Nouzou', meta: 'Employé', page: 'employees' },
@@ -1277,53 +2975,64 @@ function Topbar({ role, account, onNavigate }: { role: Role; account: Account; o
         { label: 'Explorer toutes les pages existantes du site CuisineFacile.', meta: 'Tâche', page: 'tasks' },
       ]
   const results = catalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
-  const employeeName = `${account.first} ${account.last}`.trim() || account.username
   const profile = role === 'admin'
-    ? { initials: 'KM', name: 'Karim Menga', job: 'Responsable', page: 'settings', tone: 'tone-navy', photo: '' }
+    ? { initials: 'AM', name: 'Amadou Mensah', job: 'Responsable', page: 'settings' }
     : {
-        initials: `${account.first[0] ?? ''}${account.last[0] ?? ''}`.toUpperCase() || account.username.slice(0, 2).toUpperCase(),
-        name: employeeName,
-        job: account.username === zaina.username ? zaina.roleLabel : 'Employé',
+        initials: 'ZZ',
+        name: 'Zaina Zaina',
+        job: 'Employée',
         page: 'profile',
-        tone: '',
-        photo: account.username === zaina.username ? zaina.photo : '',
+      }
+  const titles: Record<string, string> = role === 'admin'
+    ? {
+        dashboard: 'Tableau de bord', employees: 'Employés', projects: 'Projets', tasks: 'Tâches', todos: 'Todo Lists',
+        reports: 'Rapports journaliers', permissions: 'Permissions', documents: 'Documents', alerts: "Centre d'alertes",
+        messaging: 'Messagerie', notifications: 'Notifications', assistant: 'Assistant IA', 'ai-reports': 'Rapports IA', demo: 'Données de démo', settings: 'Paramètres',
+      }
+    : {
+        dashboard: 'Tableau de bord', projects: 'Projets', tasks: 'Mes tâches', todos: 'Todo Lists',
+        reports: 'Rapports journaliers', permissions: 'Mes permissions', messaging: 'Messagerie', notifications: 'Notifications', assistant: 'Assistant IA', profile: 'Mon profil',
       }
   return (
-    <header className="topbar">
-      <label className="search">
-        <span className="search-ico"><Icon name="search" size={14} /></span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={role === 'admin' ? 'Rechercher un employé, un projet, une tâche...' : 'Rechercher un projet, une tâche...'} aria-label="Recherche" />
-        {query.trim().length > 1 ? (
-          <div className="search-drop">
-            {results.map((item) => (
-              <button key={item.label} type="button" onClick={() => { onNavigate(item.page); setQuery('') }}>
-                {item.label}<small>{item.meta}</small>
-              </button>
-            ))}
-            {results.length === 0 ? <button type="button">Aucun résultat</button> : null}
+      <header className="topbar lt-top">
+        <div className="lt-crumbs">
+          <button type="button" onClick={() => onNavigate('dashboard')}>RAC’IN Africa</button>
+          <Icon name="chevron" size={13} />
+          <strong>{titles[page] ?? 'Tableau de bord'}</strong>
+        </div>
+        <div className="lt-actions">
+          <button className="lt-switch" type="button" onClick={() => onRole(role === 'admin' ? 'employee' : 'admin')}>
+            <Icon name={role === 'admin' ? 'user' : 'folder'} size={15} />
+            {role === 'admin' ? 'Vue employé' : 'Vue responsable'}
+          </button>
+          <div className="lt-search">
+            {searchOpen ? <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher..." aria-label="Recherche" autoFocus /> : null}
+            <button className="lt-icon" type="button" aria-label="Recherche" onClick={() => setSearchOpen((open) => !open)}><Icon name="search" size={17} /></button>
+            {searchOpen && query.trim().length > 1 ? (
+              <div className="search-drop">
+                {results.map((item) => <button key={item.label} type="button" onClick={() => { onNavigate(item.page); setQuery(''); setSearchOpen(false) }}>{item.label}<small>{item.meta}</small></button>)}
+                {results.length === 0 ? <button type="button">Aucun résultat</button> : null}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </label>
-      <div className="top-tools">
-        <span className="date-chip"><Icon name="calendar" size={14} /> Lundi 5 octobre 2026</span>
-        <button className="icon-btn" type="button" aria-label="Notifications" onClick={() => onNavigate(role === 'admin' ? 'notifications' : 'messaging')}>
-          <Icon name="bell" size={15} />
-          <span className="pill red">3</span>
-        </button>
-        <button className="user-chip" type="button" onClick={() => onNavigate(profile.page)}>
-          <Avatar initials={profile.initials} tone={profile.tone} src={profile.photo} />
-          <span><strong>{profile.name}</strong><small>{profile.job}</small></span>
-          <Icon name="chevron" size={14} />
-        </button>
-      </div>
-    </header>
+          <button className="lt-icon" type="button" aria-label="Apparence"><Icon name="sun" size={17} /></button>
+          <button className="lt-icon" type="button" aria-label="Notifications" onClick={() => onNavigate('notifications')}><Icon name="bell" size={17} />{notifCount ? <i /> : null}</button>
+          <span className="lt-divider" />
+          <button className="lt-profile" type="button" onClick={() => onNavigate(profile.page)}>
+            <b className={role === 'employee' ? 'emp' : ''}>{profile.initials}</b>
+            <span><strong>{profile.name}</strong><small>{profile.job}</small></span>
+            <Icon name="chevron" size={14} />
+          </button>
+        </div>
+      </header>
   )
 }
 
-function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (account: Account) => void }) {
+function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (account: Account, role?: Role) => void }) {
   const [mode, setMode] = useState<'login' | 'create'>('login')
-  const [identifiant, setIdentifiant] = useState(zaina.username)
+  const [identifiant, setIdentifiant] = useState('zaina')
   const [motDePasse, setMotDePasse] = useState('nabihouddine')
+  const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ first: '', last: '', username: '', email: '', password: '', confirm: '' })
   function create(event: FormEvent) {
@@ -1374,15 +3083,31 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
         <form className="login-card" onSubmit={(event) => {
           event.preventDefault()
           const value = identifiant.trim().toLowerCase()
-          const found = accounts.find((item) => item.username === value || item.email === value)
-          if (!found || found.password !== motDePasse) {
-            setError('Identifiant ou mot de passe incorrect.')
-            return
-          }
-          onSuccess(found)
+          const djangoName = value === 'zaina' || value === 'zaina.zaina' ? 'nouzou' : value
+          const localName = djangoName
+          setPending(true)
+          setError('')
+          void enterSession(djangoName, motDePasse).then((session) => {
+            const known = session.username === 'nouzou'
+            onSuccess({
+              username: known ? zaina.username : session.username,
+              email: known ? zaina.email : '',
+              password: motDePasse,
+              first: session.first || (known ? 'zaina' : ''),
+              last: session.last || (known ? 'zaina' : ''),
+            }, session.role === 'admin' ? 'admin' : 'employee')
+          }).catch(() => {
+            const found = accounts.find((item) => item.username === localName || item.username === value || item.email === value)
+            if (!found || found.password !== motDePasse) {
+              setError('Identifiant ou mot de passe incorrect.')
+              setPending(false)
+              return
+            }
+            onSuccess(found, 'employee')
+          })
         }}>
           <h2>Espace Employé</h2>
-          <p className="intro">Connectez-vous avec le compte zaina enregistré dans la base.</p>
+          <p className="intro">Compte Zaina : identifiant zaina, mot de passe nabihouddine.</p>
           <label>Identifiant<input value={identifiant} onChange={(event) => setIdentifiant(event.target.value)} autoComplete="username" required /></label>
           <label>Mot de passe<input type="password" value={motDePasse} onChange={(event) => setMotDePasse(event.target.value)} autoComplete="current-password" required /></label>
           {error ? <p className="intro" style={{ color: '#b91c1c' }}>{error}</p> : null}
@@ -1390,7 +3115,7 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
             <label><input type="checkbox" defaultChecked /> Se souvenir de moi</label>
             <button type="button" onClick={() => { setMode('create'); setError('') }}>Créer un compte</button>
           </div>
-          <button className="btn full" type="submit">Se connecter →</button>
+          <button className="btn full" type="submit" disabled={pending}>{pending ? 'Connexion…' : 'Se connecter →'}</button>
           <div className="assist">
             <Icon name="shield" />
             <span><strong>Pas encore de compte ?</strong>Un employé peut créer le sien, puis se connecter.</span>
@@ -1421,12 +3146,21 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
 const zainaAccount: Account = { username: zaina.username, email: zaina.email, password: 'nabihouddine', first: 'zaina', last: 'zaina' }
 
 export default function App() {
-  const [authed, setAuthed] = useState(false)
-  const [role, setRole] = useState<Role>('employee')
+  const [authed, setAuthed] = useState(true)
+  const [role, setRole] = useState<Role>('admin')
   const [page, setPage] = useState('dashboard')
+  const [focusTask, setFocusTask] = useState('')
+  const [focusTodo, setFocusTodo] = useState('')
+  const [focusChat, setFocusChat] = useState('')
+  const [bell, setBell] = useState(0)
+  useEffect(() => {
+    openSession().then(async (user) => {
+      const session = user ?? await enterSession('admin', 'admin123')
+      if (session?.role === 'admin' || session?.role === 'employee') setRole(session.role)
+    }).catch(() => undefined)
+  }, [])
   const [checks, setChecks] = useState<string[]>(['6', '7', '8', '9', '10'])
-  const [inbox, setInbox] = useState<ReportFile[]>([])
-  const [importError, setImportError] = useState('')
+  const [inbox] = useState<ReportFile[]>([])
   const [accounts, setAccounts] = useState<Account[]>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('racin-accounts') || '[]') as Account[]
@@ -1445,17 +3179,24 @@ export default function App() {
       return { [zaina.username]: zainaThread }
     }
   })
-  const [unread, setUnread] = useState<Record<string, { admin: number; employee: number }>>({})
-  const [demoStaff, setDemoStaff] = useState<Staff[]>(() => {
+  const [demoStaff] = useState<Staff[]>(() => {
     try { return (JSON.parse(localStorage.getItem('racin-demo') || '{}') as { staff?: Staff[] }).staff ?? [] } catch { return [] }
   })
-  const [demoFiles, setDemoFiles] = useState<ReportFile[]>(() => {
+  const [demoFiles] = useState<ReportFile[]>(() => {
     try { return (JSON.parse(localStorage.getItem('racin-demo') || '{}') as { files?: ReportFile[] }).files ?? [] } catch { return [] }
   })
-  const [demoPlans, setDemoPlans] = useState<DayPlan[]>(() => {
+  const [demoPlans] = useState<DayPlan[]>(() => {
     try { return (JSON.parse(localStorage.getItem('racin-demo') || '{}') as { plans?: DayPlan[] }).plans ?? [] } catch { return [] }
   })
-  const [demoNote, setDemoNote] = useState('')
+  const [extraProjects, setExtraProjects] = useState<ProjectCard[]>(() => {
+    try { return (JSON.parse(localStorage.getItem('racin-work') || '{}') as { projects?: ProjectCard[] }).projects ?? [] } catch { return [] }
+  })
+  const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>(() => {
+    try { return (JSON.parse(localStorage.getItem('racin-work') || '{}') as { tasks?: AssignedTask[] }).tasks ?? [] } catch { return [] }
+  })
+  const [leaves, setLeaves] = useState<LeaveRequest[]>(() => {
+    try { return JSON.parse(localStorage.getItem('racin-leaves') || '[]') as LeaveRequest[] } catch { return [] }
+  })
   const staff = [...people, ...demoStaff]
   const zainaArchive: ReportFile[] = zainaReports.filter((item) => item.url).map((item) => ({
     id: item.url ?? item.name,
@@ -1487,110 +3228,78 @@ export default function App() {
   const library = [...inbox, ...zainaArchive, ...reportFiles, ...demoFiles]
 
   useEffect(() => { localStorage.setItem('racin-accounts', JSON.stringify(accounts)) }, [accounts])
-  useEffect(() => { localStorage.setItem('racin-threads', JSON.stringify(threads)) }, [threads])
+  useEffect(() => {
+    try {
+      localStorage.setItem('racin-threads', JSON.stringify(threads))
+    } catch {
+      const light = Object.fromEntries(Object.entries(threads).map(([key, notes]) => [
+        key,
+        notes.map((note) => note.file ? { ...note, file: { name: note.file.name, kind: note.file.kind, size: note.file.size } } : note),
+      ]))
+      try { localStorage.setItem('racin-threads', JSON.stringify(light)) } catch { /* la pièce jointe reste disponible dans la session */ }
+    }
+  }, [threads])
   useEffect(() => { localStorage.setItem('racin-demo', JSON.stringify({ staff: demoStaff, files: demoFiles, plans: demoPlans })) }, [demoStaff, demoFiles, demoPlans])
+  useEffect(() => {
+    const payload = JSON.stringify({ projects: extraProjects, tasks: assignedTasks })
+    try {
+      localStorage.setItem('racin-work', payload)
+    } catch {
+      const light = extraProjects.map((project) => project.file?.url?.startsWith('data:') ? { ...project, file: { ...project.file, url: undefined } } : project)
+      try { localStorage.setItem('racin-work', JSON.stringify({ projects: light, tasks: assignedTasks })) } catch { /* le fichier reste disponible dans la session */ }
+    }
+  }, [extraProjects, assignedTasks])
+  useEffect(() => {
+    try {
+      localStorage.setItem('racin-leaves', JSON.stringify(leaves))
+    } catch {
+      const light = leaves.map((item) => item.file?.url?.startsWith('data:') ? { ...item, file: item.file ? { ...item.file, url: undefined } : undefined } : item)
+      try { localStorage.setItem('racin-leaves', JSON.stringify(light)) } catch { /* le justificatif reste disponible dans la session */ }
+    }
+  }, [leaves])
 
   function go(next: string) {
     setPage(next)
   }
   function changeRole(next: Role) {
-    setRole(next)
+    void showSpace(next).then((session) => {
+      if (session?.role === 'admin' || session?.role === 'employee') {
+        setRole(session.role)
+        if (session.role === 'employee') {
+          setAccount({ username: zaina.username, email: zaina.email, password: '', first: 'zaina', last: 'zaina' })
+        }
+      }
+    }).catch(() => setRole(next))
     const allowed = next === 'admin' ? adminPages : employeePages
     if (!allowed.includes(page)) setPage('dashboard')
   }
   function toggle(id: string) {
     setChecks((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id])
   }
-  function enter(next: Account) {
+  function enter(next: Account, nextRole: Role = 'employee') {
     setAccounts((prev) => prev.some((item) => item.username === next.username) ? prev : [...prev, next])
     setAccount(next)
     setThreads((prev) => prev[next.username] ? prev : { ...prev, [next.username]: [] })
-    setRole('employee')
+    setRole(nextRole)
     setPage('dashboard')
     setAuthed(true)
   }
-  function sendMessage(username: string, text: string) {
-    const author = role === 'admin' ? 'admin' : 'employee'
-    setThreads((prev) => ({ ...prev, [username]: [...(prev[username] ?? []), { id: Date.now(), author, text }] }))
-    setUnread((prev) => {
-      const current = prev[username] ?? { admin: 0, employee: 0 }
-      const target = author === 'admin' ? 'employee' : 'admin'
-      return { ...prev, [username]: { ...current, [target]: current[target] + 1 } }
-    })
-  }
-  async function importReport(file: File) {
-    const lower = file.name.toLowerCase()
-    const pdf = lower.endsWith('.pdf')
-    const docx = lower.endsWith('.docx')
-    if (!pdf && !docx) {
-      setImportError('Formats acceptés : PDF ou DOCX.')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setImportError('Le fichier dépasse 10 Mo.')
-      return
-    }
-    let html = ''
-    if (docx) {
-      const mammoth = await import('mammoth')
-      const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() })
-      html = result.value
-    }
-    setInbox((prev) => [{
-      id: `upload-${Date.now()}`,
-      person: account.username,
-      name: file.name,
-      kind: pdf ? 'PDF' : 'DOC',
-      size: formatSize(file.size),
-      date: '5 oct. 2026',
-      scope: 'week',
-      url: URL.createObjectURL(file),
-      html,
-    }, ...prev])
-    setImportError('')
-  }
-  function generateDemo(count: number) {
-    const bundle = buildDemo(count)
-    setDemoStaff(bundle.staff)
-    setDemoFiles(bundle.files)
-    setDemoPlans(bundle.plans)
-    setAccounts((prev) => [...prev.filter((item) => !item.username.startsWith('demo.')), ...bundle.accounts])
-    setThreads((prev) => {
-      const next = { ...prev }
-      Object.keys(next).forEach((key) => { if (key.startsWith('demo.')) delete next[key] })
-      bundle.accounts.forEach((item) => { next[item.username] = [] })
-      return next
-    })
-    setDemoNote(`${bundle.staff.length} employés, ${bundle.files.length} rapports et ${bundle.plans.length} todo lists ont été créés.`)
-  }
-  function resetDemo() {
-    setDemoStaff([])
-    setDemoFiles([])
-    setDemoPlans([])
-    setAccounts((prev) => prev.filter((item) => !item.username.startsWith('demo.')))
-    setThreads((prev) => {
-      const next = { ...prev }
-      Object.keys(next).forEach((key) => { if (key.startsWith('demo.')) delete next[key] })
-      return next
-    })
-    if (account.username.startsWith('demo.')) setAccount(zainaAccount)
-    setDemoNote('')
-  }
-  function readMessages(username: string) {
-    const target = role === 'admin' ? 'admin' : 'employee'
-    setUnread((prev) => {
-      const current = prev[username]
-      if (!current || current[target] === 0) return prev
-      return { ...prev, [username]: { ...current, [target]: 0 } }
-    })
-  }
+  const messageBadge = 0
 
-  const messageBadge = role === 'admin'
-    ? Object.values(unread).reduce((sum, item) => sum + item.admin, 0)
-    : (unread[account.username]?.employee ?? 0)
+  const personId = account.username === zaina.username || account.email === zaina.email
+    ? 'zaina'
+    : people.find((person) => person.name.toLowerCase() === `${account.first} ${account.last}`.trim().toLowerCase())?.id ?? ''
+  const requester = people.find((person) => person.id === personId)?.name ?? `${account.first} ${account.last}`.trim()
+  const myTasks = assignedTasks.filter((task) => task.whoId === personId)
+  const myProjects = extraProjects.filter((project) => (project.members ?? []).includes(personId) || myTasks.some((task) => task.projectId === project.id))
+
+  useEffect(() => {
+    deskCall('/api/notifications/').then((data) => setBell(Number(data.unread) || 0)).catch(() => undefined)
+  }, [role, page])
 
   const view = useMemo(() => {
-    const fresh = role === 'employee' && account.username !== zaina.username
+    const studio = new Set(['nouzou', 'awa.traore', 'fatou.diarra', 'mamadou.kone', 'ibrahim.bah'])
+    const fresh = role === 'employee' && !studio.has(account.username)
     const demoAccount = account.username.startsWith('demo.')
     if (role === 'admin' && page === 'dashboard') return <AdminDashboard onNavigate={go} />
     if (fresh && !(demoAccount && ['todos', 'reports', 'dashboard'].includes(page)) && !['messaging', 'assistant', 'profile'].includes(page)) return <FreshSpace account={account} page={page} />
@@ -1599,36 +3308,32 @@ export default function App() {
       const report = demoFiles.find((item) => item.person === account.username)
       return <FreshSpace account={account} page="dashboard" detail={`Votre todo list compte ${plan?.items.length ?? 0} tâches. Rapport transmis : ${report?.name ?? 'aucun'}.`} />
     }
-    if (role === 'employee' && page === 'dashboard') return <EmployeeDashboard checks={checks} onToggle={toggle} onNavigate={go} />
-    if (page === 'employees') return <EmployeesPage staff={staff} />
-    if (page === 'projects') return <ProjectsPage role={role} />
-    if (page === 'tasks') return <TasksPage role={role} checks={checks} onToggle={toggle} />
-    if (page === 'todos') return <TodosPage role={role} staff={staff} plans={demoPlans} username={account.username} />
-    if (page === 'reports' && role === 'admin') return <ReportsPage staff={reportStaff} library={library} />
-    if (page === 'reports') {
-      const mine = inbox.filter((file) => file.person === account.username)
-      const previous = demoAccount ? demoFiles.filter((file) => file.person === account.username) : zainaReports
-      const history = [...mine, ...previous.filter((item) => !mine.some((file) => file.name === item.name))]
-      return <EmployeeReport latest={mine[0] ?? null} history={history} error={importError} onFile={(file) => { void importReport(file) }} />
-    }
-    if (page === 'permissions') return <PermissionsPage role={role} />
+    if (role === 'employee' && page === 'dashboard') return <EmployeeDashboard checks={checks} onToggle={toggle} onNavigate={go} receivedProjects={myProjects} receivedTasks={myTasks} name="Zaina" />
+    if (page === 'employees') return <EmployeesPage />
+    if (page === 'projects') return <ProjectsPage role={role} list={role === 'admin' ? [...extraProjects, ...projects] : [...myProjects, ...zainaProjects]} duties={assignedTasks} onCreate={(project, tasks) => { setExtraProjects((prev) => [project, ...prev]); setAssignedTasks((prev) => [...tasks, ...prev]) }} />
+    if (page === 'tasks') return <TasksPage role={role} focus={focusTask} checks={checks} onToggle={toggle} assigned={role === 'admin' ? assignedTasks : myTasks} />
+    if (page === 'todos') return <TodosPage role={role} staff={staff} plans={demoPlans} username={account.username} assigned={role === 'admin' ? assignedTasks : myTasks} focusEmployee={focusTodo} />
+    if (page === 'reports') return role === 'employee' ? <EmployeeReportPage /> : <ReportsPage staff={reportStaff} library={library} />
+    if (page === 'permissions') return <PermissionsPage role={role} extra={leaves} who={requester} onSend={(item) => setLeaves((prev) => [item, ...prev])} onDecide={(id, status) => setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, status, seen: true } : item))} />
+    if (page === 'documents') return <DocumentsPage onNavigate={go} />
     if (page === 'alerts') return <AlertsPage />
-    if (page === 'messaging') return <MessagingPage role={role} account={account} contacts={accounts} threads={threads} unread={unread} onSend={sendMessage} onRead={readMessages} />
-    if (page === 'notifications') return <NotificationsPage />
+    if (page === 'messaging') return <MessagingPage key={role} role={role} focus={focusChat} />
+    if (page === 'notifications') return <NotificationsPage incoming={leaves} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
     if (page === 'assistant') return <AssistantPage key={role} role={role} />
-    if (page === 'demo') return <DemoPage counts={{ employees: demoStaff.length, reports: demoFiles.length, plans: demoPlans.length }} note={demoNote} onGenerate={generateDemo} onReset={resetDemo} onNavigate={go} />
+    if (page === 'ai-reports') return <AiReportsPage />
+    if (page === 'demo') return <DemoPage onNavigate={go} />
     return <ProfilePage role={role} account={account} />
-  }, [role, page, checks, account, accounts, threads, unread, demoStaff, demoFiles, demoPlans, demoNote, inbox, importError])
+  }, [role, page, checks, account, accounts, threads, demoStaff, demoFiles, demoPlans, inbox, extraProjects, assignedTasks, myProjects, myTasks, leaves, requester, focusTask, focusTodo, focusChat])
 
   if (!authed) return <Login accounts={accounts} onSuccess={enter} />
 
   return (
-    <div className="app-shell">
-      <Sidebar role={role} page={page} badge={messageBadge} onRole={changeRole} onPage={go} onLogout={() => setAuthed(false)} />
+    <div className="app-shell light">
+      <Sidebar role={role} page={page} badge={messageBadge} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
-        <Topbar role={role} account={account} onNavigate={go} />
+        <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />
         <main>
-          <div className="content">{view}</div>
+          <div className={`content${role === 'admin' && page === 'dashboard' ? ' content-wide' : ''}`}>{view}</div>
         </main>
       </div>
     </div>

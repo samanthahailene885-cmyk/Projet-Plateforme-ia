@@ -1,11 +1,13 @@
 import calendar
 from datetime import datetime, timedelta
 
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Q, Sum
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from authentication.decorators import admin_required
 from employees.models import Employee
@@ -74,31 +76,9 @@ def _person_name(user):
 
 
 def _activity_series(end, days):
-    """Comptes réels des activités rattachées à chaque jour. Aucune valeur n'est écrite à la main."""
-    labels, done, doing, waiting, late = [], [], [], [], []
-    total = 0
-    start = end - timedelta(days=days - 1)
-    for offset in range(days):
-        day = start + timedelta(days=offset)
-        labels.append(f'{day.day:02d}/{day.month:02d}')
-        qs = tasks_on_date(day)
-        late_count = qs.filter(due_date__lt=day).exclude(status__in=CLOSED).count()
-        done_count = qs.filter(status='completed').count()
-        doing_count = qs.exclude(due_date__lt=day).filter(status__in=IN_PROGRESS).count()
-        waiting_count = qs.exclude(due_date__lt=day).filter(status='todo').count()
-        done.append(done_count)
-        doing.append(doing_count)
-        waiting.append(waiting_count)
-        late.append(late_count)
-        total += done_count + doing_count + waiting_count + late_count
-    return {
-        'labels': labels,
-        'completed': done,
-        'in_progress': doing,
-        'not_started': waiting,
-        'late': late,
-        'empty': total == 0,
-    }
+    """Comptes réels par jour. Aucune valeur n'est écrite à la main."""
+    from dashboard.metrics import activity_series
+    return activity_series(end, days)
 
 
 def _project_bars():
@@ -134,8 +114,9 @@ def _project_donut(day):
     slices = [
         ('En cours', Project.objects.filter(status='in_progress').exclude(pk__in=late_ids).count(), '#10B981'),
         ('Terminés', Project.objects.filter(status='completed').count(), '#2563EB'),
+        ('À venir', Project.objects.filter(status='planning').exclude(pk__in=late_ids).count(), '#38BDF8'),
         ('En retard', len(late_ids), '#EF4444'),
-        ('En attente', Project.objects.filter(status__in=['planning', 'on_hold']).exclude(pk__in=late_ids).count(), '#F59E0B'),
+        ('En pause', Project.objects.filter(status='on_hold').exclude(pk__in=late_ids).count(), '#F59E0B'),
     ]
     total = sum(item[1] for item in slices)
     return {
@@ -304,6 +285,64 @@ def _quick_brief(day):
     return text
 
 
+@ensure_csrf_cookie
+def dashboard_metrics_json(request):
+    """Chiffres du tableau de bord pour l'interface. Uniquement des comptes en base."""
+    if not request.user.is_authenticated or not request.user.is_admin():
+        return JsonResponse({'authenticated': False}, status=401)
+    today = timezone.localdate()
+    selected = _parse_date(request.GET.get('date')) or today
+    from dashboard.metrics import activity_state, agency_metrics
+    metrics = agency_metrics(selected)
+    series = _activity_series(selected, 7)
+    donut = _project_donut(selected)
+    month_start = selected.replace(day=1)
+    leaders = (
+        Employee.objects.filter(status='active')
+        .annotate(score=Count(
+            'assigned_tasks',
+            filter=Q(
+                assigned_tasks__status='completed',
+                assigned_tasks__completed_at__date__gte=month_start,
+                assigned_tasks__completed_at__date__lte=selected,
+            ),
+        ))
+        .select_related('user')
+        .order_by('-score', 'user__first_name', 'user__last_name')[:4]
+    )
+    peak = max((person.score for person in leaders), default=0)
+    scalars = (
+        'employees_active', 'employees_total', 'projects_total', 'projects_in_progress',
+        'projects_completed', 'projects_upcoming', 'tasks_total', 'tasks_completed', 'tasks_completed_today',
+        'tasks_in_progress', 'tasks_not_started', 'tasks_overdue', 'todo_lists_today',
+        'todo_lists_missing', 'reports_submitted_today', 'reports_missing_today',
+        'pending_permissions', 'difficulties_open', 'alerts_active',
+    )
+    name = (request.user.get_full_name() or '').strip() or request.user.username
+    return JsonResponse({
+        'authenticated': True,
+        'manager_name': name,
+        'metrics': {key: metrics[key] for key in scalars},
+        'series': series,
+        'donut': donut,
+        'activity': activity_state(selected),
+        'team': [
+            {
+                'rank': str(index + 1),
+                'initials': _initials(_person_name(person.user)),
+                'name': _person_name(person.user),
+                'role': person.get_position_display() if hasattr(person, 'get_position_display') else '',
+                'width': f'{round(person.score * 100 / peak) if peak else 0}%',
+                'score': str(person.score),
+            }
+            for index, person in enumerate(leaders)
+            if person.score
+        ],
+        'alerts': metrics['alert_rows'],
+        'brief': _quick_brief(selected),
+    })
+
+
 @admin_required
 def dashboard_home(request):
     """Tableau de bord responsable. Tous les chiffres viennent des enregistrements."""
@@ -316,33 +355,26 @@ def dashboard_home(request):
     if window not in (7, 14, 30):
         window = 7
 
-    active_tasks = Task.objects.exclude(status='cancelled')
+    from dashboard.metrics import activity_state, agency_metrics
+    from notifications.signals import sync_deadline_notifications
+    sync_deadline_notifications()
+    metrics = agency_metrics(selected)
     series = _activity_series(selected, window)
     bars = _project_bars()
     donut = _project_donut(selected)
+    state = activity_state(selected)
     current_week = _window_totals(selected, 7)
     previous_week = _window_totals(selected - timedelta(days=7), 7)
     week_start = selected - timedelta(days=selected.weekday())
-    employees_total = Employee.objects.count()
-    active_employees = Employee.objects.filter(status='active').count()
     new_employees = Employee.objects.filter(
         status='active', hire_date__gte=week_start, hire_date__lte=selected,
     ).count()
-    tasks_late = active_tasks.filter(due_date__lt=selected).exclude(status__in=CLOSED).count()
+    tasks_late = metrics['tasks_overdue']
     projects_due_soon = Project.objects.filter(
         end_date__gte=selected,
         end_date__lte=selected + timedelta(days=7),
     ).exclude(status__in=['completed', 'cancelled']).count()
-    difficulties = len(day_stats(selected)['remarks'])
-    from notifications.signals import sync_deadline_notifications
-    sync_deadline_notifications()
-    task_state = {
-        'todo': active_tasks.filter(status='todo').count(),
-        'in_progress': active_tasks.filter(status='in_progress').count(),
-        'review': active_tasks.filter(status='review').count(),
-        'completed': active_tasks.filter(status='completed').count(),
-        'late': tasks_late,
-    }
+    difficulties = metrics['difficulties_open']
     user = request.user
     full_name = (user.get_full_name() or '').strip() or user.username
     initials = (
@@ -354,13 +386,14 @@ def dashboard_home(request):
         'selected': selected,
         'window': window,
         'today_formatted': _format_french_date(selected),
+        'metrics': metrics,
         'kpis': {
-            'active_employees': active_employees,
-            'employees_total': employees_total,
+            'active_employees': metrics['employees_active'],
+            'employees_total': metrics['employees_total'],
             'new_employees': new_employees,
-            'tasks_total': active_tasks.count(),
-            'tasks_completed': active_tasks.filter(status='completed').count(),
-            'tasks_in_progress': active_tasks.filter(status__in=IN_PROGRESS).count(),
+            'tasks_total': metrics['tasks_total'],
+            'tasks_completed': metrics['tasks_completed_today'],
+            'tasks_in_progress': metrics['tasks_in_progress'],
             'tasks_late': tasks_late,
             'total_delta': _delta(current_week['total'], previous_week['total']),
             'done_delta': _delta(current_week['completed'], previous_week['completed']),
@@ -372,7 +405,7 @@ def dashboard_home(request):
             'due_soon': projects_due_soon,
             'difficulties': difficulties,
         },
-        'task_state': task_state,
+        'activity_state': state,
         'watch_projects': _projects_needing_attention(selected),
         'quick_brief': _quick_brief(selected),
         'series': series,
@@ -382,7 +415,7 @@ def dashboard_home(request):
         'unread_notifications': user.notifications.filter(is_read=False).count(),
         'profile_name': full_name,
         'profile_initials': initials,
-        'chart_payload': {'series': series, 'bars': bars, 'donut': donut},
+        'chart_payload': {'series': series, 'bars': bars, 'donut': donut, 'activity': state},
     })
 
 

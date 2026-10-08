@@ -145,23 +145,19 @@ TEAM_SYNTHESIS_SYSTEM = (
     "Tu t'appuies uniquement sur les rapports journaliers soumis et les activités fournies. "
     "Tu ne produis pas un rapport séparé par employé et tu ne recopies pas les rapports à la suite. "
     "Tu n'inventes aucun employé, aucune activité, aucun projet, aucune difficulté, "
-    "aucun nombre, aucune progression et aucune information absente. "
+    "aucun métier, aucun nombre, aucune progression et aucune information absente. "
     "Tu n'ajoutes pas de civilité (M., Mme) si elle n'est pas déjà écrite dans les données. "
     "Les décomptes fournis ont été calculés par le système : tu peux les reprendre tels quels, "
     "sans les recalculer et sans en créer d'autres. "
     "Un rapport non soumis ne signifie pas une absence : tu peux seulement reprendre le nombre indiqué. "
     "Tu ne cites pas le nom d'un employé qui n'a pas de rapport dans les données. "
-    "Si aucune difficulté n'est présente dans les rapports ni dans les remarques, écris exactement : "
-    "D'après les rapports soumis, aucune difficulté particulière n'a été signalée. "
-    "Si une rubrique n'a aucune donnée, dis-le sans la compléter. "
-    "Réponds en français, de façon professionnelle, avec exactement ces titres :\n"
-    "### Synthèse de l'activité de l'équipe\n"
-    "### Activités réalisées\n"
-    "### Activités en cours\n"
-    "### Difficultés signalées\n"
-    "### Projets concernés\n"
-    "### Points d'attention\n"
-    "### Conclusion"
+    "Si aucune difficulté n'est présente, écris qu'aucune difficulté n'a été signalée. "
+    "N'écris pas qu'une activité est en cours si le décompte en cours est 0. "
+    "N'écris pas qu'un projet concentre l'activité si aucun projet n'est fourni. "
+    "Réponds en français, en quatre à six paragraphes continus, sans puces. "
+    "Commence par le titre « Synthèse de la journée », puis le bilan des activités réalisées, "
+    "puis les activités encore en cours s'il y en a, puis les difficultés réellement présentes, "
+    "puis les projets réellement cités, puis une conclusion qui donne une vision globale de la journée."
 )
 
 
@@ -345,6 +341,21 @@ class DecisionAIService:
             max_tokens=800,
         )
 
+    def answer_employee(self, question, facts):
+        """Formule une réponse à partir des seuls faits de l'employé connecté."""
+        question = (question or '').strip()
+        if not question:
+            raise AIServiceError('La question est vide.')
+        return self._complete(
+            (
+                "Tu réponds à un employé à partir des seuls faits fournis. "
+                "Tu ne cites aucun collègue, aucun chiffre et aucun projet absent de ces faits. "
+                "Si les faits ne contiennent pas la réponse, dis-le."
+            ),
+            f"Question :\n{question}\n\nFaits enregistrés pour cet employé uniquement :\n{facts}",
+            max_tokens=500,
+        )
+
     def answer_question(self, question):
         question = (question or '').strip()
         if not question:
@@ -370,23 +381,12 @@ class DecisionAIService:
 
     def synthesize_submitted_reports(self, day):
         """Une synthèse d'équipe à partir des rapports soumis dans la base."""
-        from reports.synthesis import collect_team_synthesis, compose_team_synthesis, synthesis_prompt
+        from reports.synthesis import collect_team_synthesis, compose_team_synthesis
 
         dossier = collect_team_synthesis(day)
         if dossier['analyzed'] == 0:
-            raise NoSubmittedReportsError(
-                "Aucun rapport journalier soumis n'est enregistré pour cette date. "
-                "Aucune synthèse n'a été générée."
-            )
-        try:
-            text = self._complete(
-                TEAM_SYNTHESIS_SYSTEM,
-                synthesis_prompt(dossier),
-                max_tokens=1600,
-            )
-        except AIServiceError:
-            text = compose_team_synthesis(dossier)
-        return text, dossier
+            raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
+        return compose_team_synthesis(dossier), dossier
 
     def generate_monthly_report(self):
         today = timezone.now().date()

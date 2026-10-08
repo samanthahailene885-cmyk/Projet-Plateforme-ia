@@ -152,6 +152,21 @@ def _send(request):
         item.attachment = uploaded
     item.save()
     notify_message(item)
+    if not request.user.is_admin() and text.startswith(PROBLEM_DRAFT):
+        detail = text[len(PROBLEM_DRAFT):].strip()
+        try:
+            employee = request.user.employee_profile
+        except Exception:
+            employee = None
+        if detail and employee is not None:
+            from tasks.models import Difficulty
+            Difficulty.objects.create(
+                employee=employee,
+                description=detail[:2000],
+                reported_on=timezone.localdate(),
+                status='open',
+                priority='medium',
+            )
     target = employee if request.user.is_admin() else receiver
     return redirect(conversation_link(target))
 

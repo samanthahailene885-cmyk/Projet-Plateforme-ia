@@ -21,6 +21,12 @@ if not exist node_modules (
   )
 )
 
+netstat -ano | findstr ":8000" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  echo Demarrage de la base de donnees sur http://127.0.0.1:8000
+  start "Base RACIN" cmd /k cd /d "%~dp0." ^& python manage.py runserver 127.0.0.1:8000
+)
+
 netstat -ano | findstr ":5173" | findstr "LISTENING" >nul
 if not errorlevel 1 (
   echo La plateforme est deja lancee.

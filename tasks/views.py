@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from employees.models import Employee
 from projects.models import Project
 from .files import validate_pdf
-from .models import DailyPlan, Task, TaskDocument
+from .models import DailyPlan, Difficulty, Task, TaskDocument
 from .forms import TaskForm
 
 
@@ -186,6 +186,7 @@ def task_detail(request, pk):
         'task': task,
         'documents': task.documents.all(),
         'is_admin_view': request.user.is_admin(),
+        'can_work': _can_manage_task(request.user, task),
         'statuses': Task.STATUS_CHOICES,
     })
 
@@ -704,3 +705,127 @@ def task_complete(request, pk):
         return redirect('tasks:list')
 
     return redirect('tasks:list')
+
+
+def _result_name(uploaded):
+    import os
+    from reports.files import validate_report_file
+
+    name = os.path.basename(getattr(uploaded, 'name', '') or '')
+    lower = name.lower()
+    if lower.endswith(('.pdf', '.docx')):
+        return validate_report_file(uploaded)
+    if lower.endswith(('.png', '.jpg', '.jpeg', '.webp')):
+        if (uploaded.size or 0) > 10 * 1024 * 1024:
+            raise ValidationError('Le fichier dépasse la taille maximale de 10 Mo.')
+        return name
+    raise ValidationError('Formats acceptés pour le résultat : PDF, DOCX, PNG ou JPG.')
+
+
+@login_required
+@require_POST
+def task_result_upload(request, pk):
+    """Dépose un fichier résultat sans changer le statut de la tâche."""
+    task = get_object_or_404(Task, pk=pk)
+    if not _can_manage_task(request.user, task):
+        messages.error(request, 'Vous ne pouvez déposer un résultat que sur vos tâches.')
+        return redirect('tasks:list')
+    uploaded = request.FILES.get('result')
+    if uploaded is None:
+        messages.error(request, 'Choisissez le fichier résultat.')
+        return redirect('tasks:detail', pk=pk)
+    try:
+        name = _result_name(uploaded)
+    except ValidationError as exc:
+        messages.error(request, ' '.join(exc.messages))
+        return redirect('tasks:detail', pk=pk)
+    if task.result_file:
+        task.result_file.delete(save=False)
+    task.result_file = uploaded
+    task.result_original_name = name
+    task.result_file_size = uploaded.size or 0
+    task.save(update_fields=['result_file', 'result_original_name', 'result_file_size', 'updated_at'])
+    messages.success(request, 'Fichier résultat enregistré. La tâche reste ouverte tant qu\'elle n\'est pas marquée terminée.')
+    return redirect('tasks:detail', pk=pk)
+
+
+@login_required
+def task_result(request, pk):
+    task = get_object_or_404(Task, pk=pk)
+    if not _can_manage_task(request.user, task) or not task.result_file:
+        raise Http404
+    inline = request.GET.get('disposition') == 'inline' and (task.result_original_name or '').lower().endswith('.pdf')
+    return FileResponse(
+        task.result_file.open('rb'),
+        as_attachment=not inline,
+        filename=task.result_original_name or 'resultat',
+    )
+
+
+@login_required
+def difficulty_list(request):
+    if request.user.is_admin():
+        rows = Difficulty.objects.select_related('employee__user', 'project')
+    else:
+        employee = _employee(request.user)
+        rows = Difficulty.objects.filter(employee=employee).select_related('project') if employee else Difficulty.objects.none()
+    return render(request, 'tasks/difficulty_list.html', {
+        'rows': rows,
+        'open_count': rows.filter(status='open').count(),
+    })
+
+
+@login_required
+def difficulty_create(request):
+    if request.user.is_admin():
+        messages.error(request, 'Le signalement se fait depuis l\'espace employé.')
+        return redirect('tasks:difficulties')
+    employee = _employee(request.user)
+    if employee is None:
+        messages.error(request, 'Profil employé introuvable.')
+        return redirect('dashboard:employee_home')
+    projects = Project.objects.filter(
+        Q(assigned_employees=employee) | Q(tasks__assigned_to=employee)
+    ).distinct().order_by('name')
+    if request.method == 'POST':
+        description = (request.POST.get('description') or '').strip()
+        priority = request.POST.get('priority') or 'medium'
+        raw_project = request.POST.get('project') or ''
+        if len(description) < 5:
+            messages.error(request, 'Décrivez la difficulté.')
+        elif priority not in dict(Difficulty.PRIORITY_CHOICES):
+            messages.error(request, 'Priorité inconnue.')
+        else:
+            project = projects.filter(pk=raw_project).first() if raw_project.isdigit() else None
+            Difficulty.objects.create(
+                employee=employee,
+                project=project,
+                description=description,
+                reported_on=timezone.localdate(),
+                priority=priority,
+                status='open',
+            )
+            from django.urls import reverse
+            from notifications.signals import _notify_admins
+            _notify_admins(
+                'Difficulté signalée',
+                f'{employee.full_name} : {description[:180]}',
+                'warning',
+                reverse('tasks:difficulties'),
+            )
+            messages.success(request, 'Difficulté enregistrée. Le responsable peut la consulter.')
+            return redirect('tasks:difficulties')
+    return render(request, 'tasks/difficulty_form.html', {'projects': projects})
+
+
+@login_required
+@require_POST
+def difficulty_resolve(request, pk):
+    if not request.user.is_admin():
+        messages.error(request, 'Seul le responsable peut clôturer une difficulté.')
+        return redirect('tasks:difficulties')
+    item = get_object_or_404(Difficulty, pk=pk)
+    item.status = 'resolved'
+    item.save(update_fields=['status', 'updated_at'])
+    messages.success(request, 'Difficulté marquée comme résolue.')
+    return redirect('tasks:difficulties')

@@ -111,6 +111,30 @@ class Task(models.Model):
         blank=True,
         verbose_name=_('Commentaires')
     )
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Commencée le'),
+    )
+    completed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Terminée le'),
+    )
+    result_file = models.FileField(
+        upload_to='task_results/%Y/%m/',
+        blank=True,
+        verbose_name=_('Fichier résultat'),
+    )
+    result_original_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Nom du fichier résultat'),
+    )
+    result_file_size = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Taille du résultat'),
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -137,6 +161,25 @@ class Task(models.Model):
         if self.project_id:
             return f"{self.title} - {self.project.name}"
         return self.title
+
+    def save(self, *args, **kwargs):
+        from django.utils import timezone
+        now = timezone.now()
+        if self.status in ('in_progress', 'review') and self.started_at is None:
+            self.started_at = now
+        if self.status == 'completed':
+            if self.completed_at is None:
+                self.completed_at = now
+            if self.started_at is None:
+                self.started_at = self.completed_at
+        elif self.completed_at is not None:
+            self.completed_at = None
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            fields = set(update_fields)
+            fields.update(['completed_at', 'started_at'])
+            kwargs['update_fields'] = list(fields)
+        super().save(*args, **kwargs)
     
     @property
     def priority_label(self):
@@ -173,6 +216,11 @@ class DailyPlan(models.Model):
         max_length=220,
         blank=True,
         verbose_name=_('Objectif du jour')
+    )
+    submitted_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Envoyée le'),
     )
 
     class Meta:
@@ -223,3 +271,68 @@ class TaskDocument(models.Model):
         if size < 1024 * 1024:
             return f'{size / 1024:.1f} Ko'
         return f'{size / (1024 * 1024):.1f} Mo'
+
+
+class Difficulty(models.Model):
+    """Difficulté signalée par un employé, distincte d'une absence."""
+
+    STATUS_CHOICES = [
+        ('open', _('Ouverte')),
+        ('resolved', _('Résolue')),
+    ]
+    PRIORITY_CHOICES = [
+        ('low', _('Faible')),
+        ('medium', _('Moyenne')),
+        ('high', _('Haute')),
+    ]
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='difficulties',
+        verbose_name=_('Employé'),
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='difficulties',
+        verbose_name=_('Projet'),
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='difficulties',
+        verbose_name=_('Tâche'),
+    )
+    description = models.TextField(verbose_name=_('Description'))
+    reported_on = models.DateField(verbose_name=_('Date'))
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='open',
+        verbose_name=_('Statut'),
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='medium',
+        verbose_name=_('Priorité'),
+    )
+    is_demo = models.BooleanField(
+        default=False,
+        verbose_name=_('Donnée de démonstration'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créée le'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Mise à jour le'))
+
+    class Meta:
+        verbose_name = _('Difficulté')
+        verbose_name_plural = _('Difficultés')
+        ordering = ['-reported_on', '-created_at']
+
+    def __str__(self):
+        return f"{self.employee.full_name} — {self.reported_on}"

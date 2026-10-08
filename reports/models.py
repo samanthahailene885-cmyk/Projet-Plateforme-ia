@@ -35,7 +35,16 @@ class DailyReport(models.Model):
         upload_to='reports/imported/%Y/%m/',
         blank=True,
         verbose_name=_('PDF importé'),
-        help_text=_("Rapport PDF envoyé par l'employé, sans génération par l'IA."),
+        help_text=_("Rapport PDF ou DOCX envoyé par l'employé, sans génération par l'IA."),
+    )
+    original_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Nom du fichier'),
+    )
+    file_size = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Taille'),
     )
     
     created_at = models.DateTimeField(

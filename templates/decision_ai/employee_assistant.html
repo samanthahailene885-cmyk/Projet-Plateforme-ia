@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Mon assistant - RAC'IN{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:0 auto;">
+    <h1>Mon assistant</h1>
+    <p style="color:#94A3B8;">Les réponses sur vos tâches, vos délais et vos projets viennent de vos données. L'assistant ne consulte pas les informations des autres employés.</p>
+    <form id="emp-ai" method="post" action="{% url 'decision_ai:employee_chat' %}" style="display:flex;gap:8px;margin:16px 0;">
+        {% csrf_token %}
+        <input id="emp-q" name="question" required maxlength="2000" placeholder="Quelles sont mes tâches en cours ?" style="flex:1;min-height:42px;border-radius:10px;border:1px solid #173B69;background:#0A2142;color:#F8FAFC;padding:0 12px;">
+        <button type="submit" style="background:#2563EB;color:#fff;border:0;border-radius:10px;padding:0 14px;font-weight:700;">Demander</button>
+    </form>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <button type="button" class="emp-suggest" data-q="Quelles sont mes tâches en cours ?">Tâches en cours</button>
+        <button type="button" class="emp-suggest" data-q="Quelles activités ai-je aujourd'hui ?">Aujourd'hui</button>
+        <button type="button" class="emp-suggest" data-q="Quels sont mes prochains délais ?">Délais</button>
+        <button type="button" class="emp-suggest" data-q="Quels projets me sont attribués ?">Projets</button>
+        <button type="button" class="emp-suggest" data-q="Résume mes activités de cette semaine.">Cette semaine</button>
+    </div>
+    <p id="emp-ai-status" hidden style="padding:12px;border-radius:10px;"></p>
+    <div id="emp-ai-answer" hidden style="white-space:pre-wrap;background:#0A2142;border:1px solid #173B69;border-radius:14px;padding:16px;margin-bottom:16px;"></div>
+    {% for item in history %}
+    <article style="margin-bottom:12px;">
+        <strong>{{ item.question }}</strong>
+        <p style="white-space:pre-wrap;color:#E2E8F0;">{{ item.answer }}</p>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('emp-ai');
+    var input = document.getElementById('emp-q');
+    var status = document.getElementById('emp-ai-status');
+    var answer = document.getElementById('emp-ai-answer');
+    document.querySelectorAll('.emp-suggest').forEach(function (button) {
+        button.addEventListener('click', function () {
+            input.value = button.getAttribute('data-q');
+            form.requestSubmit();
+        });
+    });
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        status.hidden = false;
+        status.textContent = 'Lecture de vos données...';
+        answer.hidden = true;
+        var body = new URLSearchParams(new FormData(form));
+        try {
+            var response = await fetch(form.action, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            var data = await response.json();
+            if (!response.ok) {
+                status.textContent = data.error || 'Le service IA est momentanément indisponible.';
+                return;
+            }
+            status.hidden = true;
+            answer.hidden = false;
+            answer.textContent = data.answer || '';
+        } catch (error) {
+            status.textContent = 'Le service IA est momentanément indisponible.';
+        }
+    });
+})();
+</script>
+{% endblock %}

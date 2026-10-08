@@ -87,7 +87,7 @@ def _report_history(user):
                 size = _format_size(report.uploaded_pdf.size)
             except OSError:
                 size = '—'
-        filename = stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
+        filename = report.original_name or stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
         is_pdf = filename.lower().endswith('.pdf')
         view_url = reverse('reports:pdf', args=[report.pk])
         if is_pdf:
@@ -242,7 +242,7 @@ def _file_card(report):
             size = _format_size(report.uploaded_pdf.size)
         except OSError:
             size = '—'
-    filename = stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
+    filename = report.original_name or stored or f"Rapport_journalier_{report.date.strftime('%d-%m-%Y')}.pdf"
     lower = filename.lower()
     is_word = lower.endswith('.docx')
     sent = timezone.localtime(report.updated_at)
@@ -264,6 +264,7 @@ def _file_card(report):
         'preview_url': preview,
         'download_url': reverse('reports:pdf', args=[report.pk]),
         'text': (report.content or '').strip(),
+        'report_date': report.date,
     }
 
 
@@ -320,12 +321,19 @@ def _admin_report_board(request):
     for report in reports:
         by_user.setdefault(report.employee_id, []).append(_file_card(report))
 
+    submitted_today = set(
+        DailyReport.objects.filter(
+            date=day,
+            employee_id__in=[person.user_id for person in people],
+        ).values_list('employee_id', flat=True)
+    )
     directory = []
     for person in people:
         name = (person.full_name or '').strip() or person.user.username
         if search and search.lower() not in name.lower() and search.lower() not in (person.email or '').lower():
             continue
         files = by_user.get(person.user_id, [])
+        day_card = next((card for card in files if card.get('report_date') == day), None)
         user = person.user
         photo = user.photo.url if getattr(user, 'photo', None) else ''
         directory.append({
@@ -343,7 +351,8 @@ def _admin_report_board(request):
             'count': len(files),
             'online': is_online(user),
             'files': files,
-            'href': _query(base, employee=person.pk),
+            'submitted': person.user_id in submitted_today,
+            'href': _query(base, employee=person.pk, rapport=day_card['pk']) if day_card else _query(base, employee=person.pk),
         })
 
     chosen_id = (request.GET.get('employee') or '').strip()
@@ -520,15 +529,11 @@ def team_report(request):
 @require_POST
 def generate_day_reports(request):
     day = _parse_date(request.POST.get('date')) or timezone.localdate()
-    result = generate_reports_for_day(day)
-    messages.success(
+    messages.error(
         request,
-        f"{result['analyzed']} employés analysés. "
-        f"{result['generated']} rapports générés. "
-        f"{result['already']} rapports déjà existants. "
-        f"{result['missing']} employé(s) sans todo list.",
+        "Les rapports sont importés par les employés. Aucun rapport n'a été généré automatiquement.",
     )
-    return redirect(f"{reverse('reports:team')}?date={day.isoformat()}")
+    return redirect(f"{reverse('reports:list')}?date={day.isoformat()}")
 
 
 @login_required
@@ -591,23 +596,11 @@ def report_create(request):
 @require_POST
 def report_generate(request):
     report_date = _parse_date(request.POST.get('date')) or timezone.now().date()
-    if _get_or_create_employee(request.user) is None and not request.user.is_admin():
-        messages.error(request, 'Vous devez avoir un profil employé pour générer un rapport.')
-        return redirect('reports:create')
-
-    try:
-        content = ReportGenerator().generate_daily_report(request.user, report_date)
-    except AIServiceError as exc:
-        messages.error(request, str(exc))
-        return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
-
-    request.session[_draft_key(request.user, report_date)] = content
-    request.session.modified = True
-    messages.success(
+    messages.error(
         request,
-        "Rapport préparé à partir de vos activités enregistrées. Vous pouvez le modifier, puis le valider.",
+        "Le rapport n'est pas rédigé par l'IA. Importez votre fichier PDF ou DOCX.",
     )
-    return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}&draft=1")
+    return redirect(f"{reverse('reports:create')}?date={report_date.isoformat()}")
 
 
 @login_required
@@ -664,6 +657,8 @@ def report_upload(request):
         messages.error(request, ' '.join(exc.messages))
         return redirect('reports:create')
 
+    filename = os.path.basename(getattr(uploaded, 'name', '') or '').replace('\\', '/').split('/')[-1]
+    filename = filename[:180] or 'rapport'
     report, _created = DailyReport.objects.get_or_create(
         employee=request.user,
         date=report_date,
@@ -675,6 +670,18 @@ def report_upload(request):
     if report.uploaded_pdf:
         report.uploaded_pdf.delete(save=False)
     report.uploaded_pdf = uploaded
+    report.original_name = filename
+    report.file_size = uploaded.size or 0
+    report.ai_generated = False
+    from .extract import extract_report_text
+    extracted = ''
+    try:
+        extracted = extract_report_text(uploaded)
+    except Exception:
+        extracted = ''
+    report.content = extracted or (
+        f"Fichier importé : {filename}. Le texte du fichier n'a pas pu être lu automatiquement."
+    )
     report.save()
 
     from notifications.signals import _notify_admins
@@ -686,8 +693,6 @@ def report_upload(request):
         'success',
         reverse('reports:detail', args=[report.pk]),
     )
-    filename = os.path.basename(getattr(uploaded, 'name', '') or '').replace('\\', '/').split('/')[-1]
-    filename = filename[:180] or 'votre fichier'
     messages.success(request, f'Vous avez importé {filename}.')
     from urllib.parse import quote
     return redirect(

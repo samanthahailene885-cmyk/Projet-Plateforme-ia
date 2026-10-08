@@ -1,4 +1,5 @@
 from django.utils import timezone
+from decision_ai.analytics import collect_alerts
 from permissions.models import PermissionRequest
 from reports.models import DailyReport
 from messaging.models import Message
@@ -53,6 +54,7 @@ def sidebar_counts(request):
             'sidebar_pending_permissions': PermissionRequest.objects.filter(status='pending').count(),
             'sidebar_reports_count': DailyReport.objects.filter(date__gte=today.replace(day=1)).count(),
             'sidebar_unread_messages': unread,
+            'sidebar_alert_count': len(collect_alerts(today)),
             'sidebar_chat_unread': _chat_unread(request.user),
         }
 

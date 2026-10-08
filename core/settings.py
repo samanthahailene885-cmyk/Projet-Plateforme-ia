@@ -45,6 +45,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:52677',
     'http://localhost:50636',
     'http://127.0.0.1:50636',
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
 ]
 _render_url = os.environ.get('RENDER_EXTERNAL_URL')
 if _render_url and _render_url not in CSRF_TRUSTED_ORIGINS:

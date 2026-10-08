@@ -93,7 +93,8 @@
     .ico-green { background: rgba(16,185,129,.18); color: #10B981; }
     .ico-orange { background: rgba(245,158,11,.18); color: #F59E0B; }
     .ico-red { background: rgba(239,68,68,.18); color: #EF4444; }
-    .sup-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(260px, .85fr); gap: 12px; align-items: stretch; }
+    .sup-grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: stretch; }
+    .sup-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
     .sup-grid > div { display: flex; min-width: 0; }
     .sup-grid > div > .sup-card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
     .sup-mid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(220px, .8fr) minmax(260px, 1.05fr); gap: 12px; margin-bottom: 16px; align-items: stretch; }
@@ -245,42 +246,42 @@
         <span class="sup-ico ico-blue"><i class="fas fa-users"></i></span>
         <span>
             <h3>Employés actifs</h3>
-            <strong id="kpi-active">{{ kpis.active_employees }}</strong><span class="sup-kpi-total"> / {{ kpis.employees_total }}</span>
-            <p class="sup-trend {% if kpis.new_employees %}trend-up{% else %}trend-flat{% endif %}">
-                {% if kpis.new_employees %}<i class="fas fa-arrow-up"></i> +{{ kpis.new_employees }} cette semaine{% else %}0 cette semaine{% endif %}
-            </p>
+            <strong id="kpi-active">{{ metrics.employees_active }}</strong><span class="sup-kpi-total"> / {{ metrics.employees_total }}</span>
         </span>
     </a>
-    <a class="sup-kpi" href="{% url 'tasks:list' %}">
-        <span class="sup-ico ico-violet"><i class="fas fa-clipboard-list"></i></span>
+    <a class="sup-kpi" href="{% url 'projects:list' %}">
+        <span class="sup-ico ico-violet"><i class="fas fa-folder"></i></span>
         <span>
-            <h3>Activités totales</h3>
-            <strong id="kpi-total">{{ kpis.tasks_total }}</strong>
-            {% include 'dashboard/_trend.html' with delta=kpis.total_delta %}
+            <h3>Projets en cours</h3>
+            <strong id="kpi-projects">{{ metrics.projects_in_progress }}</strong><span class="sup-kpi-total"> / {{ metrics.projects_total }}</span>
         </span>
     </a>
     <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=completed">
         <span class="sup-ico ico-green"><i class="fas fa-check"></i></span>
         <span>
-            <h3>Activités terminées</h3>
-            <strong id="kpi-done">{{ kpis.tasks_completed }}</strong>
-            {% include 'dashboard/_trend.html' with delta=kpis.done_delta %}
+            <h3>Terminées aujourd'hui</h3>
+            <strong id="kpi-done">{{ metrics.tasks_completed_today }}</strong>
         </span>
     </a>
     <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=in_progress">
         <span class="sup-ico ico-orange"><i class="fas fa-clock"></i></span>
         <span>
-            <h3>Activités en cours</h3>
-            <strong id="kpi-doing">{{ kpis.tasks_in_progress }}</strong>
-            {% include 'dashboard/_trend.html' with delta=kpis.doing_delta %}
+            <h3>Tâches en cours</h3>
+            <strong id="kpi-doing">{{ metrics.tasks_in_progress }}</strong>
         </span>
     </a>
     <a class="sup-kpi" href="{% url 'tasks:list' %}?tab=overdue">
         <span class="sup-ico ico-red"><i class="fas fa-exclamation-triangle"></i></span>
         <span>
-            <h3>Activités en retard</h3>
-            <strong id="kpi-late">{{ kpis.tasks_late }}</strong>
-            {% include 'dashboard/_trend.html' with delta=kpis.late_delta %}
+            <h3>Tâches en retard</h3>
+            <strong id="kpi-late">{{ metrics.tasks_overdue }}</strong>
+        </span>
+    </a>
+    <a class="sup-kpi" href="{% url 'reports:list' %}">
+        <span class="sup-ico ico-blue"><i class="fas fa-file-alt"></i></span>
+        <span>
+            <h3>Rapports soumis</h3>
+            <strong id="kpi-reports">{{ metrics.reports_submitted_today }}</strong><span class="sup-kpi-total"> / {{ metrics.employees_active }}</span>
         </span>
     </a>
 </div>
@@ -310,9 +311,12 @@
         </div>
         {% endif %}
     </section>
+</div>
+
+<div class="sup-pair">
     <div>
         <section class="sup-card">
-            <h2>État des projets</h2>
+            <h2>Statut des projets</h2>
             <p class="sub">Répartition calculée sur les projets enregistrés</p>
             {% if project_donut.empty %}
             <div class="sup-empty">Aucun projet enregistré.</div>
@@ -330,6 +334,15 @@
             {% endif %}
         </section>
     </div>
+    <section class="sup-card">
+        <h2>État des activités</h2>
+        <p class="sub">Terminées, en cours, non commencées et en retard</p>
+        {% if activity_state.empty %}
+        <div class="sup-empty">Aucune tâche enregistrée.</div>
+        {% else %}
+        <div class="sup-chart"><canvas id="activityChart"></canvas></div>
+        {% endif %}
+    </section>
 </div>
 
 <section class="attn-panel">
@@ -341,35 +354,35 @@
         <a class="sup-link" href="{% url 'decision_ai:delay_detection' %}?date={{ selected|date:'Y-m-d' }}">Voir les détails →</a>
     </div>
     <div class="attn-board">
-        <a class="attn-tile late" href="{% url 'tasks:list' %}?tab=overdue">
+        <a class="attn-tile info" href="{% url 'reports:list' %}?date={{ selected|date:'Y-m-d' }}">
             <span class="attn-tile-top">
-                <span class="attn-ico red"><i class="fas fa-exclamation-triangle"></i></span>
-                {% if attention.late %}<span class="attn-flag">À traiter</span>{% else %}<span class="attn-flag calm">Rien à signaler</span>{% endif %}
+                <span class="attn-ico blue"><i class="fas fa-file-alt"></i></span>
+                <span class="attn-flag info">Rapports journaliers</span>
             </span>
-            <strong class="attn-num">{{ attention.late }}</strong>
-            <span class="attn-label">{% if attention.late == 1 %}activité en retard{% else %}activités en retard{% endif %}</span>
-            <span class="attn-hint">Échéances dépassées sur les activités encore ouvertes.</span>
-            <span class="attn-go">Ouvrir les activités →</span>
+            <strong class="attn-num" id="kpi-reports-missing">{{ metrics.reports_missing_today }}</strong>
+            <span class="attn-label">non soumis</span>
+            <span class="attn-hint">{{ metrics.reports_submitted_today }} soumis. Todo lists renseignées : {{ metrics.todo_lists_today }}. Non renseignées : {{ metrics.todo_lists_missing }}. Une todo list absente n'est pas une absence.</span>
+            <span class="attn-go">Ouvrir les rapports →</span>
         </a>
-        <a class="attn-tile soon" href="{% url 'projects:list' %}">
+        <a class="attn-tile soon" href="{% url 'tasks:difficulties' %}">
             <span class="attn-tile-top">
-                <span class="attn-ico orange"><i class="fas fa-clock"></i></span>
-                {% if attention.due_soon %}<span class="attn-flag warn">Cette semaine</span>{% else %}<span class="attn-flag calm">Rien à signaler</span>{% endif %}
+                <span class="attn-ico orange"><i class="fas fa-info-circle"></i></span>
+                <span class="attn-flag warn">Points d'attention</span>
             </span>
-            <strong class="attn-num">{{ attention.due_soon }}</strong>
-            <span class="attn-label">{% if attention.due_soon == 1 %}projet proche de son échéance{% else %}projets proches de leur échéance{% endif %}</span>
-            <span class="attn-hint">Projets dont la date de fin tombe dans les 7 prochains jours.</span>
-            <span class="attn-go">Voir les projets →</span>
+            <strong class="attn-num" id="kpi-difficulties">{{ metrics.difficulties_open }}</strong>
+            <span class="attn-label">{% if metrics.difficulties_open == 1 %}difficulté ouverte{% else %}difficultés ouvertes{% endif %}</span>
+            <span class="attn-hint">{% if attention.late == 1 %}1 activité en retard.{% else %}{{ attention.late }} activités en retard.{% endif %} {{ metrics.pending_permissions }} permission{{ metrics.pending_permissions|pluralize }} en attente.</span>
+            <span class="attn-go">Voir les difficultés →</span>
         </a>
-        <a class="attn-tile info" href="{% url 'decision_ai:delay_detection' %}?date={{ selected|date:'Y-m-d' }}">
+        <a class="attn-tile late" href="{% url 'decision_ai:delay_detection' %}?date={{ selected|date:'Y-m-d' }}">
             <span class="attn-tile-top">
-                <span class="attn-ico blue"><i class="fas fa-info-circle"></i></span>
-                {% if attention.difficulties %}<span class="attn-flag info">Aujourd'hui</span>{% else %}<span class="attn-flag calm">Rien à signaler</span>{% endif %}
+                <span class="attn-ico red"><i class="fas fa-bell"></i></span>
+                {% if metrics.alerts_active %}<span class="attn-flag">Alertes</span>{% else %}<span class="attn-flag calm">Alertes</span>{% endif %}
             </span>
-            <strong class="attn-num">{{ attention.difficulties }}</strong>
-            <span class="attn-label">{% if attention.difficulties == 1 %}difficulté signalée aujourd'hui{% else %}difficultés signalées aujourd'hui{% endif %}</span>
-            <span class="attn-hint">Remarques remontées dans les activités du jour.</span>
-            <span class="attn-go">Lire le détail →</span>
+            <strong class="attn-num" id="kpi-alerts">{{ metrics.alerts_active }}</strong>
+            <span class="attn-label">{% if metrics.alerts_active == 1 %}alerte active{% else %}alertes actives{% endif %}</span>
+            <span class="attn-hint">Retards, échéances proches et rapports manquants détectés dans les données.</span>
+            <span class="attn-go">Ouvrir le centre d'alertes →</span>
         </a>
     </div>
 </section>
@@ -410,6 +423,16 @@
             data: {
                 labels: payload.bars.labels,
                 datasets: [{ data: payload.bars.values, backgroundColor: ['#2563EB', '#7C3AED', '#10B981', '#F59E0B', '#38BDF8', '#8FA8C7'], borderRadius: 6, maxBarThickness: 28 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: axis, y: Object.assign({ beginAtZero: true, ticks: { precision: 0, color: '#8FA8C7' } }, axis) } }
+        });
+    }
+    if (payload.activity && !payload.activity.empty && document.getElementById('activityChart')) {
+        new Chart(document.getElementById('activityChart'), {
+            type: 'bar',
+            data: {
+                labels: payload.activity.labels,
+                datasets: [{ data: payload.activity.values, backgroundColor: payload.activity.colors, borderRadius: 6, maxBarThickness: 36 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: axis, y: Object.assign({ beginAtZero: true, ticks: { precision: 0, color: '#8FA8C7' } }, axis) } }
         });
@@ -479,9 +502,7 @@
             const data = await response.json();
             if (!response.ok || !data.ok) {
                 statusBox.className = 'sup-status err';
-                statusBox.textContent = data.error && data.error.indexOf('Aucun rapport') === 0
-                    ? 'Aucune donnée suffisante pour générer une synthèse.'
-                    : (data.error || 'Aucune donnée suffisante pour générer une synthèse.');
+                statusBox.textContent = data.error || 'Le service IA est momentanément indisponible.';
                 return;
             }
             statusBox.className = 'sup-status ok';
@@ -492,7 +513,7 @@
             sheet.hidden = false;
         } catch (error) {
             statusBox.className = 'sup-status err';
-            statusBox.textContent = 'Aucune donnée suffisante pour générer une synthèse.';
+            statusBox.textContent = 'Le service IA est momentanément indisponible.';
         } finally {
             buttons.forEach(function (item) { item.disabled = false; });
         }

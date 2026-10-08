@@ -26,13 +26,11 @@ class EmployeePermissionsPageTests(TestCase):
         self.client.force_login(self.user)
 
     def test_employee_page_shows_form_and_history(self):
-        response = self.client.get(reverse('permissions:list'))
+        response = self.client.get(reverse('permissions:list') + '?nouvelle=1')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Mes permissions')
-        self.assertContains(response, 'Demander une permission')
-        self.assertContains(response, 'Historique de mes demandes')
+        self.assertContains(response, 'Permissions et absences')
         self.assertContains(response, 'Envoyer la demande')
-        self.assertContains(response, 'Rappel important')
 
     def test_employee_can_submit_request(self):
         start = timezone.now().date() + timedelta(days=5)

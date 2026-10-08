@@ -22,6 +22,7 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include('core.work_urls')),
     path('', RedirectView.as_view(pattern_name='authentication:login', permanent=False), name='home'),
     path('', include('authentication.urls')),
     path('employees/', include('employees.urls')),

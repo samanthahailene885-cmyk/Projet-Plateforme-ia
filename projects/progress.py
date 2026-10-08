@@ -43,6 +43,8 @@ def attach_project_if_missing(task):
     """Crée ou retrouve un projet pour une activité qui n'en a pas encore."""
     if task.project_id or not task.assigned_to_id or not task.pk:
         return task.project_id
+    if (task.comments or '').startswith('todo:'):
+        return None
 
     name = (task.block_title or task.title or '').strip()[:200]
     if not name:

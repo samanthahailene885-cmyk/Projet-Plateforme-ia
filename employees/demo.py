@@ -6,8 +6,9 @@ les employés, projets ou tâches créés en dehors de ce générateur.
 import random
 import unicodedata
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.utils import timezone
@@ -18,7 +19,7 @@ from employees.models import Employee
 from permissions.models import PermissionRequest
 from projects.models import Project
 from reports.models import DailyReport
-from tasks.models import DailyPlan, Task
+from tasks.models import DailyPlan, Difficulty, Task, TaskDocument
 
 DEMO_PASSWORD = 'Demo-Racine-2026'
 
@@ -157,6 +158,12 @@ def demo_counts():
         'plans': DailyPlan.objects.filter(employee__user__is_demo=True).count(),
         'reports': DailyReport.objects.filter(employee__is_demo=True).count(),
         'permissions': PermissionRequest.objects.filter(employee__user__is_demo=True).count(),
+        'difficulties': Difficulty.objects.filter(is_demo=True).count(),
+        'documents': (
+            TaskDocument.objects.filter(task__project__is_demo=True).count()
+            + Task.objects.filter(project__is_demo=True).exclude(result_file='').count()
+            + DailyReport.objects.filter(employee__is_demo=True).exclude(uploaded_pdf='').count()
+        ),
     }
 
 
@@ -164,6 +171,8 @@ def reset_demo_data():
     """Supprime uniquement les enregistrements marqués comme démonstration."""
     counts = demo_counts()
     with transaction.atomic():
+        Difficulty.objects.filter(is_demo=True).delete()
+        Difficulty.objects.filter(employee__user__is_demo=True).delete()
         Task.objects.filter(project__is_demo=True).delete()
         Task.objects.filter(assigned_to__user__is_demo=True).delete()
         Project.objects.filter(is_demo=True).delete()
@@ -264,18 +273,25 @@ def _task(employee, project, day, today, kind, title, rng):
         status, due, comments = rng.choice(['todo', 'in_progress', 'not_done']), day, ''
     if kind == 'completed':
         status, comments = 'completed', ''
+    stamps = {}
+    moment = timezone.make_aware(datetime.combine(day, time(9, 0)))
+    if status in ('in_progress', 'review', 'completed'):
+        stamps['started_at'] = moment
+    if status == 'completed':
+        stamps['completed_at'] = timezone.make_aware(datetime.combine(day, time(17, 0)))
     return Task.objects.create(
         title=title,
         description='Activité de démonstration, créée pour la soutenance.',
         project=project,
         assigned_to=employee,
         status=status,
-        priority='high' if kind == 'late' else rng.choice(['low', 'medium', 'medium', 'high']),
+        priority='urgent' if kind == 'late' else 'high' if kind == 'difficulty' else rng.choice(['low', 'medium', 'medium', 'high']),
         planned_date=day,
         due_date=due,
         block_title=project.name,
         comments=comments,
         estimated_hours=rng.choice([1, 2, 3]),
+        **stamps,
     )
 
 
@@ -371,7 +387,7 @@ def _create_plans_and_reports(rng, today):
                 'content': '\n'.join(content_lines),
                 'tasks_completed': '\n'.join(done),
                 'tasks_in_progress': '\n'.join(doing + waiting),
-                'ai_generated': rng.random() < 0.5,
+                'ai_generated': False,
             },
         )
         reports += 1
@@ -404,6 +420,123 @@ def _create_permissions(rng, employees, today):
         )
         created += 1
     return created
+
+
+def _create_difficulties():
+    created = 0
+    tasks = Task.objects.filter(project__is_demo=True).exclude(comments='').select_related('assigned_to', 'project')
+    for task in tasks:
+        if not task.assigned_to_id:
+            continue
+        Difficulty.objects.create(
+            employee=task.assigned_to,
+            project=task.project,
+            task=task,
+            description=task.comments,
+            reported_on=task.planned_date or timezone.localdate(),
+            status='open',
+            priority='high',
+            is_demo=True,
+        )
+        created += 1
+    return created
+
+
+def _pdf_bytes(title, lines):
+    """Petit PDF lisible, sans bibliothèque externe."""
+    def clean(value):
+        text = _ascii(value or '').replace('\\', '/').replace('(', '[').replace(')', ']')
+        return ' '.join(text.split())[:110]
+
+    body = [clean(title)] + [clean(line) for line in lines if clean(line)]
+    ops = ['BT', '/F1 14 Tf', '48 760 Td', '18 TL']
+    for index, line in enumerate(body[:26]):
+        if index:
+            ops.append('T*')
+        ops.append(f'({line}) Tj')
+    ops.append('ET')
+    stream = ('\n'.join(ops) + '\n').encode('latin-1', 'replace')
+    objects = [
+        b'<< /Type /Catalog /Pages 2 0 R >>',
+        b'<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
+        b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        b'<< /Length %d >>\nstream\n' % len(stream) + stream + b'endstream',
+        b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ]
+    output = bytearray(b'%PDF-1.4\n')
+    offsets = [0]
+    for number, obj in enumerate(objects, start=1):
+        offsets.append(len(output))
+        output.extend(f'{number} 0 obj\n'.encode('ascii'))
+        output.extend(obj)
+        output.extend(b'\nendobj\n')
+    xref = len(output)
+    output.extend(f'xref\n0 {len(objects) + 1}\n'.encode('ascii'))
+    output.extend(b'0000000000 65535 f \n')
+    for offset in offsets[1:]:
+        output.extend(f'{offset:010d} 00000 n \n'.encode('ascii'))
+    output.extend(
+        f'trailer << /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n'.encode('ascii')
+    )
+    return bytes(output)
+
+
+def _file_slug(value):
+    slug = _ascii(value or 'document').lower().replace(' ', '_').replace("'", '')
+    slug = ''.join(char for char in slug if char.isalnum() or char == '_')
+    return slug[:40] or 'document'
+
+
+def _attach_documents(tasks):
+    """Briefs, rendus et rapports PDF, pour ouvrir un document pendant la soutenance."""
+    briefs = results = report_files = 0
+    for task in tasks:
+        who = task.assigned_to.full_name if task.assigned_to_id else 'Un employe'
+        project = task.project.name if task.project_id else 'Sans projet'
+        if task.status == 'completed' and results < 8:
+            name = f'Rendu_{_file_slug(task.title)}.pdf'
+            data = _pdf_bytes(task.title, [
+                f'Projet : {project}',
+                f'Employe : {who}',
+                'Document de demonstration.',
+                'Ce rendu illustre une activite terminee du tableau de bord.',
+            ])
+            task.result_file.save(name, ContentFile(data), save=False)
+            task.result_original_name = name
+            task.result_file_size = len(data)
+            task.save(update_fields=['result_file', 'result_original_name', 'result_file_size', 'updated_at'])
+            results += 1
+        elif task.status in ('todo', 'in_progress', 'review') and briefs < 8:
+            name = f'Brief_{_file_slug(project)}.pdf'
+            data = _pdf_bytes(f'Brief - {project}', [
+                f'Activite : {task.title}',
+                f'Employe : {who}',
+                'Document de demonstration.',
+                'Ce brief accompagne une activite encore ouverte.',
+            ])
+            document = TaskDocument(
+                task=task,
+                original_name=name,
+                mime_type='application/pdf',
+                file_size=len(data),
+            )
+            document.file.save(name, ContentFile(data), save=True)
+            briefs += 1
+    reports = DailyReport.objects.filter(employee__is_demo=True).select_related('employee')
+    for report in reports:
+        user = report.employee
+        name = f'Rapport_{report.date:%Y%m%d}_{_file_slug(user.last_name)}.pdf'
+        data = _pdf_bytes(f'Rapport du {report.date:%d/%m/%Y}', [
+            f'{user.first_name} {user.last_name}',
+            *(report.content or 'Rapport de demonstration.').splitlines(),
+        ])
+        report.uploaded_pdf.save(name, ContentFile(data), save=False)
+        report.original_name = name
+        report.file_size = len(data)
+        report.ai_generated = False
+        report.save(update_fields=['uploaded_pdf', 'original_name', 'file_size', 'ai_generated', 'updated_at'])
+        report_files += 1
+    return briefs + results + report_files
 
 
 def _mark_one_recorded_absence(missing_today, today):
@@ -440,6 +573,8 @@ def generate_demo_data(employee_count, project_count, task_count, days):
         tasks, missing_today = _create_tasks(rng, employees, projects, today, days, task_count)
         plans, reports = _create_plans_and_reports(rng, today)
         permissions = _create_permissions(rng, employees, today)
+        difficulties = _create_difficulties()
+        documents = _attach_documents(tasks)
         _mark_one_recorded_absence(missing_today, today)
     alerts = len(collect_alerts(today))
     return {
@@ -448,7 +583,9 @@ def generate_demo_data(employee_count, project_count, task_count, days):
         'tasks': len(tasks),
         'plans': plans,
         'reports': reports,
+        'documents': documents,
         'permissions': permissions,
+        'difficulties': difficulties,
         'alerts': alerts,
         'password': DEMO_PASSWORD,
     }

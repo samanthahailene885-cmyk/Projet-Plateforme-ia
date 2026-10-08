@@ -134,3 +134,16 @@ class Project(models.Model):
         from django.utils import timezone
         delta = self.end_date - timezone.now().date()
         return delta.days if delta.days > 0 else 0
+
+    @property
+    def live_progress(self):
+        """Pourcentage réel des tâches terminées. None s'il n'y a aucune tâche."""
+        total = getattr(self, 'task_total', None)
+        done = getattr(self, 'task_done', None)
+        if total is None:
+            tasks = self.tasks.exclude(status='cancelled')
+            total = tasks.count()
+            done = tasks.filter(status='completed').count()
+        if not total:
+            return None
+        return round((done or 0) * 100 / total)

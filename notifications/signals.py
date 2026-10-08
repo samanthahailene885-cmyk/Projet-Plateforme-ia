@@ -55,12 +55,19 @@ def _notify_assignee(instance, reassigned=False):
     if instance.created_by_id:
         author = (instance.created_by.get_full_name() or '').strip() or instance.created_by.username
     author = author or 'Le responsable'
-    title = f'Nouvelle tâche assignée : {instance.title}'[:200]
-    project = f' Projet : {instance.project.name}.' if instance.project_id else ''
+    label = (instance.title or '').strip()
+    if label:
+        label = label[0].upper() + label[1:]
+    project_name = instance.project.name if instance.project_id else ''
+    headline = label
+    if project_name and project_name.lower() not in label.lower():
+        headline = f'{label} — {project_name}'
+    title = f'Nouvelle tâche : {headline}.'[:200]
+    project = f' Projet : {project_name}.' if project_name else ''
     if reassigned:
         message = f'{author} vous a réattribué « {instance.title} ».{project}'
     else:
-        message = f'{author} vous a attribué « {instance.title} ».{project}'
+        message = f'{author} vous a attribué « {instance.title} ».{project} Ouvrez la tâche pour télécharger le brief.'
     Notification.objects.create(
         user=user,
         title=title,
@@ -75,12 +82,15 @@ def notify_task_event(sender, instance, created, **kwargs):
     who = instance.assigned_to.full_name if instance.assigned_to_id else 'Un employé'
     link = reverse('tasks:detail', args=[instance.pk])
     if created:
-        _notify_admins(
-            'Todo list mise à jour',
-            f'{who} a enregistré « {instance.title} ».',
-            'info',
-            link,
-        )
+        creator = instance.created_by
+        personal = (instance.comments or '').startswith('todo:')
+        if not personal and (creator is None or not creator.is_admin()):
+            _notify_admins(
+                'Todo list mise à jour',
+                f'{who} a enregistré « {instance.title} ».',
+                'info',
+                link,
+            )
         _notify_assignee(instance)
         return
     previous_assignee = getattr(instance, '_previous_assignee_id', None)
