@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from attendance.models import Attendance
 from authentication.models import User
 from employees.models import Employee
 from messaging.models import Message
@@ -291,8 +292,36 @@ def employees_view(request):
         return denied
     if not request.user.is_admin():
         return JsonResponse({'ok': False, 'error': 'Accès réservé au responsable.'}, status=403)
-    rows = Employee.objects.filter(status='active', user__role='employee').select_related('user').order_by('user__first_name', 'user__last_name')
-    return JsonResponse({'ok': True, 'employees': [_person(item) for item in rows]})
+    today = timezone.localdate()
+    leave_ids = set(PermissionRequest.objects.filter(
+        status='approved',
+        type__in=('annual', 'sick', 'unpaid'),
+        start_date__lte=today,
+        end_date__gte=today,
+    ).values_list('employee_id', flat=True))
+    absent_ids = set(Attendance.objects.filter(date=today, status='absent').values_list('employee_id', flat=True))
+    absent_ids.update(PermissionRequest.objects.filter(
+        status='approved',
+        type='absence',
+        start_date__lte=today,
+        end_date__gte=today,
+    ).values_list('employee_id', flat=True))
+    rows = Employee.objects.filter(user__role='employee').select_related('user')
+    if request.GET.get('tous') == '1':
+        rows = rows.exclude(status='inactive')
+    else:
+        rows = rows.filter(status='active')
+    people = []
+    for item in rows.order_by('user__first_name', 'user__last_name'):
+        card = _person(item)
+        if item.status == 'on_leave' or item.pk in leave_ids:
+            card['presence'] = 'En congé'
+        elif item.pk in absent_ids:
+            card['presence'] = 'Absent'
+        else:
+            card['presence'] = 'Actif'
+        people.append(card)
+    return JsonResponse({'ok': True, 'employees': people})
 
 
 @require_http_methods(['GET', 'POST'])
@@ -792,9 +821,11 @@ def permissions_view(request):
         return JsonResponse({'ok': False, 'error': 'Dates et motif sont obligatoires.'}, status=400)
     if end < start:
         return JsonResponse({'ok': False, 'error': 'La date de fin est avant la date de début.'}, status=400)
+    raw = (data.get('kind') or data.get('type') or 'permission').strip().lower().replace('é', 'e').replace('è', 'e')
+    kind = 'annual' if 'cong' in raw else 'absence' if 'absen' in raw else 'permission'
     item = PermissionRequest.objects.create(
         employee=employee,
-        type='permission',
+        type=kind,
         start_date=start,
         end_date=end,
         reason=reason,

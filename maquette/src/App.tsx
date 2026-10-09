@@ -684,48 +684,46 @@ function LightHead({ kicker, title, text, action }: { kicker: string; title: str
   )
 }
 
-const directory = [
-  { initials: 'AK', tone: 'violet', name: 'Aïcha Konaté', email: 'aicha.konate@racin.africa', role: 'Data Analyst', project: 'Nova Analytics', tasks: '24 tâches', status: 'Actif', seen: 'Il y a 8 min' },
-  { initials: 'MD', tone: 'blue', name: 'Moussa Diallo', email: 'moussa.diallo@racin.africa', role: 'Développeur Full Stack', project: 'Portail Finance', tasks: '19 tâches', status: 'Actif', seen: 'Il y a 24 min' },
-  { initials: 'SN', tone: 'orange', name: 'Sarah N’Guessan', email: 'sarah.nguessan@racin.africa', role: 'UX/UI Designer', project: 'Mobile Banking', tasks: '16 tâches', status: 'Absent', seen: 'Hier, 18:32' },
-  { initials: 'IT', tone: 'green', name: 'Ibrahim Traoré', email: 'ibrahim.traore@racin.africa', role: 'Data Engineer', project: 'Nova Analytics', tasks: '21 tâches', status: 'Actif', seen: 'Il y a 41 min' },
-  { initials: 'FN', tone: 'pink', name: 'Fatou Ndiaye', email: 'fatou.ndiaye@racin.africa', role: 'Cheffe de projet', project: 'Portail Finance', tasks: '28 tâches', status: 'En congé', seen: 'Vendredi, 17:45' },
-]
+type DirectoryRow = { initials: string; tone: string; name: string; email: string; role: string; project: string; tasks: string; status: string; seen: string }
 
 function EmployeesPage() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Tous')
   const [adding, setAdding] = useState(false)
-  const [live, setLive] = useState<typeof directory | null>(null)
+  const [live, setLive] = useState<DirectoryRow[]>([])
   useEffect(() => {
-    deskCall('/api/employes/').then((data) => {
-      const people = (data.employees ?? []) as { name: string; username: string; initials: string }[]
-      setLive(people.map((person) => ({
+    deskCall('/api/employes/?tous=1').then((data) => {
+      const people = (data.employees ?? []) as { name: string; username: string; initials: string; role?: string; presence?: string }[]
+      const tones = ['violet', 'blue', 'orange', 'green', 'pink']
+      setLive(people.map((person, index) => ({
         initials: person.initials,
-        tone: 'violet',
+        tone: tones[index % tones.length],
         name: person.name,
         email: person.username === 'nouzou' ? 'zaina' : person.username,
-        role: 'Employé',
+        role: person.role || 'Employé',
         project: '—',
         tasks: '—',
-        status: 'Actif',
+        status: person.presence || 'Actif',
         seen: 'En base',
       })))
     }).catch(() => undefined)
   }, [])
-  const rows = (live ?? directory).filter((person) => {
+  const rows = live.filter((person) => {
     const blob = `${person.name} ${person.role} ${person.project}`.toLowerCase()
     return blob.includes(query.toLowerCase()) && (status === 'Tous' || person.status === status)
   })
+  const actifs = live.filter((person) => person.status === 'Actif').length
+  const absents = live.filter((person) => person.status === 'Absent').length
+  const conges = live.filter((person) => person.status === 'En congé').length
   return (
     <section className="lp">
       <LightHead kicker="Équipe" title="Gestion des employés" text="Gérez votre équipe et suivez les performances individuelles." action={<button className="lp-btn" type="button" onClick={() => setAdding((value) => !value)}><Icon name="plus" size={14} /> Ajouter un employé</button>} />
       {adding ? <p className="lp-note">Les comptes de test sont déjà en base : awa.traore, mamadou.kone, fatou.diarra, ibrahim.bah. Mot de passe Employe-2026.</p> : null}
       <div className="lp-stats">
-        <span><Icon name="users" size={15} /> <b>{(live ?? directory).length}</b> Employés</span>
-        <span className="ok"><i /> <b>43</b> Actifs</span>
-        <span className="bad"><i /> <b>2</b> Absents</span>
-        <span className="warn"><i /> <b>3</b> En congé</span>
+        <span><Icon name="users" size={15} /> <b>{live.length}</b> Employés</span>
+        <span className="ok"><i /> <b>{actifs}</b> Actifs</span>
+        <span className="bad"><i /> <b>{absents}</b> Absents</span>
+        <span className="warn"><i /> <b>{conges}</b> En congé</span>
       </div>
       <div className="lp-panel">
         <div className="lp-tools">
@@ -754,7 +752,7 @@ function EmployeesPage() {
             {rows.length === 0 ? <tr><td colSpan={7} className="empty">Aucun employé ne correspond.</td></tr> : null}
           </tbody>
         </table>
-        <div className="lp-pages"><span>Affichage de 1 à {rows.length} sur {(live ?? directory).length} employés</span></div>
+        <div className="lp-pages"><span>{rows.length === 0 ? `Aucun employé sur ${live.length}` : `Affichage de 1 à ${rows.length} sur ${live.length} employés`}</span></div>
       </div>
     </section>
   )
@@ -2419,7 +2417,7 @@ function PermissionsPage({ role, extra, who, onSend, onDecide }: { role: Role; e
     }
     if (role === 'employee') {
       try {
-        await deskCall('/api/permissions/', { method: 'POST', body: JSON.stringify({ start_date: from, end_date: to || from, reason: motif.trim() || 'Non renseigné' }) })
+        await deskCall('/api/permissions/', { method: 'POST', body: JSON.stringify({ start_date: from, end_date: to || from, reason: motif.trim() || 'Non renseigné', kind }) })
         setReloadLeaves((value) => value + 1)
       } catch (reason) {
         setProofError(reason instanceof Error ? reason.message : 'Envoi impossible.')
