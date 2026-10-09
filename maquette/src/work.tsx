@@ -61,10 +61,13 @@ async function readJson(response: Response) {
 
 async function call(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
-  if (!(options.body instanceof FormData) && options.body && !headers.has('Content-Type')) {
+  const csrf = token()
+  if (options.body instanceof FormData) {
+    if (csrf && !options.body.has('csrfmiddlewaretoken')) options.body.set('csrfmiddlewaretoken', csrf)
+  } else if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  if (options.method && options.method !== 'GET') headers.set('X-CSRFToken', token())
+  if (options.method && options.method !== 'GET') headers.set('X-CSRFToken', csrf)
   const response = await fetch(url, { credentials: 'same-origin', ...options, headers })
   const data = await readJson(response)
   if (!response.ok) throw new Error(data.error || 'Action impossible.')

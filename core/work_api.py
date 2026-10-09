@@ -3,6 +3,7 @@ import json
 import os
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
@@ -210,16 +211,21 @@ def _check_work_file(uploaded):
 
 def _store_documents(request, task):
     stored = []
-    for uploaded in request.FILES.getlist('documents') or request.FILES.getlist('document'):
+    os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+    uploads = request.FILES.getlist('documents') or request.FILES.getlist('document') or request.FILES.getlist('file')
+    for uploaded in uploads:
         name = _check_work_file(uploaded)
-        document = TaskDocument.objects.create(
-            task=task,
-            original_name=name,
-            file=uploaded,
-            file_size=uploaded.size or 0,
-            mime_type=getattr(uploaded, 'content_type', '') or 'application/octet-stream',
-            uploaded_by=request.user,
-        )
+        try:
+            document = TaskDocument.objects.create(
+                task=task,
+                original_name=name,
+                file=uploaded,
+                file_size=uploaded.size or 0,
+                mime_type=getattr(uploaded, 'content_type', '') or 'application/octet-stream',
+                uploaded_by=request.user,
+            )
+        except OSError as exc:
+            raise ValueError('Le fichier n’a pas pu être enregistré. Réessayez.') from exc
         stored.append(document.original_name)
     return stored
 

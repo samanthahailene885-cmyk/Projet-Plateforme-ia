@@ -843,28 +843,18 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
     const docx = lower.endsWith('.docx')
     if (!pdf && !docx) {
       setFileError('Formats acceptés : PDF ou DOCX.')
+      setRawFile(null)
+      setAttachment(null)
       return
     }
     if (file.size > 10 * 1024 * 1024) {
       setFileError('Le fichier dépasse 10 Mo.')
+      setRawFile(null)
+      setAttachment(null)
       return
     }
-    let html = ''
-    let url = ''
-    if (docx) {
-      const mammoth = await import('mammoth')
-      const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() })
-      html = result.value
-    } else {
-      url = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(String(reader.result))
-        reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(file)
-      })
-    }
     setRawFile(file)
-    setAttachment({ name: file.name, kind: pdf ? 'PDF' : 'DOC', size: formatSize(file.size), url: url || undefined, html: html || undefined })
+    setAttachment({ name: file.name, kind: pdf ? 'PDF' : 'DOC', size: formatSize(file.size), url: URL.createObjectURL(file) })
     setFileError('')
   }
   async function create() {
@@ -877,6 +867,14 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
     const projectName = name.trim()
     const priorityCode = priority === 'Urgente' ? 'urgent' : priority === 'Élevée' ? 'high' : 'medium'
     const filled = rows.filter((item) => item.title.trim())
+    if (rawFile && filled.length === 0) {
+      const who = selected[0] || ''
+      if (!who) {
+        setError('Cliquez sur l’employé qui doit recevoir le fichier.')
+        return
+      }
+      filled.push({ id: Date.now(), title: rawFile.name.replace(/\.[^.]+$/, '') || 'Document du projet', who, priority: 'Élevée', due: end })
+    }
     const missingAssignee = filled.find((row) => !roster.some((person) => person.id === row.who))
     if (missingAssignee) {
       setError('Choisissez l’employé qui reçoit chaque tâche.')
@@ -931,7 +929,12 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
         body.set('due_date', row.due)
         body.set('description', description.trim())
         if (rawFile && row === fileRow) body.append('documents', rawFile)
-        await deskCall('/api/taches/', { method: 'POST', body })
+        const created = await deskCall('/api/taches/', { method: 'POST', body })
+        const attached = (created.documents ?? []) as string[]
+        if (rawFile && row === fileRow && attached.length === 0) {
+          setError(String(created.message || 'Le fichier n’a pas été joint au projet.'))
+          return
+        }
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Enregistrement impossible.')
