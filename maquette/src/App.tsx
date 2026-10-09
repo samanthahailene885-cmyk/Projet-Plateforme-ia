@@ -526,6 +526,20 @@ function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; 
   ])
   const [kpis, setKpis] = useState({ tasks: 0, done: 0, projects: 0, progress: '—', due: '—' })
   const [notices, setNotices] = useState<{ id: number; title: string; message: string; page: string }[]>([])
+  const [bossNote, setBossNote] = useState<{ author: string; initials: string; text: string; at: string; fresh: boolean } | null>(null)
+  useEffect(() => {
+    let stop = false
+    function loadNote() {
+      deskCall('/api/messages/?apercu=1').then((data) => {
+        if (stop) return
+        const latest = data.latest as { author?: string; initials?: string; text?: string; at?: string; fresh?: boolean } | null
+        setBossNote(latest?.text ? { author: latest.author || 'Responsable', initials: latest.initials || 'AM', text: latest.text, at: latest.at || '', fresh: Boolean(latest.fresh) } : null)
+      }).catch(() => undefined)
+    }
+    loadNote()
+    const timer = window.setInterval(loadNote, 4000)
+    return () => { stop = true; window.clearInterval(timer) }
+  }, [])
   useEffect(() => {
     Promise.all([deskCall('/api/taches/'), deskCall('/api/projets/')]).then(([taskData, projectData]) => {
       const tasks = ((taskData.tasks ?? []) as { title: string; project: string; due_date: string; status_label: string; planned_date: string }[]).filter((item) => !(item.planned_date && !item.due_date))
@@ -651,19 +665,21 @@ function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; 
           </div>
           <b>57%</b>
         </article>
-        <article className="eh-card eh-msg">
+        <article className={`eh-card eh-msg${bossNote?.fresh ? ' fresh' : ''}`}>
           <header>
             <div><h2>Message de votre responsable</h2><p>Dernière communication</p></div>
-            <em>Nouveau</em>
+            {bossNote?.fresh ? <em>Nouveau</em> : null}
           </header>
-          <div className="eh-note">
-            <b>AM</b>
-            <span>
-              <strong>Amadou Mensah</strong>
-              <p>Bonjour Aïcha, le client a validé les nouveaux indicateurs. Nous en parlons pendant la revue.</p>
-              <small>Il y a 18 min</small>
-            </span>
-          </div>
+          {bossNote ? (
+            <div className="eh-note">
+              <b>{bossNote.initials}</b>
+              <span>
+                <strong>{bossNote.author}</strong>
+                <p>{bossNote.text}</p>
+                <small>{bossNote.at}</small>
+              </span>
+            </div>
+          ) : <p className="eh-msg-empty">Aucun message du responsable pour le moment.</p>}
           <button type="button" onClick={() => onNavigate('messaging')}><Icon name="message" size={14} /> Ouvrir la conversation</button>
         </article>
       </div>

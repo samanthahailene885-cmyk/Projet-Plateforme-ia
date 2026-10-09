@@ -1877,7 +1877,9 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .eh-week strong { display: block; margin: 4px 0; font-family: Manrope, sans-serif; font-size: 16px; }
 .eh-week p { margin: 0; color: #c5d4ea; font-size: 12px; line-height: 1.45; }
 .eh-week > b { font-family: Manrope, sans-serif; font-size: 28px; }
-.eh-msg header em { padding: 3px 8px; border-radius: 99px; background: #eaf2ff; color: #3478f6; font-size: 11px; font-style: normal; font-weight: 700; }
+.eh-msg.fresh { border-color: #8eb4ff; box-shadow: 0 10px 24px rgba(52, 120, 246, 0.14); }
+.eh-msg header em { padding: 3px 8px; border-radius: 99px; background: #df5361; color: white; font-size: 11px; font-style: normal; font-weight: 700; }
+.eh-msg-empty { margin: 8px 0 12px; color: #69758b; font-size: 13px; }
 .eh-note { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; margin: 8px 0 12px; padding: 12px; border-radius: 12px; background: #f8fafc; }
 .eh-note > b { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: #e8f1ff; color: #3478f6; }
 .eh-note strong { display: block; font-size: 13px; }

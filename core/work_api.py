@@ -1012,6 +1012,19 @@ def messages_view(request):
             return JsonResponse({'ok': True, 'message': 'Demande envoyée au responsable.'})
         return _send_message(request, boss)
     unread = _pair(request.user, boss).filter(sender=boss, read_at__isnull=True).count()
+    if request.GET.get('apercu') == '1':
+        last = _pair(request.user, boss).filter(sender=boss).select_related('sender').order_by('-created_at').first()
+        card = _user_card(boss)
+        latest = None
+        if last:
+            latest = {
+                'author': card['name'],
+                'initials': card['initials'],
+                'text': last.message,
+                'at': _ago(last.created_at),
+                'fresh': last.read_at is None,
+            }
+        return JsonResponse({'ok': True, 'contact': card, 'unread': unread, 'latest': latest})
     return JsonResponse({
         'ok': True,
         'contact': _user_card(boss),
@@ -1028,6 +1041,18 @@ def _send_message(request, receiver):
     message = Message.objects.create(sender=request.user, receiver=receiver, message=text)
     notify_message(message)
     return JsonResponse({'ok': True, 'message': 'Message envoyé.'})
+
+
+def _ago(moment):
+    minutes = int((timezone.now() - moment).total_seconds() // 60)
+    if minutes < 1:
+        return "À l'instant"
+    if minutes < 60:
+        return f'Il y a {minutes} min'
+    hours = minutes // 60
+    if hours < 24:
+        return f'Il y a {hours} h'
+    return timezone.localtime(moment).strftime('%d/%m %H:%M')
 
 
 def _pair(user, partner):
