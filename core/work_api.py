@@ -232,11 +232,56 @@ def session_view(request):
     return JsonResponse({'authenticated': True, 'user': _session_user(request)})
 
 
+def _ensure_zaina():
+    """Le compte employé de démonstration est toujours Zaina."""
+    user = User.objects.filter(username='nouzou').first()
+    if user is None:
+        user = User.objects.create_user(
+            username='nouzou',
+            email='nouzou@racin.africa',
+            password='nabihouddine',
+            first_name='Zaina',
+            last_name='Zaina',
+            role='employee',
+        )
+    changed = []
+    if user.role != 'employee':
+        user.role = 'employee'
+        changed.append('role')
+    if not user.is_active:
+        user.is_active = True
+        changed.append('is_active')
+    if (user.first_name or '').strip().lower() in {'', 'zaina'} and user.first_name != 'Zaina':
+        user.first_name = 'Zaina'
+        changed.append('first_name')
+    if (user.last_name or '').strip().lower() in {'', 'zaina'} and user.last_name != 'Zaina':
+        user.last_name = 'Zaina'
+        changed.append('last_name')
+    if changed:
+        user.save(update_fields=changed)
+    employee = Employee.objects.filter(user=user).first()
+    if employee is None:
+        employee = Employee.objects.create(
+            user=user,
+            position='other',
+            department='',
+            hire_date=timezone.localdate(),
+            status='active',
+        )
+    elif employee.status != 'active':
+        employee.status = 'active'
+        employee.save(update_fields=['status', 'updated_at'])
+    return employee
+
+
 @require_POST
 def login_view(request):
     data = _json_body(request)
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
+    if username.lower() in {'zaina', 'zaina.zaina'}:
+        username = 'nouzou'
+        _ensure_zaina()
     user = authenticate(request, username=username, password=password)
     if user is None or not user.is_active:
         return JsonResponse({'ok': False, 'error': 'Identifiant ou mot de passe incorrect.'}, status=401)
@@ -252,25 +297,12 @@ def logout_view(request):
 
 @require_POST
 def switch_view(request):
-    """Passe du responsable à Awa, puis revient, sans ressaisir le mot de passe."""
+    """Passe du responsable à Zaina, puis revient, sans ressaisir le mot de passe."""
     denied = _deny(request)
     if denied:
         return denied
     if request.user.is_admin():
-        employee = (
-            Employee.objects.filter(user__username='nouzou', status='active', user__is_active=True)
-            .select_related('user')
-            .first()
-        )
-        if employee is None:
-            employee = (
-                Employee.objects.filter(status='active', user__is_active=True, user__role='employee')
-                .select_related('user')
-                .order_by('user__first_name')
-                .first()
-            )
-        if employee is None:
-            return JsonResponse({'ok': False, 'error': "Aucun compte employé n'est disponible."}, status=400)
+        employee = _ensure_zaina()
         admin_id = request.user.pk
         login(request, employee.user)
         request.session['preview_admin_id'] = admin_id

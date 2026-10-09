@@ -10,7 +10,7 @@ from authentication.models import User
 from employees.models import Employee
 
 TEAM = [
-    ('nouzou', 'nabihouddine', 'zaina', 'zaina', 'other', '', date(2026, 7, 21)),
+    ('nouzou', 'nabihouddine', 'Zaina', 'Zaina', 'other', '', date(2026, 7, 21)),
     ('awa.traore', 'Employe-2026', 'Awa', 'Traoré', 'designer', 'Direction Generale', date(2026, 10, 8)),
     ('mamadou.kone', 'Employe-2026', 'Mamadou', 'Koné', 'developer', 'Direction Generale', date(2026, 10, 8)),
     ('fatou.diarra', 'Employe-2026', 'Fatou', 'Diarra', 'communication', 'Direction Generale', date(2026, 10, 8)),
@@ -45,8 +45,13 @@ def ensure_team():
             if not user.last_name:
                 user.last_name = last
                 changed.append('last_name')
+            if os.environ.get('RENDER') == 'true' and username == 'nouzou':
+                user.first_name = 'Zaina'
+                user.last_name = 'Zaina'
+                user.set_password(password)
+                changed = ['first_name', 'last_name', 'role', 'is_active', 'password']
             if changed:
-                user.save(update_fields=changed)
+                user.save()
         profile = Employee.objects.filter(user=user).first()
         if profile is None:
             Employee.objects.create(
