@@ -94,7 +94,7 @@ def _person(employee):
     user = employee.user
     return {
         'id': employee.pk,
-        'name': employee.full_name,
+        'name': _pretty_name(employee.full_name),
         'username': user.username,
         'initials': _user_card(user)['initials'],
         'role': employee.get_position_display(),

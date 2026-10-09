@@ -1006,7 +1006,7 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
               </div>
               <span className="step-count">{selected.length} sélectionné{selected.length > 1 ? 's' : ''}</span>
             </div>
-            {teamReady && roster.length === 0 ? <p className="sub">Aucun employé enregistré pour le moment.</p> : null}
+            {teamReady && roster.length === 0 ? <p className="sub">{error || 'Aucun employé enregistré pour le moment.'}</p> : null}
             <div className="team-grid">
               {roster.map((person, index) => {
                 const on = selected.includes(person.id)

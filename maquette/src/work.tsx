@@ -93,8 +93,12 @@ export async function ensureAdminSession(): Promise<LiveUser> {
   let current = await openSession()
   if (!current) current = await enterSession('admin', 'admin123')
   if (current.role !== 'admin') {
-    const data = await call('/api/basculer/', { method: 'POST', body: '{}' })
-    current = data.user as LiveUser
+    try {
+      const data = await call('/api/basculer/', { method: 'POST', body: '{}' })
+      current = data.user as LiveUser
+    } catch {
+      current = await enterSession('admin', 'admin123')
+    }
   }
   if (!current || current.role !== 'admin') current = await enterSession('admin', 'admin123')
   return current
