@@ -1422,16 +1422,18 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
                 <p>{current.status === 'Terminée' ? 'La tâche est terminée.' : current.status === 'En cours' ? 'La tâche est en cours.' : 'Commencez la tâche lorsque vous êtes prêt.'}</p>
               </article>
             </div>
-            <article className="emp-task-card emp-task-work">
-              <h2>Actions</h2>
-              <h3>Mettre à jour la tâche</h3>
-              <p>Votre responsable sera automatiquement informé de chaque changement.</p>
-              <div className="emp-task-actions">
-                {current.status === 'À faire' || current.status === 'En retard' ? <button className="emp-task-go" type="button" onClick={() => { void act(current.code, 'in_progress') }}>→ Commencer</button> : null}
-                <label className="emp-task-file">Déposer mon travail<input type="file" hidden onChange={(event) => { void deposit(current.code, event.target.files) }} /></label>
-                {current.status !== 'Terminée' ? <button className="emp-task-done" type="button" onClick={() => { void act(current.code, 'completed') }}>Marquer comme terminée</button> : null}
-              </div>
-            </article>
+            {current.status === 'Terminée' && current.resultUrl ? null : (
+              <article className="emp-task-card emp-task-work">
+                <h2>Actions</h2>
+                <h3>Mettre à jour la tâche</h3>
+                <p>Votre responsable sera automatiquement informé de chaque changement.</p>
+                <div className="emp-task-actions">
+                  {current.status === 'À faire' || current.status === 'En retard' ? <button className="emp-task-go" type="button" onClick={() => { void act(current.code, 'in_progress') }}>→ Commencer</button> : null}
+                  {current.resultUrl ? null : <label className="emp-task-file">Déposer mon travail<input type="file" hidden onChange={(event) => { void deposit(current.code, event.target.files) }} /></label>}
+                  {current.status !== 'Terminée' ? <button className="emp-task-done" type="button" onClick={() => { void act(current.code, 'completed') }}>Marquer comme terminée</button> : null}
+                </div>
+              </article>
+            )}
           </>
         ) : <h1>Aucune tâche pour le moment</h1>}
       </section>
@@ -2727,34 +2729,71 @@ function AiReportsPage() {
   )
 }
 
-function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenProject, onOpenTodo, onOpenMessage }: { incoming: LeaveRequest[]; onOpen: (id: string) => void; onOpenTask?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenTodo?: (id: string) => void; onOpenMessage?: (id: string) => void }) {
-  const [live, setLive] = useState<{ id: string; title: string; meta: string; fresh: boolean; read: boolean; taskId: string; projectId: string; todoId: string; fileUrl: string; chatId: string }[] | null>(null)
+function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenProject, onOpenTodo, onOpenMessage, onChanged }: { incoming: LeaveRequest[]; onOpen: (id: string) => void; onOpenTask?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenTodo?: (id: string) => void; onOpenMessage?: (id: string) => void; onChanged?: (unread: number) => void }) {
+  type Notice = { id: string; title: string; meta: string; fresh: boolean; read: boolean; taskId: string; projectId: string; todoId: string; fileUrl: string; chatId: string }
+  const [live, setLive] = useState<Notice[] | null>(null)
+  const [read, setRead] = useState<string[]>([])
   useEffect(() => {
-    deskCall('/api/notifications/').then((data) => {
-      const rows = (data.notifications ?? []) as { id: number; title: string; message: string; created_at: string; read: boolean; link?: string }[]
-      setLive(rows.map((item) => {
-        const link = item.link || ''
-        const file = /\/taches\/\d+\/(fichier|resultat)\/?$/.test(link)
-        return { id: String(item.id), title: item.title, meta: `${item.message} · ${item.created_at}`, fresh: false, read: item.read, taskId: /\/tasks\/(\d+)/.exec(link)?.[1] || '', projectId: /\/projects\/(\d+)|projets\/(\d+)/.exec(link)?.[1] || /projets\/(\d+)/.exec(link)?.[1] || '', todoId: /employe=(\d+)/.exec(link)?.[1] || '', fileUrl: file ? link.replace(/\/resultat\/?$/, '/fichier/') : '', chatId: /messages|messaging/.test(link) ? (/avec=(\d+)/.exec(link)?.[1] || 'boss') : '' }
-      }))
-    }).catch(() => undefined)
-  }, [])
+    let stop = false
+    function load() {
+      deskCall('/api/notifications/').then((data) => {
+        if (stop) return
+        const rows = (data.notifications ?? []) as { id: number; title: string; message: string; created_at: string; read: boolean; link?: string }[]
+        onChanged?.(Number(data.unread) || 0)
+        setLive(rows.map((item) => {
+          const link = item.link || ''
+          const file = /\/taches\/\d+\/(fichier|resultat)\/?$/.test(link)
+          return { id: String(item.id), title: item.title, meta: `${item.message} · ${item.created_at}`, fresh: false, read: item.read, taskId: /\/tasks\/(\d+)/.exec(link)?.[1] || '', projectId: /\/projects\/(\d+)/.exec(link)?.[1] || /projets\/(\d+)/.exec(link)?.[1] || '', todoId: /employe=(\d+)/.exec(link)?.[1] || '', fileUrl: file ? link.replace(/\/resultat\/?$/, '/fichier/') : '', chatId: /messages|messaging/.test(link) ? (/avec=(\d+)/.exec(link)?.[1] || 'boss') : '' }
+        }))
+      }).catch(() => undefined)
+    }
+    load()
+    const timer = window.setInterval(load, 8000)
+    return () => { stop = true; window.clearInterval(timer) }
+  }, [onChanged])
   const items = live ?? [
     ...incoming.map((item) => ({ id: item.id, title: `Demande de permission de ${item.who}`, meta: `${item.type} · ${item.motif}${item.file ? ` · ${item.file.name}` : ''} · à l’instant`, fresh: true, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' })),
     { id: 'n1', title: 'Nouveau rapport de Zaina Nouzou', meta: 'Rapports · il y a 8 min', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
     { id: 'n2', title: 'Nouvelle demande de permission', meta: 'Amina Diallo · il y a 1 h', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
     { id: 'n3', title: 'Message non lu de Paul Mbia', meta: 'Messagerie · il y a 2 h', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
   ]
-  const [read, setRead] = useState<string[]>([])
+  function seen(item: Notice) {
+    return read.includes(item.id) || item.read
+  }
+  function openItem(item: Notice) {
+    setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id])
+    if (/^\d+$/.test(item.id)) {
+      void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ id: item.id }) }).then((data) => onChanged?.(Number(data.unread) || 0))
+    }
+    if (item.fileUrl) window.open(item.fileUrl, '_blank', 'noopener')
+    else if (item.chatId && onOpenMessage) onOpenMessage(item.chatId)
+    else if (item.todoId && onOpenTodo) onOpenTodo(item.todoId)
+    else if (item.taskId && onOpenTask) onOpenTask(item.taskId)
+    else if (item.projectId && onOpenProject) onOpenProject(item.projectId)
+    else if (item.fresh) onOpen(item.id)
+  }
+  const unreadCount = items.filter((item) => !seen(item)).length
+  const latest = items.find((item) => !seen(item))
   return (
     <section>
-      <PageHeader title="Notifications" subtitle="Retrouvez ici toutes les notifications de votre agence." action={undefined} />
+      <PageHeader title="Notifications" subtitle={unreadCount ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}. La plus récente est mise en avant.` : 'Retrouvez ici toutes les notifications de votre agence.'} action={undefined} />
       <div className="card">
-        <div style={{ padding: 12 }}><Button ghost onClick={() => { void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ all: true }) }).then(() => setRead(items.map((item) => item.id))) }}>Tout marquer comme lu</Button></div>
-        {items.map((item) => (
-          <button className={`notif-item${read.includes(item.id) || item.read ? ' read' : ''}`} type="button" key={item.id} onClick={() => { setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id]); if (/^\d+$/.test(item.id)) void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ id: item.id }) }); if (item.fileUrl) window.open(item.fileUrl, '_blank', 'noopener'); else if (item.chatId && onOpenMessage) onOpenMessage(item.chatId); else if (item.todoId && onOpenTodo) onOpenTodo(item.todoId); else if (item.taskId && onOpenTask) onOpenTask(item.taskId); else if (item.projectId && onOpenProject) onOpenProject(item.projectId); else if (item.fresh) onOpen(item.id) }}>
-            <span className="metric-ico blue"><Icon name="bell" size={14} /></span>
+        <div className="notif-tools">
+          <span>{unreadCount ? 'Les nouvelles sont en bleu.' : 'Tout est lu.'}</span>
+          <Button ghost onClick={() => { void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ all: true }) }).then((data) => { setRead(items.map((item) => item.id)); onChanged?.(Number(data.unread) || 0) }) }}>Tout marquer comme lu</Button>
+        </div>
+        {latest ? (
+          <button className="notif-latest" type="button" onClick={() => openItem(latest)}>
+            <em>Nouveau</em>
+            <strong>{latest.title}</strong>
+            <small>{latest.meta}</small>
+          </button>
+        ) : null}
+        {items.filter((item) => item.id !== latest?.id).map((item) => (
+          <button className={`notif-item${seen(item) ? ' read' : ' unread'}`} type="button" key={item.id} onClick={() => openItem(item)}>
+            <span className={`metric-ico ${seen(item) ? 'blue' : 'red'}`}><Icon name="bell" size={14} /></span>
             <span><strong>{item.title}</strong><small className="muted" style={{ display: 'block' }}>{item.meta}</small></span>
+            {seen(item) ? null : <em className="notif-new">Non lu</em>}
           </button>
         ))}
       </div>
@@ -3387,7 +3426,7 @@ export default function App() {
     if (page === 'documents') return <DocumentsPage onNavigate={go} />
     if (page === 'alerts') return <AlertsPage />
     if (page === 'messaging') return <MessagingPage key={role} role={role} focus={focusChat} />
-    if (page === 'notifications') return <NotificationsPage incoming={leaves} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenProject={() => setPage('projects')} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
+    if (page === 'notifications') return <NotificationsPage incoming={leaves} onChanged={setBell} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenProject={() => setPage('projects')} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
     if (page === 'assistant') return <AssistantPage key={role} role={role} />
     if (page === 'ai-reports') return <AiReportsPage />
     if (page === 'demo') return <DemoPage onNavigate={go} />

@@ -446,7 +446,7 @@ function TaskSheet({ id, role, onBack }: { id: number; role: 'admin' | 'employee
         <p>Employé : {task.employee || '—'} · Priorité : {task.priority_label} · Échéance : {task.due_date || '—'} · Statut : {task.status_label}</p>
         {task.documents.map((document) => <a key={document.id} href={document.url}>Télécharger {document.name}</a>)}
         {role === 'employee' && task.status === 'todo' ? <button className="lp-btn" type="button" onClick={() => status('in_progress')}>Commencer</button> : null}
-        {role === 'employee' && task.status !== 'completed' ? (
+        {role === 'employee' && !task.result_name && task.status !== 'completed' ? (
           <form onSubmit={upload}>
             <label>Déposer mon travail<input type="file" name="result" required /></label>
             <button className="lp-btn" type="submit">Déposer mon travail</button>
