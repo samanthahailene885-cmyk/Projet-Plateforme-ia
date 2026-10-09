@@ -1230,6 +1230,11 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
 }
 .lt-actions > button.lt-icon:hover { background: #f4f7fb; }
+.lt-actions > button.lt-icon em {
+  position: absolute; top: 2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 99px; background: #df5361; color: white; font-size: 10px; font-style: normal;
+  display: grid; place-items: center; box-shadow: 0 0 0 1.5px #fff;
+}
 .lt-actions > button.lt-icon i {
   position: absolute; top: 7px; right: 7px; width: 7px; height: 7px;
   border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 1.5px #fff;
@@ -1786,6 +1791,14 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 }
 
 .eh { max-width: 980px; margin: 0 auto; color: #14213d; }
+.eh-notes { display: grid; gap: 8px; margin: -4px 0 16px; }
+.eh-notes button {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: #fff; border: 1px solid #d7e4ff; border-radius: 14px; padding: 12px 14px; color: #14213d;
+}
+.eh-notes svg { color: #3478f6; flex: none; }
+.eh-notes strong, .eh-notes small { display: block; }
+.eh-notes small { color: #69758b; font-size: 12px; margin-top: 2px; }
 .eh-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .eh-head h1 { margin: 0 0 4px; font-family: Manrope, sans-serif; font-size: 28px; letter-spacing: -0.03em; }
 .eh-head p { margin: 0; color: #69758b; font-size: 14px; }

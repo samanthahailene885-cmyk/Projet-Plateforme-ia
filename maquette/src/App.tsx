@@ -525,6 +525,7 @@ function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; 
     { n: '1', tone: 'pink', title: 'Aucune tâche pour le moment', project: 'Vos tâches apparaîtront ici', time: '—' },
   ])
   const [kpis, setKpis] = useState({ tasks: 0, done: 0, projects: 0, progress: '—', due: '—' })
+  const [notices, setNotices] = useState<{ id: number; title: string; message: string; page: string }[]>([])
   useEffect(() => {
     Promise.all([deskCall('/api/taches/'), deskCall('/api/projets/')]).then(([taskData, projectData]) => {
       const tasks = ((taskData.tasks ?? []) as { title: string; project: string; due_date: string; status_label: string; planned_date: string }[]).filter((item) => !(item.planned_date && !item.due_date))
@@ -547,6 +548,14 @@ function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; 
         })))
       }
     }).catch(() => undefined)
+    deskCall('/api/notifications/').then((data) => {
+      const rows = (data.notifications ?? []) as { id: number; title: string; message: string; link?: string; read: boolean }[]
+      setNotices(rows.filter((item) => !item.read).slice(0, 4).map((item) => {
+        const link = item.link || ''
+        const page = /messages|messaging/.test(link) ? 'messaging' : /\/tasks\/\d+/.test(link) ? 'tasks' : /projects|projets/.test(link) ? 'projects' : 'notifications'
+        return { id: item.id, title: item.title, message: item.message, page }
+      }))
+    }).catch(() => undefined)
   }, [])
   return (
     <section className="eh">
@@ -557,6 +566,16 @@ function EmployeeDashboard({ onNavigate, name = 'Aïcha' }: { checks: string[]; 
         </div>
         <button className="lp-btn" type="button" onClick={() => onNavigate('tasks')}><Icon name="plus" size={14} /> Créer une tâche</button>
       </header>
+      {notices.length > 0 ? (
+        <div className="eh-notes">
+          {notices.map((item) => (
+            <button type="button" key={item.id} onClick={() => onNavigate(item.page)}>
+              <Icon name={item.page === 'messaging' ? 'message' : 'bell'} size={15} />
+              <span><strong>{item.title}</strong><small>{item.message}</small></span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="eh-kpis">
         <article>
           <span className="eh-ico blue"><Icon name="check" size={15} /></span>
@@ -2674,23 +2693,23 @@ function AiReportsPage() {
   )
 }
 
-function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenTodo, onOpenMessage }: { incoming: LeaveRequest[]; onOpen: (id: string) => void; onOpenTask?: (id: string) => void; onOpenTodo?: (id: string) => void; onOpenMessage?: (id: string) => void }) {
-  const [live, setLive] = useState<{ id: string; title: string; meta: string; fresh: boolean; read: boolean; taskId: string; todoId: string; fileUrl: string; chatId: string }[] | null>(null)
+function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenProject, onOpenTodo, onOpenMessage }: { incoming: LeaveRequest[]; onOpen: (id: string) => void; onOpenTask?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenTodo?: (id: string) => void; onOpenMessage?: (id: string) => void }) {
+  const [live, setLive] = useState<{ id: string; title: string; meta: string; fresh: boolean; read: boolean; taskId: string; projectId: string; todoId: string; fileUrl: string; chatId: string }[] | null>(null)
   useEffect(() => {
     deskCall('/api/notifications/').then((data) => {
       const rows = (data.notifications ?? []) as { id: number; title: string; message: string; created_at: string; read: boolean; link?: string }[]
       setLive(rows.map((item) => {
         const link = item.link || ''
         const file = /\/taches\/\d+\/(fichier|resultat)\/?$/.test(link)
-        return { id: String(item.id), title: item.title, meta: `${item.message} · ${item.created_at}`, fresh: false, read: item.read, taskId: /\/tasks\/(\d+)/.exec(link)?.[1] || '', todoId: /employe=(\d+)/.exec(link)?.[1] || '', fileUrl: file ? link.replace(/\/resultat\/?$/, '/fichier/') : '', chatId: /messages|messaging/.test(link) ? (/avec=(\d+)/.exec(link)?.[1] || 'boss') : '' }
+        return { id: String(item.id), title: item.title, meta: `${item.message} · ${item.created_at}`, fresh: false, read: item.read, taskId: /\/tasks\/(\d+)/.exec(link)?.[1] || '', projectId: /\/projects\/(\d+)|projets\/(\d+)/.exec(link)?.[1] || /projets\/(\d+)/.exec(link)?.[1] || '', todoId: /employe=(\d+)/.exec(link)?.[1] || '', fileUrl: file ? link.replace(/\/resultat\/?$/, '/fichier/') : '', chatId: /messages|messaging/.test(link) ? (/avec=(\d+)/.exec(link)?.[1] || 'boss') : '' }
       }))
     }).catch(() => undefined)
   }, [])
   const items = live ?? [
-    ...incoming.map((item) => ({ id: item.id, title: `Demande de permission de ${item.who}`, meta: `${item.type} · ${item.motif}${item.file ? ` · ${item.file.name}` : ''} · à l’instant`, fresh: true, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' })),
-    { id: 'n1', title: 'Nouveau rapport de Zaina Nouzou', meta: 'Rapports · il y a 8 min', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
-    { id: 'n2', title: 'Nouvelle demande de permission', meta: 'Amina Diallo · il y a 1 h', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
-    { id: 'n3', title: 'Message non lu de Paul Mbia', meta: 'Messagerie · il y a 2 h', fresh: false, read: false, taskId: '', todoId: '', fileUrl: '', chatId: '' },
+    ...incoming.map((item) => ({ id: item.id, title: `Demande de permission de ${item.who}`, meta: `${item.type} · ${item.motif}${item.file ? ` · ${item.file.name}` : ''} · à l’instant`, fresh: true, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' })),
+    { id: 'n1', title: 'Nouveau rapport de Zaina Nouzou', meta: 'Rapports · il y a 8 min', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
+    { id: 'n2', title: 'Nouvelle demande de permission', meta: 'Amina Diallo · il y a 1 h', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
+    { id: 'n3', title: 'Message non lu de Paul Mbia', meta: 'Messagerie · il y a 2 h', fresh: false, read: false, taskId: '', projectId: '', todoId: '', fileUrl: '', chatId: '' },
   ]
   const [read, setRead] = useState<string[]>([])
   return (
@@ -2699,7 +2718,7 @@ function NotificationsPage({ incoming, onOpen, onOpenTask, onOpenTodo, onOpenMes
       <div className="card">
         <div style={{ padding: 12 }}><Button ghost onClick={() => { void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ all: true }) }).then(() => setRead(items.map((item) => item.id))) }}>Tout marquer comme lu</Button></div>
         {items.map((item) => (
-          <button className={`notif-item${read.includes(item.id) || item.read ? ' read' : ''}`} type="button" key={item.id} onClick={() => { setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id]); if (/^\d+$/.test(item.id)) void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ id: item.id }) }); if (item.fileUrl) window.open(item.fileUrl, '_blank', 'noopener'); else if (item.chatId && onOpenMessage) onOpenMessage(item.chatId); else if (item.todoId && onOpenTodo) onOpenTodo(item.todoId); else if (item.taskId && onOpenTask) onOpenTask(item.taskId); else if (item.fresh) onOpen(item.id) }}>
+          <button className={`notif-item${read.includes(item.id) || item.read ? ' read' : ''}`} type="button" key={item.id} onClick={() => { setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id]); if (/^\d+$/.test(item.id)) void deskCall('/api/notifications/', { method: 'POST', body: JSON.stringify({ id: item.id }) }); if (item.fileUrl) window.open(item.fileUrl, '_blank', 'noopener'); else if (item.chatId && onOpenMessage) onOpenMessage(item.chatId); else if (item.todoId && onOpenTodo) onOpenTodo(item.todoId); else if (item.taskId && onOpenTask) onOpenTask(item.taskId); else if (item.projectId && onOpenProject) onOpenProject(item.projectId); else if (item.fresh) onOpen(item.id) }}>
             <span className="metric-ico blue"><Icon name="bell" size={14} /></span>
             <span><strong>{item.title}</strong><small className="muted" style={{ display: 'block' }}>{item.meta}</small></span>
           </button>
@@ -2872,8 +2891,8 @@ function ProfilePage({ role, account }: { role: Role; account: Account }) {
   )
 }
 
-function Sidebar({ role, page, badge, pendingPermissions, onRole, onPage, onLogout }: { role: Role; page: string; badge: number; pendingPermissions: number; onRole: (role: Role) => void; onPage: Go; onLogout: () => void }) {
-  const hot = new Set(['messaging', 'alerts'])
+function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPage, onLogout }: { role: Role; page: string; badge: number; notices: number; pendingPermissions: number; onRole: (role: Role) => void; onPage: Go; onLogout: () => void }) {
+  const hot = new Set(['messaging', 'alerts', 'notifications'])
   const link = (item: [string, string, string, string?]) => (
     <button key={item[0]} className={`lt-link${page === item[0] ? ' on' : ''}`} type="button" onClick={() => onPage(item[0])}>
       <Icon name={item[2]} size={16} />
@@ -2935,6 +2954,7 @@ function Sidebar({ role, page, badge, pendingPermissions, onRole, onPage, onLogo
     ['reports', 'Mon rapport', 'file'],
     ['permissions', 'Mes permissions', 'calendar'],
     ['messaging', 'Messagerie', 'message', badge ? String(badge) : ''],
+    ['notifications', 'Notifications', 'bell', notices ? String(notices) : ''],
     ['assistant', 'Assistant IA', 'spark'],
   ]
   return (
@@ -3017,7 +3037,7 @@ function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; no
             ) : null}
           </div>
           <button className="lt-icon" type="button" aria-label="Apparence"><Icon name="sun" size={17} /></button>
-          <button className="lt-icon" type="button" aria-label="Notifications" onClick={() => onNavigate('notifications')}><Icon name="bell" size={17} />{notifCount ? <i /> : null}</button>
+          <button className="lt-icon" type="button" aria-label="Notifications" onClick={() => onNavigate('notifications')}><Icon name="bell" size={17} />{notifCount ? <em>{notifCount}</em> : null}</button>
           <span className="lt-divider" />
           <button className="lt-profile" type="button" onClick={() => onNavigate(profile.page)}>
             <b className={role === 'employee' ? 'emp' : ''}>{profile.initials}</b>
@@ -3284,7 +3304,7 @@ export default function App() {
     setPage('dashboard')
     setAuthed(true)
   }
-  const messageBadge = 0
+  const [messageBadge, setMessageBadge] = useState(0)
 
   const personId = account.username === zaina.username || account.email === zaina.email
     ? 'zaina'
@@ -3294,7 +3314,22 @@ export default function App() {
   const myProjects = extraProjects.filter((project) => (project.members ?? []).includes(personId) || myTasks.some((task) => task.projectId === project.id))
 
   useEffect(() => {
-    deskCall('/api/notifications/').then((data) => setBell(Number(data.unread) || 0)).catch(() => undefined)
+    let stop = false
+    function load() {
+      deskCall('/api/notifications/').then((data) => { if (!stop) setBell(Number(data.unread) || 0) }).catch(() => undefined)
+      deskCall('/api/messages/').then((data) => {
+        if (stop) return
+        if (role === 'admin') {
+          const contacts = (data.contacts ?? []) as { unread?: number }[]
+          setMessageBadge(contacts.reduce((sum, item) => sum + (Number(item.unread) || 0), 0))
+        } else {
+          setMessageBadge(Number(data.unread) || 0)
+        }
+      }).catch(() => undefined)
+    }
+    load()
+    const timer = window.setInterval(load, 8000)
+    return () => { stop = true; window.clearInterval(timer) }
   }, [role, page])
 
   const view = useMemo(() => {
@@ -3318,7 +3353,7 @@ export default function App() {
     if (page === 'documents') return <DocumentsPage onNavigate={go} />
     if (page === 'alerts') return <AlertsPage />
     if (page === 'messaging') return <MessagingPage key={role} role={role} focus={focusChat} />
-    if (page === 'notifications') return <NotificationsPage incoming={leaves} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
+    if (page === 'notifications') return <NotificationsPage incoming={leaves} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenProject={() => setPage('projects')} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
     if (page === 'assistant') return <AssistantPage key={role} role={role} />
     if (page === 'ai-reports') return <AiReportsPage />
     if (page === 'demo') return <DemoPage onNavigate={go} />
@@ -3329,7 +3364,7 @@ export default function App() {
 
   return (
     <div className="app-shell light">
-      <Sidebar role={role} page={page} badge={messageBadge} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { void leaveSession().catch(() => undefined); setAuthed(false) }} />
+      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
         <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />
         <main>

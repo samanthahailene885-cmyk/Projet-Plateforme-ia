@@ -73,7 +73,7 @@ def _notify_assignee(instance, reassigned=False):
         title=title,
         message=message,
         notification_type='info',
-        link=reverse('tasks:detail', args=[instance.pk]),
+        link=f'/tasks/{instance.pk}/',
     )
 
 

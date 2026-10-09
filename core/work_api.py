@@ -345,7 +345,7 @@ def projects_view(request):
             title='Nouveau projet attribué',
             message=f'Vous êtes associé au projet « {project.name} ».',
             notification_type='info',
-            link=f'/api/projets/{project.pk}/',
+            link=f'/projects/{project.pk}/',
         )
     return JsonResponse({'ok': True, 'project': _project_payload(project), 'message': 'Projet créé.'})
 
@@ -387,7 +387,19 @@ def project_detail_view(request, pk):
     project.save()
     if 'employees' in data or 'employee_ids' in data:
         ids = _id_list(data.get('employees') or data.get('employee_ids'))
-        project.assigned_employees.set(Employee.objects.filter(pk__in=ids, status='active'))
+        current = set(project.assigned_employees.values_list('pk', flat=True))
+        chosen = list(Employee.objects.filter(pk__in=ids, status='active'))
+        project.assigned_employees.set(chosen)
+        for person in chosen:
+            if person.pk in current:
+                continue
+            Notification.objects.create(
+                user=person.user,
+                title='Nouveau projet attribué',
+                message=f'Le responsable vous a associé au projet « {project.name} ».',
+                notification_type='info',
+                link=f'/projects/{project.pk}/',
+            )
     return JsonResponse({'ok': True, 'project': _project_payload(project), 'message': 'Projet mis à jour.'})
 
 
@@ -428,6 +440,13 @@ def tasks_view(request):
         return JsonResponse({'ok': False, 'error': 'Choisissez un projet et un employé.'}, status=400)
     if not project.assigned_employees.filter(pk=employee.pk).exists():
         project.assigned_employees.add(employee)
+        Notification.objects.create(
+            user=employee.user,
+            title='Nouveau projet attribué',
+            message=f'Le responsable vous a associé au projet « {project.name} ».',
+            notification_type='info',
+            link=f'/projects/{project.pk}/',
+        )
     priority = data.get('priority') or 'medium'
     if priority not in dict(Task.PRIORITY_CHOICES):
         priority = 'medium'
@@ -959,9 +978,11 @@ def messages_view(request):
             )
             return JsonResponse({'ok': True, 'message': 'Demande envoyée au responsable.'})
         return _send_message(request, boss)
+    unread = _pair(request.user, boss).filter(sender=boss, read_at__isnull=True).count()
     return JsonResponse({
         'ok': True,
         'contact': _user_card(boss),
+        'unread': unread,
         'messages': _thread(request.user, boss),
     })
 
