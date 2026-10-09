@@ -97,6 +97,8 @@ def _person(employee):
         'name': employee.full_name,
         'username': user.username,
         'initials': _user_card(user)['initials'],
+        'role': employee.get_position_display(),
+        'service': employee.department or 'Agence',
     }
 
 
@@ -289,7 +291,7 @@ def employees_view(request):
         return denied
     if not request.user.is_admin():
         return JsonResponse({'ok': False, 'error': 'Accès réservé au responsable.'}, status=403)
-    rows = Employee.objects.filter(status='active').select_related('user').order_by('user__first_name', 'user__last_name')
+    rows = Employee.objects.filter(status='active', user__role='employee').select_related('user').order_by('user__first_name', 'user__last_name')
     return JsonResponse({'ok': True, 'employees': [_person(item) for item in rows]})
 
 

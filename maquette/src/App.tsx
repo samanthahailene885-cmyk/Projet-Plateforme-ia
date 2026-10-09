@@ -763,37 +763,62 @@ function EmployeesPage() {
 function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (project: ProjectCard, tasks: AssignedTask[]) => void }) {
   const [name, setName] = useState('')
   const [client, setClient] = useState('')
-  const [owner, setOwner] = useState('Paul Mbia')
+  const [owner, setOwner] = useState('Responsable')
   const [description, setDescription] = useState('')
-  const [start, setStart] = useState('2026-10-05')
+  const [start, setStart] = useState('2026-10-09')
   const [end, setEnd] = useState('2026-10-30')
   const [status, setStatus] = useState('Planifié')
   const [priority, setPriority] = useState('Normale')
-  const [roster, setRoster] = useState(people)
+  const [roster, setRoster] = useState<{ id: string; name: string; role: string; service: string; initials: string; tone: string; status: string; todo: string; seen: string; online: boolean; reports: number; presence: string }[]>([])
   const [rawFile, setRawFile] = useState<File | null>(null)
-  const [selected, setSelected] = useState<string[]>(['zaina', 'paul'])
+  const [selected, setSelected] = useState<string[]>([])
   const [rows, setRows] = useState([
-    { id: 1, title: '', who: 'zaina zaina', priority: 'Élevée', due: '2026-10-12' },
+    { id: 1, title: '', who: '', priority: 'Élevée', due: '2026-10-12' },
   ])
   const [error, setError] = useState('')
   const [draft, setDraft] = useState(false)
   const [attachment, setAttachment] = useState<ProjectFile | null>(null)
   const [fileError, setFileError] = useState('')
+  const [teamReady, setTeamReady] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const tones = ['tone-purple', 'tone-sky', 'tone-amber', 'tone-green']
   useEffect(() => {
-    deskCall('/api/employes/').then((data) => {
-      const rows = (data.employees ?? []) as { id: number; name: string; initials: string; username: string }[]
-      if (!rows.length) return
-      setRoster(rows.map((person) => ({ id: String(person.id), name: person.name, role: 'Employé', service: 'Agence', initials: person.initials, tone: '', status: 'Actif', todo: '', seen: '', online: true, reports: 0, presence: '' })))
-      const zaina = rows.find((person) => person.username === 'nouzou' || /zaina/i.test(person.name)) ?? rows[0]
-      setSelected([String(zaina.id)])
-      setOwner(rows[0].name)
-      setRows((prev) => prev.map((row) => ({ ...row, who: zaina.name })))
-    }).catch(() => undefined)
+    let cancelled = false
+    ;(async () => {
+      try {
+        await ensureAdminSession()
+        const data = await deskCall('/api/employes/')
+        const list = (data.employees ?? []) as { id: number; name: string; initials: string; role?: string; service?: string }[]
+        if (cancelled) return
+        setRoster(list.map((person) => ({
+          id: String(person.id),
+          name: person.name,
+          role: person.role || 'Employé',
+          service: person.service || 'Agence',
+          initials: person.initials,
+          tone: '',
+          status: 'Actif',
+          todo: '',
+          seen: '',
+          online: true,
+          reports: 0,
+          presence: '',
+        })))
+      } catch (reason) {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Impossible de charger les employés.')
+      } finally {
+        if (!cancelled) setTeamReady(true)
+      }
+    })()
+    return () => { cancelled = true }
   }, [])
   function toggleMember(id: string) {
-    setSelected((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id])
+    setSelected((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      setRows((current) => current.map((row) => next.includes(row.who) ? row : { ...row, who: next[0] || '' }))
+      return next
+    })
+    setError('')
   }
   async function takeFile(list: FileList | null) {
     const file = list?.[0]
@@ -836,34 +861,39 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
     }
     const id = `p-${Date.now()}`
     const projectName = name.trim()
-    const made = rows.filter((row) => row.title.trim()).map((row, index) => {
-      const person = people.find((item) => item.name === row.who)
+    const priorityCode = priority === 'Urgente' ? 'urgent' : priority === 'Élevée' ? 'high' : 'medium'
+    const filled = rows.filter((item) => item.title.trim())
+    const missingAssignee = filled.find((row) => !roster.some((person) => person.id === row.who))
+    if (missingAssignee) {
+      setError('Choisissez l’employé qui reçoit chaque tâche.')
+      return
+    }
+    const employeeIds = [...new Set([
+      ...selected.map(Number),
+      ...filled.map((row) => Number(row.who)),
+    ].filter((value) => value > 0))]
+    if (!employeeIds.length) {
+      setError(roster.length ? 'Cliquez sur l’employé à qui vous attribuez le projet.' : 'Aucun employé enregistré. Rechargez la page, puis réessayez.')
+      return
+    }
+    const made = filled.map((row, index) => {
+      const person = roster.find((item) => item.id === row.who)
       return {
         id: `nt-${id}-${index}`,
         title: row.title.trim(),
         project: projectName,
         projectId: id,
-        who: row.who,
-        whoId: person?.id ?? '',
+        who: person?.name || row.who,
+        whoId: row.who,
         priority: row.priority,
         tone: priorityTone(row.priority),
         due: formatFrenchDate(row.due),
         status: 'À faire',
       }
     })
-    const ownerId = roster.find((item) => item.name === owner)?.id
-    const members = [...new Set([...selected, ...made.map((task) => task.whoId), ownerId].filter((item): item is string => Boolean(item)))]
-    const priorityCode = priority === 'Urgente' ? 'urgent' : priority === 'Élevée' ? 'high' : 'medium'
-    const employeeIds = selected.map(Number).filter((id) => id > 0)
-    if (!employeeIds.length) {
-      setError('Choisissez des employés enregistrés. Si la liste est vide, rechargez la page.')
-      return
-    }
-    if (!rows.some((row) => row.title.trim())) {
-      setError('Indiquez le titre de la tâche. Sans titre, Zaina ne reçoit pas la tâche.')
-      return
-    }
+    const members = employeeIds.map(String)
     try {
+      await ensureAdminSession()
       const saved = await deskCall('/api/projets/', {
         method: 'POST',
         body: JSON.stringify({
@@ -877,14 +907,12 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
         }),
       })
       const projectId = saved.project.id as number
-      const filled = rows.filter((item) => item.title.trim())
-      const fileRow = filled.find((item) => /zaina/i.test(item.who)) ?? filled[0]
+      const fileRow = filled[0]
       for (const row of filled) {
-        const who = roster.find((person) => person.name === row.who)
         const body = new FormData()
         body.set('title', row.title.trim())
         body.set('project', String(projectId))
-        body.set('employee', who?.id || String(employeeIds[0]))
+        body.set('employee', row.who)
         body.set('priority', row.priority === 'Urgente' ? 'urgent' : row.priority === 'Élevée' ? 'high' : 'medium')
         body.set('due_date', row.due)
         body.set('description', description.trim())
@@ -932,7 +960,7 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
               <label>Client<input className="field" value={client} onChange={(event) => setClient(event.target.value)} placeholder="Nom du client" /></label>
               <label>Responsable du projet
                 <select className="field" value={owner} onChange={(event) => setOwner(event.target.value)}>
-                  {roster.map((person) => <option key={person.id}>{person.name}</option>)}
+                  <option>Responsable</option>
                 </select>
               </label>
             </div>
@@ -974,16 +1002,17 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
             <div className="step-top">
               <div>
                 <h2><span className="step-num">02</span>Équipe du projet</h2>
-                <p className="sub">Sélectionnez les collaborateurs qui participeront au projet.</p>
+                <p className="sub">Cliquez sur les employés enregistrés qui doivent recevoir ce projet.</p>
               </div>
               <span className="step-count">{selected.length} sélectionné{selected.length > 1 ? 's' : ''}</span>
             </div>
+            {teamReady && roster.length === 0 ? <p className="sub">Aucun employé enregistré pour le moment.</p> : null}
             <div className="team-grid">
               {roster.map((person, index) => {
                 const on = selected.includes(person.id)
                 return (
                   <button className={`member-card${on ? ' on' : ''}`} type="button" key={person.id} onClick={() => toggleMember(person.id)}>
-                    <span className={`member-pill ${tones[index]}`}>{person.initials}</span>
+                    <span className={`member-pill ${tones[index % tones.length]}`}>{person.initials}</span>
                     <span className="grow"><strong>{person.name}</strong><small>{person.role} · {person.service}</small></span>
                     <span className="member-mark">{on ? <Icon name="check" size={12} /> : <Icon name="plus" size={12} />}</span>
                   </button>
@@ -997,7 +1026,7 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
                 <h2><span className="step-num">03</span>Premières tâches à attribuer</h2>
                 <p className="sub">Préparez le démarrage du projet en affectant chaque tâche au bon collaborateur.</p>
               </div>
-              <button className="linkish" type="button" onClick={() => setRows((prev) => [...prev, { id: Date.now(), title: '', who: roster[0]?.name || 'Zaina Nouzou', priority: 'Moyenne', due: end }])}><Icon name="plus" size={12} /> Ajouter</button>
+              <button className="linkish" type="button" onClick={() => setRows((prev) => [...prev, { id: Date.now(), title: '', who: selected[0] || '', priority: 'Moyenne', due: end }])}><Icon name="plus" size={12} /> Ajouter</button>
             </div>
             {rows.map((row, index) => (
               <div className="task-row" key={row.id}>
@@ -1005,8 +1034,13 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
                 <div className="task-box">
                   <label>Tâche<input className="field" value={row.title} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, title: event.target.value } : item))} placeholder="Intitulé de la tâche" /></label>
                   <label>Attribuer à
-                    <select className="field" value={row.who} onChange={(event) => setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, who: event.target.value } : item))}>
-                      {roster.map((person) => <option key={person.id}>{person.name}</option>)}
+                    <select className="field" value={row.who} onChange={(event) => {
+                      const who = event.target.value
+                      setRows((prev) => prev.map((item) => item.id === row.id ? { ...item, who } : item))
+                      if (who) setSelected((prev) => prev.includes(who) ? prev : [...prev, who])
+                    }}>
+                      <option value="">Choisir un employé</option>
+                      {roster.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
                     </select>
                   </label>
                   <label>Priorité
