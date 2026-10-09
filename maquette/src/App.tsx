@@ -906,18 +906,20 @@ function NewProject({ onBack, onCreate }: { onBack: () => void; onCreate: (proje
     const members = employeeIds.map(String)
     try {
       await ensureAdminSession()
-      const saved = await deskCall('/api/projets/', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: projectName,
-          client: client.trim() || 'Non renseigné',
-          description: description.trim(),
-          start_date: start,
-          end_date: end,
-          priority: priorityCode,
-          employees: employeeIds,
-        }),
-      })
+      const projectBody = new FormData()
+      projectBody.set('name', projectName)
+      projectBody.set('client', client.trim() || 'Non renseigné')
+      projectBody.set('description', description.trim())
+      projectBody.set('start_date', start)
+      projectBody.set('end_date', end)
+      projectBody.set('priority', priorityCode)
+      projectBody.set('employees', employeeIds.join(','))
+      if (rawFile) projectBody.append('file', rawFile)
+      const saved = await deskCall('/api/projets/', { method: 'POST', body: projectBody })
+      if (rawFile && !saved.project?.file) {
+        setError(String(saved.message || 'Le fichier n’a pas été joint au projet.'))
+        return
+      }
       const projectId = saved.project.id as number
       const fileRow = filled[0]
       for (const row of filled) {
@@ -1149,7 +1151,20 @@ function ProjectSheet({ project, tasks, onBack, role = 'admin', onChanged }: { p
             {files.length === 0 ? (
               <div className="project-drop">
                 <span className="file-ico"><Icon name="file" size={16} /></span>
-                <span className="grow"><strong>Aucun fichier importé</strong><small>Le responsable peut joindre un PDF ou un DOCX à la création.</small></span>
+                <span className="grow"><strong>Aucun fichier importé</strong><small>Le responsable peut joindre un PDF ou un DOCX.</small></span>
+                {role === 'admin' ? (
+                  <label className="lp-btn">
+                    Importer un fichier
+                    <input type="file" accept=".pdf,.docx,application/pdf" hidden onChange={(event) => {
+                      const chosen = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!chosen) return
+                      const body = new FormData()
+                      body.append('file', chosen)
+                      void deskCall(`/api/projets/${project.id}/`, { method: 'POST', body }).then(() => onChanged?.())
+                    }} />
+                  </label>
+                ) : null}
               </div>
             ) : files.map((file) => (
               <div className="project-drop" key={file.url || file.name}>
@@ -1228,7 +1243,7 @@ function ProjectsPage({ role, onCreate }: { role: Role; list: ProjectCard[]; dut
   const [liveTasks, setLiveTasks] = useState<AssignedTask[]>([])
   useEffect(() => {
     Promise.all([deskCall('/api/projets/'), deskCall('/api/taches/')]).then(([projectData, taskData]) => {
-      setLiveCards((projectData.projects as { id: number; name: string; client: string; end_date: string; start_date: string; status_label: string; priority_label: string; progress: number; description: string; employees: { id: number; name: string; initials: string }[] }[]).map((item) => ({
+      setLiveCards((projectData.projects as { id: number; name: string; client: string; end_date: string; start_date: string; status_label: string; priority_label: string; progress: number; description: string; employees: { id: number; name: string; initials: string }[]; files?: ProjectFile[] }[]).map((item) => ({
         id: String(item.id),
         name: item.name,
         client: item.client,
@@ -1241,6 +1256,8 @@ function ProjectsPage({ role, onCreate }: { role: Role; list: ProjectCard[]; dut
         priority: item.priority_label,
         members: item.employees.map((person) => person.initials || String(person.id)),
         team: item.employees.map((person) => ({ name: person.name, initials: person.initials || person.name.slice(0, 2).toUpperCase() })),
+        files: (item.files ?? []) as ProjectFile[],
+        file: (item.files ?? [])[0] as ProjectFile | undefined,
       })))
       setLiveTasks((taskData.tasks as { id: number; title: string; project: string; project_id: number | null; employee: string; employee_id: number | null; priority_label: string; due_date: string; status_label: string; planned_date?: string; documents: { name: string; url: string }[]; result_url: string; result_name: string }[])
         .filter((item) => !(item.planned_date && !item.due_date))
@@ -1264,12 +1281,13 @@ function ProjectsPage({ role, onCreate }: { role: Role; list: ProjectCard[]; dut
   const current = liveCards.find((item) => item.id === open)
   const currentTasks = liveTasks.filter((task) => task.projectId === current?.id)
   if (current) {
-    const files = currentTasks.flatMap((task) => (task.docs ?? []).map((document) => ({
+    const taskFiles = currentTasks.flatMap((task) => (task.docs ?? []).map((document) => ({
       name: document.name,
       kind: document.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'DOC',
       size: '',
       url: document.url,
     })))
+    const files = [...(current.files ?? []), ...taskFiles.filter((file) => !(current.files ?? []).some((item) => item.url === file.url))]
     return <ProjectSheet role={role} project={{ ...current, file: files[0], files }} tasks={currentTasks} onBack={() => { setOpen(null); setStamp((value) => value + 1) }} onChanged={() => setStamp((value) => value + 1)} />
   }
   if (creating) {

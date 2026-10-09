@@ -173,12 +173,46 @@ def _linked_task_id(task):
     return None
 
 
+def _save_project_file(project, uploaded):
+    name = _check_work_file(uploaded)
+    os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+    if project.brief:
+        project.brief.delete(save=False)
+    project.brief = uploaded
+    project.brief_name = name
+    project.save(update_fields=['brief', 'brief_name', 'updated_at'])
+    return name
+
+
+def _project_files(project):
+    files = []
+    if project.brief:
+        name = project.brief_name or os.path.basename(project.brief.name)
+        files.append({
+            'name': name,
+            'url': f'/api/projets/{project.pk}/fichier/',
+            'kind': 'PDF' if name.lower().endswith('.pdf') else 'DOC',
+        })
+    for task in project.tasks.exclude(status='cancelled').prefetch_related('documents'):
+        for document in task.documents.all():
+            if not document.file:
+                continue
+            name = document.original_name or os.path.basename(document.file.name)
+            files.append({
+                'name': name,
+                'url': f'/api/taches/{task.pk}/documents/{document.pk}/',
+                'kind': 'PDF' if name.lower().endswith('.pdf') else 'DOC',
+            })
+    return files
+
+
 def _project_payload(project):
     people = [_person(item) for item in project.assigned_employees.all()]
     tasks = project.tasks.exclude(status='cancelled')
     total = tasks.count()
     done = tasks.filter(status='completed').count()
     progress = project.live_progress if project.live_progress is not None else project.progress
+    files = _project_files(project)
     return {
         'id': project.pk,
         'name': project.name,
@@ -196,6 +230,8 @@ def _project_payload(project):
         'done_count': done,
         'employees': people,
         'overdue': project.is_overdue,
+        'files': files,
+        'file': files[0] if files else None,
     }
 
 
@@ -416,6 +452,12 @@ def projects_view(request):
             notification_type='info',
             link=f'/projects/{project.pk}/',
         )
+    uploaded = request.FILES.get('file') or request.FILES.get('document')
+    if uploaded:
+        try:
+            _save_project_file(project, uploaded)
+        except ValueError as exc:
+            return JsonResponse({'ok': True, 'project': _project_payload(project), 'message': f'Projet créé. Le fichier n’a pas été joint : {exc}'})
     return JsonResponse({'ok': True, 'project': _project_payload(project), 'message': 'Projet créé.'})
 
 
@@ -432,6 +474,13 @@ def project_detail_view(request, pk):
         return JsonResponse({'ok': True, 'project': _project_payload(project), 'tasks': [_task_payload(item) for item in tasks]})
     if not request.user.is_admin():
         return JsonResponse({'ok': False, 'error': 'Seul le responsable modifie un projet.'}, status=403)
+    uploaded = request.FILES.get('file') or request.FILES.get('document')
+    if uploaded:
+        try:
+            _save_project_file(project, uploaded)
+        except ValueError as exc:
+            return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+        return JsonResponse({'ok': True, 'project': _project_payload(project), 'message': 'Fichier ajouté au projet.'})
     data = _json_body(request)
     if data.get('delete'):
         project.delete()
@@ -617,6 +666,22 @@ def task_result_view(request, pk):
                 link=f'/api/taches/{task.pk}/fichier/',
             )
     return JsonResponse({'ok': True, 'message': 'Travail envoyé au responsable.', 'task': _task_payload(task)})
+
+
+@require_GET
+def project_file_view(request, pk):
+    denied = _deny(request)
+    if denied:
+        return denied
+    project = _project_qs(request.user).filter(pk=pk).first()
+    if project is None or not project.brief:
+        raise Http404
+    name = project.brief_name or os.path.basename(project.brief.name)
+    inline = name.lower().endswith('.pdf') and not request.GET.get('telecharger')
+    response = FileResponse(project.brief.open('rb'), as_attachment=not inline, filename=name)
+    if inline:
+        response['Content-Disposition'] = f'inline; filename="{name}"'
+    return response
 
 
 @require_GET

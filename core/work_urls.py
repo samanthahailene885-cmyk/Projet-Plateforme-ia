@@ -10,6 +10,7 @@ urlpatterns = [
     path('employes/', work_api.employees_view, name='work_employees'),
     path('projets/', work_api.projects_view, name='work_projects'),
     path('projets/<int:pk>/', work_api.project_detail_view, name='work_project'),
+    path('projets/<int:pk>/fichier/', work_api.project_file_view, name='work_project_file'),
     path('taches/', work_api.tasks_view, name='work_tasks'),
     path('taches/<int:pk>/', work_api.task_detail_view, name='work_task'),
     path('taches/<int:pk>/statut/', work_api.task_status_view, name='work_task_status'),

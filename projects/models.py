@@ -76,6 +76,17 @@ class Project(models.Model):
         verbose_name=_('Donnée de démonstration'),
         help_text=_("Projet créé par le générateur. Il ne représente pas un projet réel."),
     )
+    brief = models.FileField(
+        upload_to='project_briefs/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name=_('Fichier du projet'),
+    )
+    brief_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Nom du fichier'),
+    )
     
     created_at = models.DateTimeField(
         auto_now_add=True,
