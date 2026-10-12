@@ -3222,14 +3222,14 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
               first: session.first || (known ? 'zaina' : ''),
               last: session.last || (known ? 'zaina' : ''),
             }, session.role === 'admin' ? 'admin' : 'employee')
-          }).catch(() => {
+          }).catch((reason) => {
             const found = accounts.find((item) => item.username === localName || item.username === value || item.email === value)
-            if (!found || found.password !== motDePasse) {
-              setError('Identifiant ou mot de passe incorrect.')
-              setPending(false)
+            if (found && found.password === motDePasse) {
+              onSuccess(found, 'employee')
               return
             }
-            onSuccess(found, 'employee')
+            setError(reason instanceof Error && reason.message ? reason.message : 'Identifiant ou mot de passe incorrect.')
+            setPending(false)
           })
         }}>
           <h2>Connexion</h2>
