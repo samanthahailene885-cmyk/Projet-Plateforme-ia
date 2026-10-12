@@ -3242,10 +3242,6 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
             <button type="button" onClick={() => { setMode('create'); setError('') }}>Créer un compte</button>
           </div>
           <button className="btn full" type="submit" disabled={pending}>{pending ? 'Connexion…' : 'Se connecter →'}</button>
-          <div className="assist">
-            <Icon name="shield" />
-            <span><strong>Accès de démonstration</strong>Responsable : admin / admin123. Employé : zaina / nabihouddine.</span>
-          </div>
         </form>
         ) : (
         <form className="login-card" onSubmit={create}>
