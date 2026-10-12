@@ -3189,13 +3189,11 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
   return (
     <div className="login">
       <section className="login-hero">
-        <div className="login-top">
-          <div>
-            <Logo />
-            <p className="login-kicker">Bienvenue sur votre espace</p>
-            <h1>Ensemble pour<br /><span>des projets qui marquent</span></h1>
-            <p className="login-lead">Une plateforme intelligente pour mieux gérer vos activités, suivre vos projets et contribuer au succès de l'agence.</p>
-          </div>
+        <div>
+          <Logo />
+          <p className="login-kicker">Bienvenue sur votre espace</p>
+          <h1>Ensemble pour<br /><span>des projets qui marquent</span></h1>
+          <p className="login-lead">Une plateforme intelligente pour mieux gérer vos activités, suivre vos projets et contribuer au succès de l'agence.</p>
           <img className="login-art" src="/login-hero.png" alt="Collaboratrice RAC'IN à son poste de travail" />
         </div>
         <div className="pillars">
