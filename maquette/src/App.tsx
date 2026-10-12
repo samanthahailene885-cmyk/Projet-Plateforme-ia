@@ -3189,16 +3189,14 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
   return (
     <div className="login">
       <section className="login-hero">
-        <div>
-          <Logo />
-          <p className="login-kicker">Bienvenue sur votre espace</p>
-          <h1>Ensemble pour<br /><span>des projets qui marquent</span></h1>
-          <p className="login-lead">Une plateforme intelligente pour mieux gérer vos activités, suivre vos projets et contribuer au succès de l'agence.</p>
-          <div className="art" aria-hidden="true">
-            <div className="screen"><i /><i style={{ width: '70%' }} /><i style={{ width: '46%' }} /></div>
-            <div className="head" />
-            <div className="body" />
+        <div className="login-top">
+          <div>
+            <Logo />
+            <p className="login-kicker">Bienvenue sur votre espace</p>
+            <h1>Ensemble pour<br /><span>des projets qui marquent</span></h1>
+            <p className="login-lead">Une plateforme intelligente pour mieux gérer vos activités, suivre vos projets et contribuer au succès de l'agence.</p>
           </div>
+          <img className="login-art" src="/login-hero.png" alt="Collaboratrice RAC'IN à son poste de travail" />
         </div>
         <div className="pillars">
           <div><Icon name="trend" />Suivi des activités</div>
