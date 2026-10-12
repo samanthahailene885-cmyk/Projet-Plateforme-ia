@@ -832,6 +832,13 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   background: #2563eb;
 }
 .login-panel { display: flex; align-items: center; justify-content: center; padding: 32px; overflow: auto; }
+@media (max-width: 900px) {
+  .login { grid-template-columns: 1fr; }
+  .login-hero { padding: 28px 22px 22px; }
+  .login-hero h1 { font-size: 32px; }
+  .art { display: none; }
+  .pillars { grid-template-columns: 1fr 1fr; }
+}
 .login-card {
   width: min(420px, 100%);
   background: white;

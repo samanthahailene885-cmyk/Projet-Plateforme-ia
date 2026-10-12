@@ -3159,8 +3159,8 @@ function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; no
 
 function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (account: Account, role?: Role) => void }) {
   const [mode, setMode] = useState<'login' | 'create'>('login')
-  const [identifiant, setIdentifiant] = useState('zaina')
-  const [motDePasse, setMotDePasse] = useState('nabihouddine')
+  const [identifiant, setIdentifiant] = useState('')
+  const [motDePasse, setMotDePasse] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ first: '', last: '', username: '', email: '', password: '', confirm: '' })
@@ -3235,8 +3235,8 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
             onSuccess(found, 'employee')
           })
         }}>
-          <h2>Espace Employé</h2>
-          <p className="intro">Compte Zaina : identifiant zaina, mot de passe nabihouddine.</p>
+          <h2>Connexion</h2>
+          <p className="intro">Saisissez votre identifiant pour accéder à la plateforme.</p>
           <label>Identifiant<input value={identifiant} onChange={(event) => setIdentifiant(event.target.value)} autoComplete="username" required /></label>
           <label>Mot de passe<input type="password" value={motDePasse} onChange={(event) => setMotDePasse(event.target.value)} autoComplete="current-password" required /></label>
           {error ? <p className="intro" style={{ color: '#b91c1c' }}>{error}</p> : null}
@@ -3247,7 +3247,7 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
           <button className="btn full" type="submit" disabled={pending}>{pending ? 'Connexion…' : 'Se connecter →'}</button>
           <div className="assist">
             <Icon name="shield" />
-            <span><strong>Pas encore de compte ?</strong>Un employé peut créer le sien, puis se connecter.</span>
+            <span><strong>Accès de démonstration</strong>Responsable : admin / admin123. Employé : zaina / nabihouddine.</span>
           </div>
         </form>
         ) : (
@@ -3275,18 +3275,13 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
 const zainaAccount: Account = { username: zaina.username, email: zaina.email, password: 'nabihouddine', first: 'zaina', last: 'zaina' }
 
 export default function App() {
-  const [authed, setAuthed] = useState(true)
+  const [authed, setAuthed] = useState(false)
   const [role, setRole] = useState<Role>('admin')
   const [page, setPage] = useState('dashboard')
   const [focusTask, setFocusTask] = useState('')
   const [focusTodo, setFocusTodo] = useState('')
   const [focusChat, setFocusChat] = useState('')
   const [bell, setBell] = useState(0)
-  useEffect(() => {
-    ensureAdminSession().then((session) => {
-      if (session?.role === 'admin' || session?.role === 'employee') setRole(session.role)
-    }).catch(() => undefined)
-  }, [])
   const [checks, setChecks] = useState<string[]>(['6', '7', '8', '9', '10'])
   const [inbox] = useState<ReportFile[]>([])
   const [accounts, setAccounts] = useState<Account[]>(() => {
@@ -3299,6 +3294,26 @@ export default function App() {
     }
   })
   const [account, setAccount] = useState<Account>(zainaAccount)
+  useEffect(() => {
+    if (sessionStorage.getItem('racin-authed') !== '1') return
+    openSession().then((session) => {
+      if (!session || (session.role !== 'admin' && session.role !== 'employee')) {
+        sessionStorage.removeItem('racin-authed')
+        return
+      }
+      setRole(session.role)
+      if (session.role === 'employee') {
+        setAccount({
+          username: session.username === 'nouzou' ? zaina.username : session.username,
+          email: session.username === 'nouzou' ? zaina.email : '',
+          password: '',
+          first: session.first || 'zaina',
+          last: session.last || 'zaina',
+        })
+      }
+      setAuthed(true)
+    }).catch(() => sessionStorage.removeItem('racin-authed'))
+  }, [])
   const [threads, setThreads] = useState<Record<string, Note[]>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('racin-threads') || '{}') as Record<string, Note[]>
@@ -3410,6 +3425,7 @@ export default function App() {
     setThreads((prev) => prev[next.username] ? prev : { ...prev, [next.username]: [] })
     setRole(nextRole)
     setPage('dashboard')
+    sessionStorage.setItem('racin-authed', '1')
     setAuthed(true)
   }
   const [messageBadge, setMessageBadge] = useState(0)
@@ -3472,7 +3488,7 @@ export default function App() {
 
   return (
     <div className="app-shell light">
-      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { void leaveSession().catch(() => undefined); setAuthed(false) }} />
+      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
         <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />
         <main>
