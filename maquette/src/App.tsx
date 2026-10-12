@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { deskCall, ensureAdminSession, enterSession, leaveSession, openSession, showSpace } from './work'
+import loginHero from './assets/login-hero.png'
 
 type Role = 'admin' | 'employee'
 type Go = (page: string) => void
@@ -3194,7 +3195,7 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
           <p className="login-kicker">Bienvenue sur votre espace</p>
           <h1>Ensemble pour<br /><span>des projets qui marquent</span></h1>
           <p className="login-lead">Une plateforme intelligente pour mieux gérer vos activités, suivre vos projets et contribuer au succès de l'agence.</p>
-          <img className="login-art" src="/login-hero.png" alt="Collaboratrice RAC'IN à son poste de travail" />
+          <img className="login-art" src={loginHero} alt="Collaboratrice RAC'IN à son poste de travail" />
         </div>
         <div className="pillars">
           <div><Icon name="trend" />Suivi des activités</div>

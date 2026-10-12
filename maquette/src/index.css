@@ -783,12 +783,15 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .login-hero h1 { font-size: 40px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; max-width: 520px; }
 .login-hero h1 span { color: var(--cyan); }
 .login-lead { max-width: 460px; color: var(--muted); font-size: 14px; line-height: 1.5; margin-top: 12px; }
+.login-hero > div { flex-shrink: 0; }
 .login-art {
   display: block;
   width: min(100%, 520px);
   height: auto;
+  aspect-ratio: 1152 / 640;
   margin-top: 22px;
   flex-shrink: 0;
+  object-fit: cover;
   border-radius: 28px;
   background: #eef3fb;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
