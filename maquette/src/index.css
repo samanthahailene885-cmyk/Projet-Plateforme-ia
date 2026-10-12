@@ -1623,6 +1623,8 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .lp-form { padding: 16px; margin-bottom: 14px; }
 .lp-form label { display: flex; flex-direction: column; gap: 4px; color: #69758b; font-size: 12px; font-weight: 600; }
 .lp-form .form-grid { margin-bottom: 12px; }
+.lp-form textarea.field { height: 88px; padding-top: 10px; resize: vertical; line-height: 1.4; }
+.lp-task-desc { margin: 0 0 10px; color: #14213d; font-size: 13px; line-height: 1.45; }
 .lp-form .project-drop { margin-bottom: 12px; }
 .lp-alerts { display: flex; flex-direction: column; gap: 12px; }
 .lp-alert-card {

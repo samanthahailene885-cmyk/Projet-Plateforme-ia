@@ -1342,7 +1342,7 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
   const [composer, setComposer] = useState(false)
   const [projectsList, setProjectsList] = useState<{ id: number; name: string }[]>([])
   const [peopleList, setPeopleList] = useState<{ id: number; name: string }[]>([])
-  const [draft, setDraft] = useState({ title: '', project: '', employee: '', due: '', priority: 'medium' })
+  const [draft, setDraft] = useState({ title: '', description: '', project: '', employee: '', due: '', priority: 'medium' })
   useEffect(() => {
     deskCall('/api/taches/').then((data) => {
       const tasks = (data.tasks ?? []) as { id: number; title: string; description: string; project: string; employee: string; priority_label: string; due_date: string; status_label: string; planned_date: string; documents: { name: string; url: string }[]; result_url: string; result_name: string }[]
@@ -1407,6 +1407,7 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
     event.preventDefault()
     const body = new FormData()
     body.set('title', draft.title)
+    body.set('description', draft.description)
     body.set('project', draft.project)
     body.set('employee', draft.employee)
     body.set('priority', draft.priority)
@@ -1414,7 +1415,7 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
     const data = await deskCall('/api/taches/', { method: 'POST', body })
     setNote(data.message || 'Tâche attribuée.')
     setComposer(false)
-    setDraft((prev) => ({ ...prev, title: '' }))
+    setDraft((prev) => ({ ...prev, title: '', description: '' }))
     setStamp((value) => value + 1)
   }
   if (role === 'employee') {
@@ -1483,6 +1484,7 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
             <div className="form-grid">
               <label>Tâche<input className="field" value={draft.title} onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))} required /></label>
               <label>Projet<select className="field" value={draft.project} onChange={(event) => setDraft((prev) => ({ ...prev, project: event.target.value }))}>{projectsList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label className="span-2">Description<textarea className="field" value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} placeholder="Décrivez le travail attendu" /></label>
               <label>Employé<select className="field" value={draft.employee} onChange={(event) => setDraft((prev) => ({ ...prev, employee: event.target.value }))}>{peopleList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
               <label>Priorité<select className="field" value={draft.priority} onChange={(event) => setDraft((prev) => ({ ...prev, priority: event.target.value }))}><option value="medium">Moyenne</option><option value="high">Élevée</option><option value="urgent">Urgente</option><option value="low">Faible</option></select></label>
               <label>Échéance<input className="field" type="date" value={draft.due} onChange={(event) => setDraft((prev) => ({ ...prev, due: event.target.value }))} /></label>
@@ -1520,6 +1522,7 @@ function TasksPage({ role, focus = '' }: { role: Role; checks: string[]; onToggl
                 {picked === task.code ? (
                   <tr key={`${task.code}-actions`}>
                     <td colSpan={8}>
+                      {task.description ? <p className="lp-task-desc">{task.description}</p> : null}
                       {task.docs.map((document) => <a key={document.url} href={`${document.url}?telecharger=1`}>Télécharger le brief</a>)}
                       {task.resultUrl ? <a className="lp-btn" href={task.resultUrl} target="_blank" rel="noopener">Ouvrir le document déposé</a> : <span className="muted">Aucun travail déposé.</span>}
                       <Button danger onClick={() => { void removeTask(task.code, task.title) }}>Supprimer</Button>
