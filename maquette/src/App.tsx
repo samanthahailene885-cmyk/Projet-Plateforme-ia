@@ -263,6 +263,38 @@ function csrfToken() {
   return decodeURIComponent(raw)
 }
 
+function DashIcon({ name }: { name: 'people' | 'clipboard' | 'clock' | 'flag' | 'bars' | 'chart' | 'bell' | 'trophy' | 'bang' | 'warn' | 'info' | 'spark' | 'check' }) {
+  const props = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+  switch (name) {
+    case 'people':
+      return <svg {...props}><circle cx="9" cy="8" r="2.4" /><circle cx="16" cy="9" r="2" /><path d="M4.5 18.5c.6-2.3 2.4-3.5 4.5-3.5s3.9 1.2 4.5 3.5" /><path d="M13.5 15.2c1.3-.3 2.6.1 3.5 1.2.5.6.8 1.3 1 2.1" /></svg>
+    case 'clipboard':
+      return <svg {...props}><rect x="6" y="4" width="12" height="16" rx="2" /><path d="M9 4.5h6v2H9z" /><path d="M8.5 12.5 11 15l4.5-5" /></svg>
+    case 'clock':
+      return <svg {...props}><circle cx="12" cy="12" r="8" /><path d="M12 8v4.5l3 2" /></svg>
+    case 'flag':
+      return <svg {...props}><path d="M6 21V4" /><path d="M6 5h11l-2 3.5L17 12H6" /></svg>
+    case 'bars':
+      return <svg {...props}><path d="M5 19V11" /><path d="M12 19V6" /><path d="M19 19v-7" /></svg>
+    case 'chart':
+      return <svg {...props}><path d="M4 16l5-5 3 3 8-8" /><path d="M15 6h5v5" /></svg>
+    case 'bell':
+      return <svg {...props}><path d="M6 16V11a6 6 0 1 1 12 0v5l1.4 2H4.6z" /><path d="M10 19a2 2 0 0 0 4 0" /></svg>
+    case 'trophy':
+      return <svg {...props}><path d="M8 4h8v5a4 4 0 0 1-8 0V4z" /><path d="M8 6H5.5A2.5 2.5 0 0 0 8 10" /><path d="M16 6h2.5A2.5 2.5 0 0 1 16 10" /><path d="M12 13v3" /><path d="M9 20h6" /><path d="M10 17h4" /></svg>
+    case 'bang':
+      return <svg {...props}><path d="M12 7v6" /><path d="M12 16.5h.01" /></svg>
+    case 'warn':
+      return <svg {...props}><path d="M12 4.5 21 19H3z" /><path d="M12 10v4" /><path d="M12 16.5h.01" /></svg>
+    case 'info':
+      return <svg {...props}><circle cx="12" cy="12" r="8" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>
+    case 'spark':
+      return <svg {...props}><path d="M12 3.5 13.4 9 19 10.5 13.4 12 12 17.5 10.6 12 5 10.5 10.6 9z" /></svg>
+    default:
+      return <svg {...props}><path d="M8 12.5 11 15.5 16.5 9" /></svg>
+  }
+}
+
 function Ring({ percent, color }: { percent: number; color: string }) {
   const radius = 16
   const turn = 2 * Math.PI * radius
@@ -366,27 +398,27 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
       {notice ? <p className="board-note">{notice}</p> : null}
       <div className="board-kpis">
         <button className="board-kpi" type="button" onClick={() => onNavigate('employees')}>
-          <span className="board-ico blue"><Icon name="users" size={16} /></span>
+          <span className="board-ico blue"><DashIcon name="people" /></span>
           <span className="board-kpi-label">Employés actifs</span>
           <strong>{metrics?.employees_active ?? 0}</strong>
           <small className="up">{metrics?.employees_total ?? 0} au total</small>
         </button>
         <button className="board-kpi" type="button" onClick={() => onNavigate('tasks')}>
-          <span className="board-ico green"><Icon name="check" size={16} /></span>
+          <span className="board-ico blue"><DashIcon name="clipboard" /></span>
           <span className="board-kpi-label">Tâches réalisées</span>
           <strong>{metrics?.tasks_completed ?? 0}</strong>
           {compare?.completed == null ? <small className="up">{metrics?.tasks_completed_today ?? 0} aujourd’hui</small> : <small className={compare.completed >= 0 ? 'up' : 'down'}>{compare.completed >= 0 ? '↑' : '↓'} {Math.abs(compare.completed)}% vs hier</small>}
           <Ring percent={shareOf(metrics?.tasks_completed ?? 0)} color="#3ddc97" />
         </button>
         <button className="board-kpi" type="button" onClick={() => onNavigate('tasks')}>
-          <span className="board-ico orange"><Icon name="clock" size={16} /></span>
+          <span className="board-ico amber"><DashIcon name="clock" /></span>
           <span className="board-kpi-label">Tâches en cours</span>
           <strong>{metrics?.tasks_in_progress ?? 0}</strong>
           {compare?.in_progress == null ? <small>{metrics?.tasks_not_started ?? 0} non commencées</small> : <small className={compare.in_progress >= 0 ? 'up' : 'down'}>{compare.in_progress >= 0 ? '↑' : '↓'} {Math.abs(compare.in_progress)}% vs hier</small>}
           <Ring percent={shareOf(metrics?.tasks_in_progress ?? 0)} color="#ff5d73" />
         </button>
         <button className="board-kpi" type="button" onClick={() => onNavigate('alerts')}>
-          <span className="board-ico red"><Icon name="alert" size={16} /></span>
+          <span className="board-ico red"><DashIcon name="flag" /></span>
           <span className="board-kpi-label">Tâches en retard</span>
           <strong>{metrics?.tasks_overdue ?? 0}</strong>
           {compare?.overdue == null ? <small className="down">{metrics?.alerts_active ?? 0} alertes</small> : <small className={compare.overdue >= 0 ? 'down' : 'up'}>{compare.overdue >= 0 ? '↑' : '↓'} {Math.abs(compare.overdue)}% vs hier</small>}
@@ -397,7 +429,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
       <div className="board-mid">
         <article className="board-card">
           <header>
-            <h2><Icon name="trend" size={16} /> Performance des employés</h2>
+            <h2><DashIcon name="bars" /> Performance des employés</h2>
             <button type="button" onClick={() => onNavigate('employees')}>Voir tout →</button>
           </header>
           <table>
@@ -437,16 +469,17 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
         </div>
         <article className="board-card">
           <header>
-            <h2>Centre d’alerte {live?.alerts.length ? <b>{live.alerts.length}</b> : null}</h2>
+            <h2><span className="board-bell"><DashIcon name="bell" /></span> Centre d’alerte {live?.alerts.length ? <b>{live.alerts.length}</b> : null}</h2>
             <button type="button" onClick={() => onNavigate('alerts')}>Voir tout →</button>
           </header>
           <div className="board-alerts">
             {(live?.alerts ?? []).map((alert) => {
               const kind = alert.title.toLowerCase()
               const toneName = kind.includes('absence') ? 'miss' : kind.includes('todo') || kind.includes('liste') ? 'info' : kind.includes('rapport') ? 'ai' : kind.includes('projet') ? 'ok' : 'late'
+              const glyph = toneName === 'miss' ? 'warn' : toneName === 'info' ? 'info' : toneName === 'ai' ? 'spark' : toneName === 'ok' ? 'check' : 'bang'
               return (
                 <button type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
-                  <i className={toneName} />
+                  <i className={toneName}><DashIcon name={glyph} /></i>
                   <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
                 </button>
               )
@@ -461,7 +494,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
       <div className="board-bottom">
         <article className="board-card">
           <header>
-            <h2><Icon name="trend" size={16} /> Évolution des tâches</h2>
+            <h2><DashIcon name="chart" /> Évolution des tâches</h2>
             <div className="board-ranges">
               {([7, 30, 90] as const).map((value) => <button key={value} className={days === value ? 'on' : ''} type="button" onClick={() => setDays(value)}>{value === 90 ? '3 mois' : `${value} jours`}</button>)}
             </div>
@@ -487,7 +520,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
         </article>
         <article className="board-card">
           <header>
-            <h2>Top 5 des employés les plus performants</h2>
+            <h2><DashIcon name="trophy" /> Top 5 des employés les plus performants</h2>
             <button type="button" aria-label="Voir les employés" onClick={() => onNavigate('employees')}>→</button>
           </header>
           <ol className="board-top">
