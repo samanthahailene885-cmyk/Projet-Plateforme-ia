@@ -1972,13 +1972,13 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-alerts button:hover { background: #132844; }
 .board-alerts strong { display: block; color: #fff; font-size: 13px; }
 .board-alerts small { display: block; color: #8ea3bf; font-size: 12px; line-height: 1.35; }
-.board-alerts i { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; }
-.board-alerts i svg { width: 16px; height: 16px; stroke-width: 2.2; }
-.board-alerts i.late { background: #ff4d6d; }
-.board-alerts i.miss { background: #f5a524; color: #1c1406; }
-.board-alerts i.info { background: #3b82f6; }
-.board-alerts i.ai { background: #7c5cfc; }
-.board-alerts i.ok { background: #22c55e; }
+.board-glyph { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.board-glyph svg { width: 16px; height: 16px; display: block; overflow: visible; }
+.board-glyph.late { background: #ff4d6d; }
+.board-glyph.miss { background: #f5a524; }
+.board-glyph.info { background: #3b82f6; }
+.board-glyph.ai { background: #7c5cfc; }
+.board-glyph.ok { background: #22c55e; }
 .board-empty, .board-brief { margin: 8px 0; color: #8ea3bf; font-size: 13px; line-height: 1.45; }
 .board-ranges { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: #10203a; }
 .board-ranges button { height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #8ea3bf; font-size: 12px; font-weight: 700; }

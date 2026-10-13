@@ -364,6 +364,23 @@ function TrendChart({ series }: { series: LiveDash['series'] | undefined }) {
   )
 }
 
+function AlertGlyph({ name }: { name: 'bang' | 'warn' | 'info' | 'bars' | 'check' }) {
+  const svg = { width: 16, height: 16, viewBox: '0 0 24 24', 'aria-hidden': true as const, style: { display: 'block', width: 16, height: 16 } }
+  if (name === 'warn') {
+    return <svg {...svg} fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.2 21.2 20H2.8z" /><path d="M12 10v4.2" /><path d="M12 17.6h.01" /></svg>
+  }
+  if (name === 'info') {
+    return <svg {...svg} fill="#fff"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" strokeWidth="2.2" /><rect x="10.7" y="10.2" width="2.6" height="6.6" rx="1.2" /><circle cx="12" cy="7.2" r="1.35" /></svg>
+  }
+  if (name === 'bars') {
+    return <svg {...svg} fill="#fff"><rect x="4" y="12" width="3.4" height="8" rx="1" /><rect x="10.3" y="6" width="3.4" height="14" rx="1" /><rect x="16.6" y="9" width="3.4" height="11" rx="1" /></svg>
+  }
+  if (name === 'check') {
+    return <svg {...svg} fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5 10 17.5 19 7" /></svg>
+  }
+  return <svg {...svg} fill="#fff"><rect x="10.15" y="3.5" width="3.7" height="11" rx="1.85" /><circle cx="12" cy="18.6" r="2" /></svg>
+}
+
 function csrfToken() {
   const raw = document.cookie.split('; ').find((item) => item.startsWith('csrftoken='))?.split('=')[1] ?? ''
   return decodeURIComponent(raw)
@@ -590,7 +607,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
               const glyph = toneName === 'miss' ? 'warn' : toneName === 'info' ? 'info' : toneName === 'ai' ? 'bars' : toneName === 'ok' ? 'check' : 'bang'
               return (
                 <button type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
-                  <i className={toneName}><DashIcon name={glyph} /></i>
+                  <span className={`board-glyph ${toneName}`}><AlertGlyph name={glyph} /></span>
                   <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
                 </button>
               )
