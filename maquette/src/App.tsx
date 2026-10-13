@@ -560,19 +560,17 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             <h2><DashIcon name="bars" /> Performance des employés</h2>
             <button type="button" onClick={() => onNavigate('employees')}>Voir tout →</button>
           </header>
-          <table>
-            <thead><tr><th>Employé</th><th>Taux de réalisation</th><th>Tâches réalisées</th><th>Statut</th></tr></thead>
-            <tbody>
-              {(live?.team ?? []).map((person, index) => (
-                <tr key={person.name}>
-                  <td><span className={`board-avatar c${index % 5}`}>{person.initials}</span><span><strong>{person.name}</strong><small>{person.role}</small></span></td>
-                  <td><span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span><b>{person.rate ?? 0}%</b></td>
-                  <td>{person.score}/{person.assigned || person.score}</td>
-                  <td><em className={`mark-${(person.mark || 'moyen').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}`}>{person.mark}</em></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="board-team">
+            <div className="board-team-head"><span>Employé</span><span>Taux de réalisation</span><span>Tâches réalisées</span><span>Statut</span></div>
+            {(live?.team ?? []).map((person, index) => (
+              <div className="board-team-row" key={person.name}>
+                <span className="board-person"><span className={`board-avatar c${index % 5}`}>{person.initials}</span><span><strong>{person.name}</strong><small>{person.role}</small></span></span>
+                <span className="board-rate"><span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span><b>{person.rate ?? 0}%</b></span>
+                <span>{person.score}/{person.assigned || person.score}</span>
+                <em className={`mark-${(person.mark || 'moyen').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}`}>{person.mark}</em>
+              </div>
+            ))}
+          </div>
           {live && live.team.length === 0 ? <p className="board-empty">Aucune tâche réalisée pour le moment.</p> : null}
         </article>
         <div className="board-stack">
