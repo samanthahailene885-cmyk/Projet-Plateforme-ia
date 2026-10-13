@@ -629,24 +629,6 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           </header>
           <TrendChart series={series} />
         </article>
-        <article className="board-card">
-          <header>
-            <h2><DashIcon name="trophy" /> Top 5 des employés les plus performants</h2>
-            <button type="button" aria-label="Voir les employés" onClick={() => onNavigate('employees')}>→</button>
-          </header>
-          <ol className="board-top">
-            {(live?.team ?? []).map((person, index) => (
-              <li key={person.name}>
-                <b>{index + 1}</b>
-                <span className={`board-avatar c${index % 5}`}>{person.initials}</span>
-                <span><strong>{person.name}</strong><small>{person.role}</small></span>
-                <span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span>
-                <em>{person.rate ?? 0}%</em>
-              </li>
-            ))}
-          </ol>
-          {live && live.team.length === 0 ? <p className="board-empty">Pas encore de tâches réalisées.</p> : null}
-        </article>
       </div>
     </section>
   )
