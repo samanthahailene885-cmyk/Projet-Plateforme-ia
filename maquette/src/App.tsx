@@ -246,16 +246,122 @@ type LiveDash = {
   brief: string
 }
 
-function seriesPath(values: number[], peak: number) {
-  const width = 700
-  const height = 200
-  const top = Math.max(peak, 1)
-  if (!values.length) return ''
-  return values.map((value, index) => {
-    const x = values.length === 1 ? 0 : (index / (values.length - 1)) * width
-    const y = height - 8 - (value / top) * (height - 24)
-    return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
-  }).join(' ')
+const TREND_MONTHS = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc']
+const TREND_MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+
+function niceCeiling(peak: number) {
+  const safe = Math.max(peak, 1)
+  if (safe <= 5) return { ceiling: 5, ticks: [5, 4, 3, 2, 1, 0] }
+  const rough = safe / 5
+  const magnitude = 10 ** Math.floor(Math.log10(rough))
+  const normalized = rough / magnitude
+  const step = normalized <= 1 ? magnitude : normalized <= 2 ? 2 * magnitude : normalized <= 5 ? 5 * magnitude : 10 * magnitude
+  const ceiling = Math.ceil(safe / step) * step
+  const ticks: number[] = []
+  for (let value = ceiling; value >= 0; value -= step) ticks.push(value)
+  return { ceiling, ticks }
+}
+
+function smoothPath(points: { x: number; y: number }[], minY: number, maxY: number) {
+  if (!points.length) return ''
+  const clamp = (value: number) => Math.max(minY, Math.min(maxY, value))
+  let path = `M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[index - 1] ?? points[index]
+    const current = points[index]
+    const next = points[index + 1]
+    const after = points[index + 2] ?? next
+    const c1x = current.x + (next.x - previous.x) / 6
+    const c1y = clamp(current.y + (next.y - previous.y) / 6)
+    const c2x = next.x - (after.x - current.x) / 6
+    const c2y = clamp(next.y - (after.y - current.y) / 6)
+    path += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${next.x.toFixed(1)} ${next.y.toFixed(1)}`
+  }
+  return path
+}
+
+function TrendChart({ series }: { series: LiveDash['series'] | undefined }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const width = 720
+  const height = 236
+  const padLeft = 40
+  const padRight = 28
+  const padTop = 16
+  const padBottom = 28
+  const created = series?.created ?? []
+  const completed = series?.completed ?? []
+  const progress = series?.in_progress ?? []
+  const late = series?.late ?? []
+  const count = Math.max(created.length, completed.length, progress.length, late.length)
+  const peak = Math.max(0, ...created, ...completed, ...progress, ...late)
+  const { ceiling, ticks } = niceCeiling(peak)
+  const plotWidth = width - padLeft - padRight
+  const plotHeight = height - padTop - padBottom
+  const point = (index: number, value: number) => ({
+    x: count <= 1 ? padLeft + plotWidth / 2 : padLeft + (index / Math.max(count - 1, 1)) * plotWidth,
+    y: padTop + plotHeight - (value / ceiling) * plotHeight,
+  })
+  const lines = [
+    { key: 'created', values: created },
+    { key: 'done', values: completed },
+    { key: 'doing', values: progress },
+    { key: 'late', values: late },
+  ].map((line) => ({ ...line, points: line.values.map((value, index) => point(index, value)) }))
+  const active = hover ?? Math.max(0, count - 1)
+  const activeDate = (() => {
+    const date = new Date()
+    date.setHours(12, 0, 0, 0)
+    date.setDate(date.getDate() - Math.max(0, count - 1 - active))
+    return date
+  })()
+  const labelStep = count <= 8 ? 1 : Math.ceil(count / 7)
+  const dot = count > 40 ? 2.2 : count > 14 ? 3 : 4.2
+  function onMove(event: { currentTarget: SVGSVGElement; clientX: number }) {
+    if (count < 2) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * width
+    const ratio = (x - padLeft) / plotWidth
+    setHover(Math.round(Math.max(0, Math.min(1, ratio)) * (count - 1)))
+  }
+  return (
+    <>
+      <div className="board-plot">
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Évolution des tâches" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+          {ticks.map((tick) => {
+            const y = padTop + plotHeight - (tick / ceiling) * plotHeight
+            return (
+              <g key={tick}>
+                <line className="board-grid" x1={padLeft} x2={width - padRight} y1={y} y2={y} />
+                <text className="board-axis" x={padLeft - 8} y={y + 3} textAnchor="end">{tick}</text>
+              </g>
+            )
+          })}
+          {hover != null && lines[0]?.points[hover] ? <line className="board-guide" x1={lines[0].points[hover].x} x2={lines[0].points[hover].x} y1={padTop} y2={padTop + plotHeight} /> : null}
+          {lines.map((line) => <path key={line.key} className={line.key} d={smoothPath(line.points, padTop, padTop + plotHeight)} />)}
+          {lines.map((line) => line.points.map((spot, index) => {
+            if (!(count <= 16 || index % labelStep === 0 || index === count - 1 || index === active)) return null
+            return <circle key={`${line.key}-${index}`} className={`${line.key}${index === active ? ' on' : ''}`} cx={spot.x} cy={spot.y} r={index === active ? dot + 1.2 : dot} />
+          }))}
+          {Array.from({ length: count }, (_, index) => {
+            if (index % labelStep !== 0 && index !== count - 1) return null
+            const spot = point(index, 0)
+            const date = new Date()
+            date.setHours(12, 0, 0, 0)
+            date.setDate(date.getDate() - (count - 1 - index))
+            return <text key={index} className={index === active ? 'board-axis on' : 'board-axis'} x={spot.x} y={height - 8} textAnchor="middle">{`${String(date.getDate()).padStart(2, '0')} ${TREND_MONTHS[date.getMonth()]}`}</text>
+          })}
+        </svg>
+        <aside className="board-tip">
+          <strong>{count ? `${activeDate.getDate()} ${TREND_MONTHS_LONG[activeDate.getMonth()]}` : '—'}</strong>
+          <span><i className="created" /> Créées <b>{created[active] ?? 0}</b></span>
+          <span><i className="done" /> Réalisées <b>{completed[active] ?? 0}</b></span>
+          <span><i className="doing" /> En cours <b>{progress[active] ?? 0}</b></span>
+          <span><i className="late" /> En retard <b>{late[active] ?? 0}</b></span>
+        </aside>
+      </div>
+      <p className="board-legend"><span><i className="created" /> Tâches créées</span><span><i className="done" /> Tâches réalisées</span><span><i className="doing" /> Tâches en cours</span><span><i className="late" /> Tâches en retard</span></p>
+    </>
+  )
 }
 
 function csrfToken() {
@@ -348,8 +454,6 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
   const totalTasks = metrics?.tasks_total ?? 0
   const shareOf = (part: number) => (totalTasks ? Math.round((part / totalTasks) * 100) : 0)
   const series = live?.series
-  const peak = Math.max(0, ...(series?.created ?? []), ...(series?.completed ?? []), ...(series?.in_progress ?? []), ...(series?.late ?? []))
-  const axis = [1, 0.75, 0.5, 0.25, 0].map((step) => String(Math.round(Math.max(peak, 4) * step)))
   const tone: Record<string, string> = { Terminées: '#3ddc97', 'En cours': '#3b82f6', 'Non commencées': '#94a3b8', 'En retard': '#ff5d73' }
   const caption: Record<string, string> = { Terminées: 'Achèvement', 'En cours': 'En cours', 'Non commencées': 'Non démarrées', 'En retard': 'En retard' }
   const activityRows = live?.activity?.rows ?? []
@@ -365,7 +469,6 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
         return `${tone[row.label] ?? row.color} ${start}% ${cursor}%`
       }).join(',')})`
     : '#1c2c44'
-  const last = Math.max(0, (series?.labels.length ?? 1) - 1)
   const barColors = ['#3ddc97', '#38bdf8', '#a78bfa', '#fb923c', '#64748b']
   async function generateSynthesis() {
     setReportState('loading')
@@ -507,24 +610,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
               {([7, 30, 90] as const).map((value) => <button key={value} className={days === value ? 'on' : ''} type="button" onClick={() => setDays(value)}>{value === 90 ? '3 mois' : `${value} jours`}</button>)}
             </div>
           </header>
-          <div className="board-chart">
-            <div className="board-ylabs">{axis.map((label, index) => <span key={index}>{label}</span>)}</div>
-            <svg viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Évolution des tâches">
-              <path className="created" d={seriesPath(series?.created ?? [], peak)} />
-              <path className="done" d={seriesPath(series?.completed ?? [], peak)} />
-              <path className="doing" d={seriesPath(series?.in_progress ?? [], peak)} />
-              <path className="late" d={seriesPath(series?.late ?? [], peak)} />
-            </svg>
-            <aside>
-              <strong>{series?.labels[last] || '—'}</strong>
-              <span><i className="created" /> Créées <b>{series?.created?.[last] ?? 0}</b></span>
-              <span><i className="done" /> Réalisées <b>{series?.completed[last] ?? 0}</b></span>
-              <span><i className="doing" /> En cours <b>{series?.in_progress[last] ?? 0}</b></span>
-              <span><i className="late" /> En retard <b>{series?.late[last] ?? 0}</b></span>
-            </aside>
-          </div>
-          <div className="board-xlabs">{(series?.labels ?? []).map((label, index) => <span key={`${label}-${index}`}>{days === 7 || index % Math.ceil((series?.labels.length || 1) / 7) === 0 ? label : ''}</span>)}</div>
-          <p className="board-legend"><span><i className="created" /> Tâches créées</span><span><i className="done" /> Tâches réalisées</span><span><i className="doing" /> Tâches en cours</span><span><i className="late" /> Tâches en retard</span></p>
+          <TrendChart series={series} />
         </article>
         <article className="board-card">
           <header>
