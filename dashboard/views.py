@@ -292,25 +292,56 @@ def dashboard_metrics_json(request):
         return JsonResponse({'authenticated': False}, status=401)
     today = timezone.localdate()
     selected = _parse_date(request.GET.get('date')) or today
+    try:
+        window = int(request.GET.get('jours') or 7)
+    except ValueError:
+        window = 7
+    if window not in (7, 30, 90):
+        window = 7
+    from collections import Counter
     from dashboard.metrics import activity_state, agency_metrics
     metrics = agency_metrics(selected)
-    series = _activity_series(selected, 7)
+    series = _activity_series(selected, window)
     donut = _project_donut(selected)
-    month_start = selected.replace(day=1)
     leaders = (
         Employee.objects.filter(status='active')
-        .annotate(score=Count(
-            'assigned_tasks',
-            filter=Q(
-                assigned_tasks__status='completed',
-                assigned_tasks__completed_at__date__gte=month_start,
-                assigned_tasks__completed_at__date__lte=selected,
-            ),
-        ))
+        .annotate(
+            score=Count('assigned_tasks', filter=Q(assigned_tasks__status='completed')),
+            assigned=Count('assigned_tasks', filter=~Q(assigned_tasks__status='cancelled')),
+        )
         .select_related('user')
-        .order_by('-score', 'user__first_name', 'user__last_name')[:4]
+        .order_by('-score', 'user__first_name', 'user__last_name')[:5]
     )
-    peak = max((person.score for person in leaders), default=0)
+    buckets = Counter()
+    for department in Task.objects.exclude(status='cancelled').values_list('assigned_to__department', flat=True):
+        buckets[(department or '').strip() or 'Autres'] += 1
+    ranked = buckets.most_common()
+    head, tail = ranked[:4], ranked[4:]
+    if tail:
+        head.append(('Autres', sum(count for _, count in tail)))
+    service_total = sum(count for _, count in head) or 1
+    services = [
+        {'name': name, 'count': count, 'percent': round(count * 100 / service_total)}
+        for name, count in head
+    ]
+    now_state = activity_state(selected)
+    then_state = activity_state(selected - timedelta(days=1))
+
+    def _delta(current, previous):
+        if not previous:
+            return None
+        return round((current - previous) * 100 / previous)
+
+    def _mark(rate):
+        if rate >= 90:
+            return 'Excellent'
+        if rate >= 75:
+            return 'Très bon'
+        if rate >= 60:
+            return 'Bon'
+        if rate >= 45:
+            return 'Moyen'
+        return 'À améliorer'
     scalars = (
         'employees_active', 'employees_total', 'projects_total', 'projects_in_progress',
         'projects_completed', 'projects_upcoming', 'tasks_total', 'tasks_completed', 'tasks_completed_today',
@@ -325,19 +356,28 @@ def dashboard_metrics_json(request):
         'metrics': {key: metrics[key] for key in scalars},
         'series': series,
         'donut': donut,
-        'activity': activity_state(selected),
+        'activity': now_state,
         'team': [
             {
                 'rank': str(index + 1),
                 'initials': _initials(_person_name(person.user)),
                 'name': _person_name(person.user),
                 'role': person.get_position_display() if hasattr(person, 'get_position_display') else '',
-                'width': f'{round(person.score * 100 / peak) if peak else 0}%',
+                'width': f'{round(person.score * 100 / max(person.assigned, 1))}%',
                 'score': str(person.score),
+                'assigned': person.assigned,
+                'rate': round(person.score * 100 / person.assigned) if person.assigned else 0,
+                'mark': _mark(round(person.score * 100 / person.assigned) if person.assigned else 0),
             }
             for index, person in enumerate(leaders)
-            if person.score
+            if person.score or person.assigned
         ],
+        'services': services,
+        'compare': {
+            'completed': _delta(now_state['values'][0], then_state['values'][0]),
+            'in_progress': _delta(now_state['values'][1], then_state['values'][1]),
+            'overdue': _delta(now_state['values'][3], then_state['values'][3]),
+        },
         'alerts': metrics['alert_rows'],
         'brief': _quick_brief(selected),
     })

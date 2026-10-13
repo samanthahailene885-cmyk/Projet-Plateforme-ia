@@ -236,9 +236,12 @@ type LiveDash = {
   authenticated: boolean
   manager_name: string
   metrics: LiveMetrics
-  series: { labels: string[]; completed: number[]; in_progress: number[]; late: number[]; empty: boolean }
+  series: { labels: string[]; created?: number[]; completed: number[]; in_progress: number[]; late: number[]; empty: boolean }
   donut: { total: number; empty: boolean; rows: { label: string; count: number; color: string; percent: number }[] }
-  team: { rank: string; initials: string; name: string; role: string; width: string; score: string }[]
+  activity?: { total: number; rows: { label: string; count: number; color: string }[] }
+  services?: { name: string; count: number; percent: number }[]
+  compare?: { completed: number | null; in_progress: number | null; overdue: number | null }
+  team: { rank: string; initials: string; name: string; role: string; width: string; score: string; assigned?: number; rate?: number; mark?: string }[]
   alerts: { title: string; text: string }[]
   brief: string
 }
@@ -260,8 +263,23 @@ function csrfToken() {
   return decodeURIComponent(raw)
 }
 
+function Ring({ percent, color }: { percent: number; color: string }) {
+  const radius = 16
+  const turn = 2 * Math.PI * radius
+  const filled = (Math.max(0, Math.min(100, percent)) / 100) * turn
+  return (
+    <svg className="board-ring" viewBox="0 0 44 44" aria-hidden="true">
+      <circle cx="22" cy="22" r={radius} />
+      <circle cx="22" cy="22" r={radius} stroke={color} strokeDasharray={`${filled} ${turn}`} />
+      <text x="22" y="23">{percent}%</text>
+    </svg>
+  )
+}
+
 function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
-  const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const today = new Date()
+  const dayLabel = today.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const [days, setDays] = useState<7 | 30 | 90>(7)
   const [live, setLive] = useState<LiveDash | null>(null)
   const [notice, setNotice] = useState('')
   const [reportState, setReportState] = useState<'idle' | 'loading' | 'done'>('idle')
@@ -270,7 +288,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
   useEffect(() => {
     let cancel = false
     function load() {
-      fetch('/dashboard/indicateurs.json', { credentials: 'same-origin' })
+      fetch(`/dashboard/indicateurs.json?jours=${days}`, { credentials: 'same-origin' })
         .then(async (response) => {
           if (!response.ok) throw new Error('unavailable')
           return response.json() as Promise<LiveDash>
@@ -285,29 +303,27 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
     document.addEventListener('visibilitychange', onVisible)
     const timer = window.setInterval(load, 15000)
     return () => { cancel = true; document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer) }
-  }, [])
+  }, [days])
   const metrics = live?.metrics
-  const kpis = [
-    { icon: 'users', tone: 'blue', label: 'Employés actifs', value: String(metrics?.employees_active ?? 0), detail: `${metrics?.employees_total ?? 0} au total`, page: 'employees', danger: false },
-    { icon: 'folder', tone: 'violet', label: 'Projets', value: String(metrics?.projects_total ?? 0), detail: `${metrics?.projects_completed ?? 0} terminé${(metrics?.projects_completed ?? 0) > 1 ? 's' : ''} · ${metrics?.projects_in_progress ?? 0} en cours`, page: 'projects', danger: false },
-    { icon: 'check', tone: 'green', label: 'Tâches terminées', value: String(metrics?.tasks_completed ?? 0), detail: `${metrics?.tasks_in_progress ?? 0} en cours · ${metrics?.tasks_not_started ?? 0} non commencées`, page: 'tasks', danger: false },
-    { icon: 'clock', tone: 'orange', label: 'Terminées aujourd’hui', value: String(metrics?.tasks_completed_today ?? 0), detail: `${metrics?.tasks_total ?? 0} tâches au total`, page: 'tasks', danger: false },
-    { icon: 'file', tone: 'cyan', label: 'Rapports reçus', value: `${metrics?.reports_submitted_today ?? 0}/${metrics?.employees_active ?? 0}`, detail: `${metrics?.reports_missing_today ?? 0} non soumis`, page: 'reports', danger: false },
-    { icon: 'alert', tone: 'red', label: 'Alertes actives', value: String(metrics?.alerts_active ?? 0), detail: `${metrics?.tasks_overdue ?? 0} en retard`, page: 'alerts', danger: true },
-  ]
+  const totalTasks = metrics?.tasks_total ?? 0
+  const shareOf = (part: number) => (totalTasks ? Math.round((part / totalTasks) * 100) : 0)
   const series = live?.series
-  const peak = Math.max(0, ...(series?.completed ?? []), ...(series?.in_progress ?? []), ...(series?.late ?? []))
+  const peak = Math.max(0, ...(series?.created ?? []), ...(series?.completed ?? []), ...(series?.in_progress ?? []), ...(series?.late ?? []))
   const axis = [1, 0.75, 0.5, 0.25, 0].map((step) => String(Math.round(Math.max(peak, 4) * step)))
-  const slices = (live?.donut.rows ?? []).filter((row) => row.count > 0)
+  const tone: Record<string, string> = { Terminées: '#3ddc97', 'En cours': '#3b82f6', 'Non commencées': '#94a3b8', 'En retard': '#ff5d73' }
+  const caption: Record<string, string> = { Terminées: 'Achèvement', 'En cours': 'En cours', 'Non commencées': 'Non démarrées', 'En retard': 'En retard' }
+  const slices = (live?.activity?.rows ?? []).filter((row) => row.count > 0)
   let cursor = 0
   const gradient = slices.length
     ? `conic-gradient(${slices.map((row) => {
         const start = cursor
-        cursor += row.percent
-        return `${row.color} ${start}% ${cursor}%`
+        const percent = live?.activity?.total ? Math.round((row.count / live.activity.total) * 100) : 0
+        cursor += percent
+        return `${tone[row.label] ?? row.color} ${start}% ${cursor}%`
       }).join(',')})`
-    : '#e8edf4'
-  const firstName = (live?.manager_name || '').split(' ')[0] || ''
+    : '#1c2c44'
+  const last = Math.max(0, (series?.labels.length ?? 1) - 1)
+  const barColors = ['#3ddc97', '#38bdf8', '#a78bfa', '#fb923c', '#64748b']
   async function generateSynthesis() {
     setReportState('loading')
     setSynthesisError('')
@@ -331,179 +347,164 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
       setReportState('idle')
     }
   }
+  const compare = live?.compare
   return (
-    <section className="africa">
-      <div className="af-head">
+    <section className="board">
+      <header className="board-head">
         <div>
-          <span className="af-eyebrow">{todayLabel}</span>
-          <h1>Bonjour{firstName ? `, ${firstName}` : ''}</h1>
-          <p>Voici ce qui se passe dans votre entreprise aujourd’hui.</p>
+          <h1>Bonjour, Responsable ! <span aria-hidden="true">👋</span></h1>
+          <p>Voici un aperçu global de la performance de votre équipe et de l’avancement des activités.</p>
         </div>
-        <button className={`af-primary${reportState === 'done' ? ' done' : ''}`} type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>
-          <span className={reportState === 'loading' ? 'af-spin' : ''}><Icon name={reportState === 'done' ? 'check' : 'spark'} size={16} /></span>
-          {reportState === 'loading' ? 'Analyse des rapports...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}
+        <div className="board-date">
+          <Icon name="calendar" size={16} />
+          <span>Aujourd’hui<small>{dayLabel}</small></span>
+        </div>
+      </header>
+      {notice ? <p className="board-note">{notice}</p> : null}
+      <div className="board-kpis">
+        <button className="board-kpi" type="button" onClick={() => onNavigate('employees')}>
+          <span className="board-ico blue"><Icon name="users" size={16} /></span>
+          <span className="board-kpi-label">Employés actifs</span>
+          <strong>{metrics?.employees_active ?? 0}</strong>
+          <small className="up">{metrics?.employees_total ?? 0} au total</small>
+        </button>
+        <button className="board-kpi" type="button" onClick={() => onNavigate('tasks')}>
+          <span className="board-ico green"><Icon name="check" size={16} /></span>
+          <span className="board-kpi-label">Tâches réalisées</span>
+          <strong>{metrics?.tasks_completed ?? 0}</strong>
+          {compare?.completed == null ? <small className="up">{metrics?.tasks_completed_today ?? 0} aujourd’hui</small> : <small className={compare.completed >= 0 ? 'up' : 'down'}>{compare.completed >= 0 ? '↑' : '↓'} {Math.abs(compare.completed)}% vs hier</small>}
+          <Ring percent={shareOf(metrics?.tasks_completed ?? 0)} color="#3ddc97" />
+        </button>
+        <button className="board-kpi" type="button" onClick={() => onNavigate('tasks')}>
+          <span className="board-ico orange"><Icon name="clock" size={16} /></span>
+          <span className="board-kpi-label">Tâches en cours</span>
+          <strong>{metrics?.tasks_in_progress ?? 0}</strong>
+          {compare?.in_progress == null ? <small>{metrics?.tasks_not_started ?? 0} non commencées</small> : <small className={compare.in_progress >= 0 ? 'up' : 'down'}>{compare.in_progress >= 0 ? '↑' : '↓'} {Math.abs(compare.in_progress)}% vs hier</small>}
+          <Ring percent={shareOf(metrics?.tasks_in_progress ?? 0)} color="#ff5d73" />
+        </button>
+        <button className="board-kpi" type="button" onClick={() => onNavigate('alerts')}>
+          <span className="board-ico red"><Icon name="alert" size={16} /></span>
+          <span className="board-kpi-label">Tâches en retard</span>
+          <strong>{metrics?.tasks_overdue ?? 0}</strong>
+          {compare?.overdue == null ? <small className="down">{metrics?.alerts_active ?? 0} alertes</small> : <small className={compare.overdue >= 0 ? 'down' : 'up'}>{compare.overdue >= 0 ? '↑' : '↓'} {Math.abs(compare.overdue)}% vs hier</small>}
+          <Ring percent={shareOf(metrics?.tasks_overdue ?? 0)} color="#ff4d6d" />
         </button>
       </div>
-      {notice ? <p className="lp-note">{notice}</p> : null}
 
-      <div className="af-kpis">
-        {kpis.map((item) => (
-          <button className="af-kpi" type="button" key={item.label} onClick={() => onNavigate(item.page)}>
-            <div className="af-kpi-top">
-              <span className={`af-kpi-icon ${item.tone}`}><Icon name={item.icon} size={16} /></span>
-              <span className="af-kpi-label">{item.label}</span>
-            </div>
-            <strong>{item.value}</strong>
-            <small><b className={item.danger ? 'danger' : ''}>{item.danger ? <Icon name="alert" size={12} /> : null}{item.detail}</b></small>
-          </button>
-        ))}
-      </div>
-
-      <div className="af-grid">
-        <article className="af-panel af-wide">
-          <div className="af-panel-head">
-            <div>
-              <h2>Évolution des tâches</h2>
-              <p>Comptes réels des 7 derniers jours</p>
-            </div>
-            <div className="af-legend">
-              <span><i className="blue" /> Terminées</span>
-              <span><i className="green" /> En cours</span>
-              <span><i className="red" /> En retard</span>
-              <em>7 derniers jours</em>
-            </div>
-          </div>
-          <div className="af-chart">
-            <div className="af-ylabs">{axis.map((label, index) => <span key={index}>{label}</span>)}</div>
-            <div className="af-gridlines"><span /><span /><span /><span /><span /></div>
-            <svg viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Évolution des tâches">
-              <path className="af-line blue" d={seriesPath(series?.completed ?? [], peak)} />
-              <path className="af-line green" d={seriesPath(series?.in_progress ?? [], peak)} />
-              <path className="af-line red" d={seriesPath(series?.late ?? [], peak)} />
-            </svg>
-            <div className="af-xlabs">{(series?.labels ?? ['—']).map((label) => <span key={label}>{label}</span>)}</div>
-          </div>
-        </article>
-
-        <AgencyCalendar />
-
-        <article className="af-panel">
-          <div className="af-panel-head">
-            <div>
-              <h2>Répartition globale</h2>
-            </div>
-          </div>
-          <div className="af-donut-row">
-            <div className="af-donut" style={{ background: gradient }}><div><strong>{live?.donut.total ?? 0}</strong><small>PROJETS</small></div></div>
-            <div className="af-donut-legend">
-              {(live?.donut.rows ?? []).filter((row) => ['En cours', 'Terminés', 'À venir', 'En retard'].includes(row.label)).map((row) => (
-                <div key={row.label}><i style={{ background: row.color }} /><span>{row.label}<small>{row.count} projet{row.count > 1 ? 's' : ''}</small></span><b>{row.percent}%</b></div>
+      <div className="board-mid">
+        <article className="board-card">
+          <header>
+            <h2><Icon name="trend" size={16} /> Performance des employés</h2>
+            <button type="button" onClick={() => onNavigate('employees')}>Voir tout →</button>
+          </header>
+          <table>
+            <thead><tr><th>Employé</th><th>Taux de réalisation</th><th>Tâches réalisées</th><th>Statut</th></tr></thead>
+            <tbody>
+              {(live?.team ?? []).map((person, index) => (
+                <tr key={person.name}>
+                  <td><span className={`board-avatar c${index % 5}`}>{person.initials}</span><span><strong>{person.name}</strong><small>{person.role}</small></span></td>
+                  <td><span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span><b>{person.rate ?? 0}%</b></td>
+                  <td>{person.score}/{person.assigned || person.score}</td>
+                  <td><em className={`mark-${(person.mark || 'moyen').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}`}>{person.mark}</em></td>
+                </tr>
               ))}
-              {live?.donut.empty || !live ? <div><span>Aucune tâche de répartition<small>0 projet enregistré</small></span></div> : null}
-            </div>
-          </div>
+            </tbody>
+          </table>
+          {live && live.team.length === 0 ? <p className="board-empty">Aucune tâche réalisée pour le moment.</p> : null}
         </article>
-
-        <article className="af-ai">
-          <div className="af-ai-head">
-            <span className="af-ai-icon"><Icon name="spark" size={18} /></span>
-            <div>
-              <small>Réel</small>
-              <h2>Synthèse intelligente</h2>
+        <div className="board-stack">
+          <article className="board-card">
+            <header><h2>Répartition globale de la charge</h2></header>
+            <div className="board-donut-row">
+              <div className="board-donut" style={{ background: gradient }}><div><strong>{live?.activity?.total ?? 0}</strong><small>Total des tâches</small></div></div>
+              <ul>
+                {slices.map((row) => <li key={row.label}><i style={{ background: tone[row.label] ?? row.color }} /><span>{caption[row.label] ?? row.label}</span><b>{row.count} ({live?.activity?.total ? Math.round(row.count * 100 / live.activity.total) : 0}%)</b></li>)}
+                {!slices.length ? <li>Aucune tâche enregistrée</li> : null}
+              </ul>
             </div>
-            <em>{synthesis ? 'Généré par IA' : 'Faits enregistrés'}</em>
+          </article>
+          <article className="board-card">
+            <header><h2>Répartition par service</h2></header>
+            <ul className="board-services">
+              {(live?.services ?? []).map((service, index) => (
+                <li key={service.name}><span>{service.name}</span><span className="board-track"><i style={{ width: `${service.percent}%`, background: barColors[index % barColors.length] }} /></span><b>{service.percent}%</b></li>
+              ))}
+              {live && !(live.services ?? []).length ? <li>Aucun service renseigné</li> : null}
+            </ul>
+          </article>
+        </div>
+        <article className="board-card">
+          <header>
+            <h2>Centre d’alerte {live?.alerts.length ? <b>{live.alerts.length}</b> : null}</h2>
+            <button type="button" onClick={() => onNavigate('alerts')}>Voir tout →</button>
+          </header>
+          <div className="board-alerts">
+            {(live?.alerts ?? []).map((alert) => {
+              const kind = alert.title.toLowerCase()
+              const toneName = kind.includes('absence') ? 'miss' : kind.includes('todo') || kind.includes('liste') ? 'info' : kind.includes('rapport') ? 'ai' : kind.includes('projet') ? 'ok' : 'late'
+              return (
+                <button type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
+                  <i className={toneName} />
+                  <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
+                </button>
+              )
+            })}
+            {synthesis || synthesisError ? <p className="board-brief">{synthesisError || synthesis}</p> : null}
+            {live && live.alerts.length === 0 ? <p className="board-empty">Aucune alerte active.</p> : null}
+            {!live && !notice ? <p className="board-empty">Calcul des indicateurs...</p> : null}
           </div>
-          <p>{synthesisError || synthesis || live?.brief || 'Aucune activité enregistrée pour cette date.'}</p>
-          <div className="af-ai-stats">
-            <span><strong>{metrics?.todo_lists_today ?? 0}</strong><small>Todo Lists du jour</small></span>
-            <span><strong>{metrics?.todo_lists_missing ?? 0}</strong><small>Todo Lists manquantes</small></span>
-            <span><strong>{metrics?.difficulties_open ?? 0}</strong><small>Difficultés ouvertes</small></span>
-          </div>
-          <button type="button" onClick={() => onNavigate('assistant')}>Voir l’analyse complète <Icon name="chevron" size={14} /></button>
+          <button className="board-ai" type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>{reportState === 'loading' ? 'Analyse...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}</button>
         </article>
-
-        <article className="af-panel af-team">
-          <div className="af-panel-head">
-            <div>
-              <h2>Performance des équipes</h2>
-              <p>Tâches terminées ce mois</p>
+      </div>
+      <div className="board-bottom">
+        <article className="board-card">
+          <header>
+            <h2><Icon name="trend" size={16} /> Évolution des tâches</h2>
+            <div className="board-ranges">
+              {([7, 30, 90] as const).map((value) => <button key={value} className={days === value ? 'on' : ''} type="button" onClick={() => setDays(value)}>{value === 90 ? '3 mois' : `${value} jours`}</button>)}
             </div>
-            <button type="button" onClick={() => onNavigate('employees')}>Voir tous <Icon name="chevron" size={14} /></button>
+          </header>
+          <div className="board-chart">
+            <div className="board-ylabs">{axis.map((label, index) => <span key={index}>{label}</span>)}</div>
+            <svg viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Évolution des tâches">
+              <path className="created" d={seriesPath(series?.created ?? [], peak)} />
+              <path className="done" d={seriesPath(series?.completed ?? [], peak)} />
+              <path className="doing" d={seriesPath(series?.in_progress ?? [], peak)} />
+              <path className="late" d={seriesPath(series?.late ?? [], peak)} />
+            </svg>
+            <aside>
+              <strong>{series?.labels[last] || '—'}</strong>
+              <span><i className="created" /> Créées <b>{series?.created?.[last] ?? 0}</b></span>
+              <span><i className="done" /> Réalisées <b>{series?.completed[last] ?? 0}</b></span>
+              <span><i className="doing" /> En cours <b>{series?.in_progress[last] ?? 0}</b></span>
+              <span><i className="late" /> En retard <b>{series?.late[last] ?? 0}</b></span>
+            </aside>
           </div>
-          <div className="af-team-list">
+          <div className="board-xlabs">{(series?.labels ?? []).map((label, index) => <span key={`${label}-${index}`}>{days === 7 || index % Math.ceil((series?.labels.length || 1) / 7) === 0 ? label : ''}</span>)}</div>
+          <p className="board-legend"><span><i className="created" /> Tâches créées</span><span><i className="done" /> Tâches réalisées</span><span><i className="doing" /> Tâches en cours</span><span><i className="late" /> Tâches en retard</span></p>
+        </article>
+        <article className="board-card">
+          <header>
+            <h2>Top 5 des employés les plus performants</h2>
+            <button type="button" aria-label="Voir les employés" onClick={() => onNavigate('employees')}>→</button>
+          </header>
+          <ol className="board-top">
             {(live?.team ?? []).map((person, index) => (
-              <div className="af-person" key={person.name}>
-                <span className="af-rank">{person.rank}</span>
-                <span className={`af-chip ${['violet', '', 'orange', 'green'][index] ?? ''}`}>{person.initials}</span>
-                <span className="af-who"><strong>{person.name}</strong><small>{person.role}</small></span>
-                <span className="af-bar"><i style={{ width: person.width }} /></span>
-                <b>{person.score}</b>
-              </div>
+              <li key={person.name}>
+                <b>{index + 1}</b>
+                <span className={`board-avatar c${index % 5}`}>{person.initials}</span>
+                <span><strong>{person.name}</strong><small>{person.role}</small></span>
+                <span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span>
+                <em>{person.rate ?? 0}%</em>
+              </li>
             ))}
-            {live && live.team.length === 0 ? <p className="muted">Aucune tâche terminée ce mois.</p> : null}
-          </div>
-        </article>
-
-        <article className="af-panel af-alerts">
-          <div className="af-panel-head">
-            <div>
-              <h2>Centre d’alertes</h2>
-              <p>Éléments nécessitant votre attention</p>
-            </div>
-            <button type="button" onClick={() => onNavigate('alerts')}>Tout voir <Icon name="chevron" size={14} /></button>
-          </div>
-          {(live?.alerts ?? []).map((alert) => (
-            <button className="af-alert" type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
-              <span className="red"><Icon name="alert" size={14} /></span>
-              <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
-            </button>
-          ))}
-          {live && live.alerts.length === 0 ? <p className="muted">Aucune alerte active.</p> : null}
-          {!live && !notice ? <p className="muted">Calcul des indicateurs...</p> : null}
+          </ol>
+          {live && live.team.length === 0 ? <p className="board-empty">Pas encore de tâches réalisées.</p> : null}
         </article>
       </div>
     </section>
   )
 }
-
-function AgencyCalendar() {
-  const today = new Date()
-  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
-  const year = cursor.getFullYear()
-  const month = cursor.getMonth()
-  const lead = (new Date(year, month, 1).getDay() + 6) % 7
-  const count = new Date(year, month + 1, 0).getDate()
-  const cells = [...Array(lead).fill(0), ...Array.from({ length: count }, (_, index) => index + 1)]
-  while (cells.length % 7) cells.push(0)
-  const title = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  function isToday(day: number) {
-    return day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
-  }
-  return (
-    <article className="af-panel af-cal">
-      <div className="af-panel-head">
-        <div>
-          <h2>Calendrier</h2>
-          <p>Vue d’ensemble de l’équipe</p>
-        </div>
-      </div>
-      <div className="af-cal-nav">
-        <button type="button" aria-label="Mois précédent" onClick={() => setCursor(new Date(year, month - 1, 1))}><Icon name="chevron" size={14} /></button>
-        <strong>{title}</strong>
-        <button type="button" aria-label="Mois suivant" onClick={() => setCursor(new Date(year, month + 1, 1))}><Icon name="chevron" size={14} /></button>
-      </div>
-      <div className="af-cal-grid af-cal-week">
-        {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
-      </div>
-      <div className="af-cal-grid">
-        {cells.map((day, index) => (
-          <span key={index} className={day && isToday(day) ? 'today' : ''}>{day || ''}</span>
-        ))}
-      </div>
-    </article>
-  )
-}
-
 
 function statusClass(status: string) {
   if (status === 'Actif' || status === 'Terminée' || status === 'Terminé' || status === 'Approuvée' || status === 'Soumis') return 'ok'
@@ -3483,7 +3484,7 @@ export default function App() {
   if (!authed) return <Login accounts={accounts} onSuccess={enter} />
 
   return (
-    <div className="app-shell light">
+    <div className={`app-shell light${role === 'admin' && page === 'dashboard' ? ' board-mode' : ''}`}>
       <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
         <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />

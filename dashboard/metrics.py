@@ -54,7 +54,7 @@ def activity_state(day):
 
 def activity_series(end, days):
     """Pour chaque jour : terminées ce jour-là, et stocks réels en cours / en retard."""
-    labels, done, doing, waiting, late = [], [], [], [], []
+    labels, done, doing, waiting, late, created = [], [], [], [], [], []
     total = 0
     start = end - timedelta(days=days - 1)
     for offset in range(days):
@@ -65,13 +65,16 @@ def activity_series(end, days):
         doing_count = state['values'][1]
         waiting_count = state['values'][2]
         late_count = state['values'][3]
+        created_count = Task.objects.filter(created_at__date=day).exclude(status='cancelled').count()
         done.append(done_count)
         doing.append(doing_count)
         waiting.append(waiting_count)
         late.append(late_count)
-        total += done_count + doing_count + waiting_count + late_count
+        created.append(created_count)
+        total += done_count + doing_count + waiting_count + late_count + created_count
     return {
         'labels': labels,
+        'created': created,
         'completed': done,
         'in_progress': doing,
         'not_started': waiting,
