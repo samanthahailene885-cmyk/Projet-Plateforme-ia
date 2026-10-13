@@ -68,7 +68,12 @@ async function call(url: string, options: RequestInit = {}) {
     headers.set('Content-Type', 'application/json')
   }
   if (options.method && options.method !== 'GET') headers.set('X-CSRFToken', csrf)
-  const response = await fetch(url, { credentials: 'same-origin', ...options, headers })
+  let response: Response
+  try {
+    response = await fetch(url, { credentials: 'same-origin', ...options, headers })
+  } catch {
+    throw new Error('Le serveur de données ne répond pas. Relancez la plateforme, puis réessayez.')
+  }
   const data = await readJson(response)
   if (!response.ok) throw new Error(data.error || 'Action impossible.')
   return data
