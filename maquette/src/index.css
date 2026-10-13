@@ -1913,8 +1913,9 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-bell { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; background: #3a1824; color: #ff5d73; }
 .board-bell svg { color: #ff5d73; }
 .board-ring { position: absolute; right: 14px; top: 50%; width: 68px; height: 68px; transform: translateY(-50%); }
-.board-ring circle { fill: none; stroke: #1c3354; stroke-width: 4; }
-.board-ring circle:nth-of-type(2) { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 22px 22px; }
+.board-ring circle { fill: none; stroke-width: 4.5; }
+.board-ring circle.track { stroke: #1c3354; }
+.board-ring circle.arc { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 22px 22px; }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
 .board-mid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.9fr) minmax(250px, 0.82fr); gap: 14px; margin-bottom: 14px; align-items: start; }
 .board-bottom { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr); gap: 14px; }

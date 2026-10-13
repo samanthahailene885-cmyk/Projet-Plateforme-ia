@@ -295,14 +295,22 @@ function DashIcon({ name }: { name: 'people' | 'clipboard' | 'clock' | 'flag' | 
   }
 }
 
-function Ring({ percent, color }: { percent: number; color: string }) {
+function Ring({ percent, tone, id }: { percent: number; tone: 'up' | 'down'; id: string }) {
   const radius = 16
   const turn = 2 * Math.PI * radius
   const filled = (Math.max(0, Math.min(100, percent)) / 100) * turn
+  const from = tone === 'up' ? '#7dffe0' : '#ff9aab'
+  const to = tone === 'up' ? '#3ddc97' : '#ff5d73'
   return (
     <svg className="board-ring" viewBox="0 0 44 44" aria-hidden="true">
-      <circle cx="22" cy="22" r={radius} />
-      <circle cx="22" cy="22" r={radius} stroke={color} strokeDasharray={`${filled} ${turn}`} />
+      <defs>
+        <linearGradient id={id} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor={from} />
+          <stop offset="100%" stopColor={to} />
+        </linearGradient>
+      </defs>
+      <circle className="track" cx="22" cy="22" r={radius} />
+      <circle className="arc" cx="22" cy="22" r={radius} stroke={`url(#${id})`} strokeDasharray={`${filled} ${turn}`} />
       <text x="22" y="23">{percent}%</text>
     </svg>
   )
@@ -408,21 +416,21 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           <span className="board-kpi-label">Tâches réalisées</span>
           <strong>{metrics?.tasks_completed ?? 0}</strong>
           {compare?.completed == null ? <small className="up">{metrics?.tasks_completed_today ?? 0} aujourd’hui</small> : <small className={compare.completed >= 0 ? 'up' : 'down'}>{compare.completed >= 0 ? '↑' : '↓'} {Math.abs(compare.completed)}% vs hier</small>}
-          <Ring percent={shareOf(metrics?.tasks_completed ?? 0)} color="#3ddc97" />
+          <Ring percent={shareOf(metrics?.tasks_completed ?? 0)} tone={compare?.completed == null || compare.completed >= 0 ? 'up' : 'down'} id="ring-done" />
         </button>
         <button className="board-kpi" type="button" onClick={() => onNavigate('tasks')}>
           <span className="board-ico amber"><DashIcon name="clock" /></span>
           <span className="board-kpi-label">Tâches en cours</span>
           <strong>{metrics?.tasks_in_progress ?? 0}</strong>
           {compare?.in_progress == null ? <small>{metrics?.tasks_not_started ?? 0} non commencées</small> : <small className={compare.in_progress >= 0 ? 'up' : 'down'}>{compare.in_progress >= 0 ? '↑' : '↓'} {Math.abs(compare.in_progress)}% vs hier</small>}
-          <Ring percent={shareOf(metrics?.tasks_in_progress ?? 0)} color="#ff5d73" />
+          <Ring percent={shareOf(metrics?.tasks_in_progress ?? 0)} tone={compare?.in_progress != null && compare.in_progress >= 0 ? 'up' : 'down'} id="ring-doing" />
         </button>
         <button className="board-kpi" type="button" onClick={() => onNavigate('alerts')}>
           <span className="board-ico red"><DashIcon name="flag" /></span>
           <span className="board-kpi-label">Tâches en retard</span>
           <strong>{metrics?.tasks_overdue ?? 0}</strong>
           {compare?.overdue == null ? <small className="down">{metrics?.alerts_active ?? 0} alertes</small> : <small className={compare.overdue >= 0 ? 'down' : 'up'}>{compare.overdue >= 0 ? '↑' : '↓'} {Math.abs(compare.overdue)}% vs hier</small>}
-          <Ring percent={shareOf(metrics?.tasks_overdue ?? 0)} color="#ff4d6d" />
+          <Ring percent={shareOf(metrics?.tasks_overdue ?? 0)} tone={compare?.overdue != null && compare.overdue < 0 ? 'up' : 'down'} id="ring-late" />
         </button>
       </div>
 
