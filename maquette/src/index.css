@@ -1892,6 +1892,9 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .app-shell.board-mode .lt-crumbs button,
 .app-shell.board-mode .lt-crumbs svg { color: #8ea3bf; }
 .app-shell.board-mode .lt-crumbs strong { color: #f4f8fc; }
+.app-shell.board-mode .lt-actions > button.lt-icon { color: #e8f0fa; }
+.app-shell.board-mode .lt-actions > button.lt-icon:hover { background: #132844; }
+.app-shell.board-mode .lt-actions > button.lt-icon em { box-shadow: 0 0 0 1.5px #071422; }
 .app-shell.light.board-mode .board h1,
 .app-shell.light.board-mode .board h2 { color: #fff; }
 .app-shell.light.board-mode .board th { color: #8ea3bf; }

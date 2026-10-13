@@ -515,7 +515,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
     <section className="board">
       <header className="board-head">
         <div>
-          <h1>Bonjour, Responsable ! <span aria-hidden="true">👋</span></h1>
+          <h1>Bonjour, Responsable !</h1>
           <p>Voici un aperçu global de la performance de votre équipe et de l’avancement des activités.</p>
         </div>
         <div className="board-date">
