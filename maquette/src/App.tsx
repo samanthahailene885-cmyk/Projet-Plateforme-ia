@@ -2409,19 +2409,9 @@ function AssistantPage({ role }: { role: Role }) {
   const prompts = role === 'admin'
     ? [
         { text: 'Quels sont les projets actuellement en retard ?', icon: 'alert', tone: 'red' },
-        { text: "Quelles sont les activités qui n'ont pas été réalisées aujourd'hui ?", icon: 'tasks', tone: 'orange' },
         { text: 'Quelles sont les activités encore en cours ?', icon: 'clock', tone: 'blue' },
-        { text: 'Quelles sont les activités urgentes ?', icon: 'alert', tone: 'red' },
-        { text: 'Quelles sont les activités moyennement urgentes ?', icon: 'clock', tone: 'orange' },
-        { text: 'Donne-moi la To-Do List de Zaina Zaina.', icon: 'list', tone: 'violet' },
-        { text: "Quelles activités Zaina Zaina a-t-elle réalisées aujourd'hui ?", icon: 'check', tone: 'green' },
-        { text: "Quelles activités Zaina Zaina n'a-t-elle pas terminées ?", icon: 'tasks', tone: 'orange' },
-        { text: "Quel est l'état d'avancement des projets ?", icon: 'folder', tone: 'blue' },
-        { text: 'Quels employés ont des tâches en retard ?', icon: 'users', tone: 'red' },
-        { text: 'Quels sont les projets qui nécessitent une attention immédiate ?', icon: 'alert', tone: 'orange' },
+        { text: 'Quels employés ont des tâches en retard ?', icon: 'users', tone: 'orange' },
         { text: "Fais-moi une synthèse des rapports d'aujourd'hui.", icon: 'file', tone: 'violet' },
-        { text: "Quels employés n'ont pas encore envoyé leur rapport ?", icon: 'users', tone: 'blue' },
-        { text: 'Quelles sont les activités les plus problématiques ?', icon: 'alert', tone: 'red' },
       ]
     : [
         { text: 'Quelles sont mes tâches en cours ?', icon: 'tasks', tone: 'blue' },
