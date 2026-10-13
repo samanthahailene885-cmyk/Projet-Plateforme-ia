@@ -242,7 +242,7 @@ type LiveDash = {
   services?: { name: string; count: number; percent: number }[]
   compare?: { completed: number | null; in_progress: number | null; overdue: number | null }
   team: { rank: string; initials: string; name: string; role: string; width: string; score: string; assigned?: number; rate?: number; mark?: string }[]
-  alerts: { title: string; text: string }[]
+  alerts: { title: string; text: string; kind?: string }[]
   brief: string
 }
 
@@ -585,9 +585,9 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           </header>
           <div className="board-alerts">
             {(live?.alerts ?? []).map((alert) => {
-              const kind = alert.title.toLowerCase()
-              const toneName = kind.includes('absence') ? 'miss' : kind.includes('todo') || kind.includes('liste') ? 'info' : kind.includes('rapport') ? 'ai' : kind.includes('projet') ? 'ok' : 'late'
-              const glyph = toneName === 'miss' ? 'warn' : toneName === 'info' ? 'info' : toneName === 'ai' ? 'spark' : toneName === 'ok' ? 'check' : 'bang'
+              const kind = `${alert.kind || ''} ${alert.title}`.toLowerCase()
+              const toneName = kind.includes('permission') || kind.includes('absence') || kind.includes('remarque') ? 'miss' : kind.includes('todo') || kind.includes('liste') ? 'info' : kind.includes('rapport') ? 'ai' : kind.includes('projet') ? 'ok' : 'late'
+              const glyph = toneName === 'miss' ? 'warn' : toneName === 'info' ? 'info' : toneName === 'ai' ? 'bars' : toneName === 'ok' ? 'check' : 'bang'
               return (
                 <button type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
                   <i className={toneName}><DashIcon name={glyph} /></i>

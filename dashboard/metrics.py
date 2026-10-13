@@ -150,8 +150,9 @@ def agency_metrics(day):
             {
                 'title': alert['subject'],
                 'text': alert['reason'],
+                'kind': alert['kind'],
                 'url': alert['url'],
             }
-            for alert in alerts[:4]
+            for alert in alerts[:5]
         ],
     }
