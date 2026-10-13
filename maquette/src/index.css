@@ -1942,16 +1942,18 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .mark-bon { background: #2a2150; color: #c4b5fd; }
 .mark-moyen { background: #3a2a14; color: #fdba74; }
 .mark-a-ameliorer { background: #3a1824; color: #fda4af; }
-.board-donut-row, .board-services { display: flex; align-items: center; gap: 16px; }
-.board-donut { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; flex: none; }
-.board-donut > div { width: 98px; height: 98px; border-radius: 50%; background: #0e1c33; display: grid; place-items: center; text-align: center; }
-.board-donut strong { color: #fff; font-size: 28px; line-height: 1; }
-.board-donut small { color: #8ea3bf; font-size: 11px; }
-.board-donut-row ul, .board-services { list-style: none; margin: 0; padding: 0; }
-.board-donut-row ul { display: grid; gap: 10px; flex: 1; }
-.board-donut-row li, .board-services li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; color: #d5e2f2; font-size: 13px; }
-.board-services { display: grid; gap: 12px; }
-.board-services li { grid-template-columns: 110px minmax(0, 1fr) 42px; }
+.board-donut-row { display: flex; align-items: center; gap: 22px; }
+.board-donut { width: 168px; height: 168px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.board-donut > div { width: 112px; height: 112px; border-radius: 50%; background: #0e1c33; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 4px; }
+.board-donut strong { color: #fff; font-size: 32px; line-height: 1; }
+.board-donut small { color: #8ea3bf; font-size: 10px; line-height: 1.2; white-space: nowrap; }
+.board-charge li i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.board-services { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.board-charge { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; flex: 1; min-width: 0; }
+.board-charge li { display: flex; align-items: center; gap: 10px; min-width: 0; color: #d5e2f2; font-size: 14px; }
+.board-charge li span { flex: 1; min-width: 0; white-space: nowrap; }
+.board-charge li b { flex: none; margin-left: auto; color: #f4f8fc; font-weight: 600; white-space: nowrap; }
+.board-services li { display: grid; grid-template-columns: 110px minmax(0, 1fr) 42px; gap: 8px; align-items: center; color: #d5e2f2; font-size: 13px; }
 .board-services .board-track, .board-top .board-track { width: 100%; }
 .board-donut-row i, .board-legend i, .board-chart aside i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .board-alerts { display: grid; gap: 8px; }

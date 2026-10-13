@@ -312,7 +312,10 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
   const axis = [1, 0.75, 0.5, 0.25, 0].map((step) => String(Math.round(Math.max(peak, 4) * step)))
   const tone: Record<string, string> = { Terminées: '#3ddc97', 'En cours': '#3b82f6', 'Non commencées': '#94a3b8', 'En retard': '#ff5d73' }
   const caption: Record<string, string> = { Terminées: 'Achèvement', 'En cours': 'En cours', 'Non commencées': 'Non démarrées', 'En retard': 'En retard' }
-  const slices = (live?.activity?.rows ?? []).filter((row) => row.count > 0)
+  const activityRows = live?.activity?.rows ?? []
+  const legendOrder = ['Terminées', 'En cours', 'En retard', 'Non commencées']
+  const legend = legendOrder.map((label) => activityRows.find((row) => row.label === label) ?? { label, count: 0, color: tone[label] })
+  const slices = legend.filter((row) => row.count > 0)
   let cursor = 0
   const gradient = slices.length
     ? `conic-gradient(${slices.map((row) => {
@@ -416,10 +419,9 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           <article className="board-card">
             <header><h2>Répartition globale de la charge</h2></header>
             <div className="board-donut-row">
-              <div className="board-donut" style={{ background: gradient }}><div><strong>{live?.activity?.total ?? 0}</strong><small>Total des tâches</small></div></div>
-              <ul>
-                {slices.map((row) => <li key={row.label}><i style={{ background: tone[row.label] ?? row.color }} /><span>{caption[row.label] ?? row.label}</span><b>{row.count} ({live?.activity?.total ? Math.round(row.count * 100 / live.activity.total) : 0}%)</b></li>)}
-                {!slices.length ? <li>Aucune tâche enregistrée</li> : null}
+              <div className="board-donut" style={{ background: gradient }}><div><small>Total des tâches</small><strong>{live?.activity?.total ?? 0}</strong></div></div>
+              <ul className="board-charge">
+                {legend.map((row) => <li key={row.label}><i style={{ background: tone[row.label] ?? row.color }} /><span>{caption[row.label] ?? row.label}</span><b>{row.count} ({live?.activity?.total ? Math.round(row.count * 100 / live.activity.total) : 0}%)</b></li>)}
               </ul>
             </div>
           </article>
