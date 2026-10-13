@@ -581,7 +581,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             <div className="board-donut-row">
               <div className="board-donut" style={{ background: gradient }}><div><small>Total des tâches</small><strong>{live?.activity?.total ?? 0}</strong></div></div>
               <ul className="board-charge">
-                {legend.map((row) => <li key={row.label}><i style={{ background: tone[row.label] ?? row.color }} /><span>{caption[row.label] ?? row.label}</span><b>{row.count} ({live?.activity?.total ? Math.round(row.count * 100 / live.activity.total) : 0}%)</b></li>)}
+                {legend.map((row) => <li key={row.label}><i style={{ background: tone[row.label] ?? row.color }} /><span>{caption[row.label] ?? row.label}</span><b>{row.count}<small>({live?.activity?.total ? Math.round(row.count * 100 / live.activity.total) : 0}%)</small></b></li>)}
               </ul>
             </div>
           </article>
