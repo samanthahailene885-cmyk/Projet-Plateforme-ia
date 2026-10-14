@@ -1883,8 +1883,8 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .app-shell.board-mode main,
 .app-shell.board-mode .content { background: #03152B; }
 .app-shell.board-mode .content.content-wide {
-  width: min(1600px, calc(100% - 44px));
-  max-width: 1600px;
+  width: min(1380px, calc(100% - 72px));
+  max-width: 1380px;
   margin: 0 auto;
   padding: 22px 0 48px;
 }
@@ -1923,15 +1923,15 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-date { display: flex; align-items: center; gap: 10px; min-width: 180px; padding: 10px 14px; border: 1px solid #1e3a5c; border-radius: 14px; background: #10203a; color: #e8f0fa; }
 .board-date small { display: block; color: #8ea3bf; font-size: 12px; }
 .board-note { color: #fbbf24; }
-.board-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.board-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-bottom: 22px; }
 .board-kpi {
-  position: relative; min-height: 130px; padding: 16px 88px 16px 16px; text-align: left; color: inherit;
+  position: relative; min-height: 112px; padding: 14px 76px 14px 14px; text-align: left; color: inherit;
   display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; align-content: center; row-gap: 4px;
   background: #061C35; border: 1px solid #123B60; border-radius: 14px;
   box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); transition: border-color 160ms ease;
 }
 .board-kpi:hover { border-color: #168BFF; }
-.board-kpi strong { grid-column: 1 / -1; margin-top: 6px; color: #fff; font-size: 28px; line-height: 1; }
+.board-kpi strong { grid-column: 1 / -1; margin-top: 4px; color: #fff; font-size: 26px; line-height: 1; }
 .board-kpi small { grid-column: 1 / -1; font-size: 12px; color: #8ea3bf; }
 .board-kpi small.up { color: #3ddc97; }
 .board-kpi small.down { color: #ff5d73; }
@@ -1943,13 +1943,13 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-card h2 svg { color: #60a5fa; }
 .board-bell { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; background: #3a1824; color: #ff5d73; }
 .board-bell svg { color: #ff5d73; }
-.board-ring { position: absolute; right: 14px; top: 50%; width: 68px; height: 68px; transform: translateY(-50%); }
+.board-ring { position: absolute; right: 12px; top: 50%; width: 58px; height: 58px; transform: translateY(-50%); }
 .board-ring circle { fill: none; stroke-width: 4.5; }
 .board-ring circle.track { stroke: #1c3354; }
 .board-ring circle.arc { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 22px 22px; }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
-.board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(270px, 0.97fr); gap: 16px; margin-bottom: 20px; align-items: start; }
-.board-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.95fr); gap: 16px; }
+.board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(250px, 0.97fr); gap: 22px; margin-bottom: 22px; align-items: start; }
+.board-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.95fr); gap: 22px; }
 .board-stack { display: grid; gap: 20px; min-width: 0; }
 .board-card { min-width: 0; width: 100%; padding: 18px; background: #061C35; border: 1px solid #123B60; border-radius: 14px; box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); }
 .board-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
@@ -2058,7 +2058,7 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   border: 0; background: transparent; color: #F4F7FC; font-weight: 700; font-size: 13px; outline: none;
 }
 @media (max-width: 1279px) {
-  .app-shell.board-mode .content.content-wide { width: min(1600px, calc(100% - 32px)); padding-top: 16px; }
+  .app-shell.board-mode .content.content-wide { width: min(1380px, calc(100% - 48px)); padding-top: 16px; }
 }
 @media (max-width: 1200px) {
   .board-kpis, .board-mid, .board-bottom { grid-template-columns: 1fr 1fr; }
