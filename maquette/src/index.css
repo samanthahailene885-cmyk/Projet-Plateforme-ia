@@ -1945,7 +1945,7 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
 .board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(270px, 0.97fr); gap: 16px; margin-bottom: 20px; align-items: stretch; }
 .board-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.95fr); gap: 16px; }
-.board-stack { display: grid; gap: 20px; }
+.board-stack { display: grid; gap: 20px; min-width: 0; }
 .board-card { min-width: 0; width: 100%; padding: 18px; background: #061C35; border: 1px solid #123B60; border-radius: 14px; box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); }
 .board-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .board-card h2 { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin: 0; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.25; }
@@ -1985,18 +1985,19 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .mark-bon { background: #2a2150; color: #c4b5fd; }
 .mark-moyen { background: #3a2a14; color: #fdba74; }
 .mark-a-ameliorer { background: #3a1824; color: #fda4af; }
-.board-donut-row { display: flex; align-items: center; gap: 28px; }
-.board-donut { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; flex: none; }
-.board-donut > div { width: 98px; height: 98px; border-radius: 50%; background: #061C35; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; padding: 8px; }
-.board-donut strong { color: #fff; font-size: 30px; line-height: 1; }
-.board-donut small { color: #b7c6da; font-size: 11px; line-height: 1.2; white-space: normal; max-width: 78px; }
+.board-donut-row { display: grid; grid-template-columns: 118px minmax(0, 1fr); align-items: center; gap: 12px; min-width: 0; }
+.board-donut { width: 118px; height: 118px; border-radius: 50%; display: grid; place-items: center; }
+.board-donut > div { width: 76px; height: 76px; border-radius: 50%; background: #061C35; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; padding: 6px; }
+.board-donut strong { color: #fff; font-size: 24px; line-height: 1; }
+.board-donut small { color: #b7c6da; font-size: 10px; line-height: 1.15; white-space: normal; max-width: 64px; }
 .board-charge li i { width: 8px; height: 8px; border-radius: 50%; }
 .board-services { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0; }
-.board-charge { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; flex: 1; min-width: 168px; }
-.board-charge li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-width: 0; color: #d5e2f2; font-size: 14px; }
-.board-charge li span { min-width: 0; white-space: nowrap; }
-.board-charge li b { color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; text-align: right; }
-.board-charge li b small { margin-left: 4px; color: #d7e4f5; font-size: 13px; font-weight: 600; }
+.board-charge { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+.board-charge li { display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: 8px; row-gap: 1px; align-items: center; min-width: 0; color: #d5e2f2; font-size: 13px; }
+.board-charge li i { grid-row: 1 / span 2; align-self: center; }
+.board-charge li span { min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.2; }
+.board-charge li b { color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; text-align: left; }
+.board-charge li b small { margin-left: 4px; color: #d7e4f5; font-size: 12px; font-weight: 600; }
 .board-services li { display: grid; grid-template-columns: minmax(96px, 130px) minmax(0, 1fr) 44px; gap: 10px; align-items: center; color: #d5e2f2; font-size: 13px; }
 .board-services li b { color: #fff; text-align: right; }
 .board-services .board-track, .board-top .board-track { width: 100%; }
