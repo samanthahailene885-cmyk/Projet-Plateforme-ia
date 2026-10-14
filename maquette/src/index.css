@@ -1943,7 +1943,7 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-ring circle.track { stroke: #1c3354; }
 .board-ring circle.arc { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 22px 22px; }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
-.board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(270px, 0.97fr); gap: 16px; margin-bottom: 20px; align-items: stretch; }
+.board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(270px, 0.97fr); gap: 16px; margin-bottom: 20px; align-items: start; }
 .board-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.95fr); gap: 16px; }
 .board-stack { display: grid; gap: 20px; min-width: 0; }
 .board-card { min-width: 0; width: 100%; padding: 18px; background: #061C35; border: 1px solid #123B60; border-radius: 14px; box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); }
