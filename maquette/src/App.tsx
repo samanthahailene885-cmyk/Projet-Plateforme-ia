@@ -471,7 +471,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
   const totalTasks = metrics?.tasks_total ?? 0
   const shareOf = (part: number) => (totalTasks ? Math.round((part / totalTasks) * 100) : 0)
   const series = live?.series
-  const tone: Record<string, string> = { Terminées: '#3ddc97', 'En cours': '#3b82f6', 'Non commencées': '#94a3b8', 'En retard': '#ff5d73' }
+  const tone: Record<string, string> = { Terminées: '#19D3C5', 'En cours': '#7C6BFF', 'Non commencées': '#7188A7', 'En retard': '#FF5364' }
   const caption: Record<string, string> = { Terminées: 'Achèvement', 'En cours': 'En cours', 'Non commencées': 'Non démarrées', 'En retard': 'En retard' }
   const activityRows = live?.activity?.rows ?? []
   const legendOrder = ['Terminées', 'En cours', 'En retard', 'Non commencées']
@@ -486,7 +486,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
         return `${tone[row.label] ?? row.color} ${start}% ${cursor}%`
       }).join(',')})`
     : '#1c2c44'
-  const barColors = ['#3ddc97', '#38bdf8', '#a78bfa', '#fb923c', '#64748b']
+  const barColors = ['#19D3C5', '#168BFF', '#A66BFF', '#FF9F43', '#7188A7']
   async function generateSynthesis() {
     setReportState('loading')
     setSynthesisError('')
@@ -518,10 +518,17 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           <h1>Bonjour, Responsable !</h1>
           <p>Voici un aperçu global de la performance de votre équipe et de l’avancement des activités.</p>
         </div>
-        <div className="board-date">
+        <label className="board-date">
           <Icon name="calendar" size={16} />
-          <span>Aujourd’hui<small>{dayLabel}</small></span>
-        </div>
+          <span>
+            <select aria-label="Période du graphique" value={days} onChange={(event) => setDays(Number(event.target.value) as 7 | 30 | 90)}>
+              <option value={7}>Cette semaine</option>
+              <option value={30}>Ce mois</option>
+              <option value={90}>3 mois</option>
+            </select>
+            <small>{dayLabel}</small>
+          </span>
+        </label>
       </header>
       {notice ? <p className="board-note">{notice}</p> : null}
       <div className="board-kpis">
@@ -607,11 +614,12 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
                 <button type="button" key={`${alert.title}-${alert.text}`} onClick={() => onNavigate('alerts')}>
                   <span className={`board-glyph ${toneName}`}><AlertGlyph name={glyph} /></span>
                   <span><strong>{alert.title}</strong><small>{alert.text}</small></span>
+                  <em aria-hidden="true">›</em>
                 </button>
               )
             })}
             {synthesis || synthesisError ? <p className="board-brief">{synthesisError || synthesis}</p> : null}
-            {live && live.alerts.length === 0 ? <p className="board-empty">Aucune alerte active.</p> : null}
+            {live && live.alerts.length === 0 ? <p className="board-empty">Tout est à jour.</p> : null}
             {!live && !notice ? <p className="board-empty">Calcul des indicateurs...</p> : null}
           </div>
           <button className="board-ai" type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>{reportState === 'loading' ? 'Analyse...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}</button>
@@ -626,6 +634,24 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             </div>
           </header>
           <TrendChart series={series} />
+        </article>
+        <article className="board-card">
+          <header>
+            <h2><DashIcon name="trophy" /> Top 5 des employés les plus performants</h2>
+            <button type="button" aria-label="Voir les employés" onClick={() => onNavigate('employees')}>→</button>
+          </header>
+          <ol className="board-top">
+            {(live?.team ?? []).map((person, index) => (
+              <li key={person.name}>
+                <b>{index + 1}</b>
+                <span className={`board-avatar c${index % 5}`}>{person.initials}</span>
+                <span><strong>{person.name}</strong><small>{person.role}</small></span>
+                <span className="board-track"><i style={{ width: `${person.assigned ? person.rate ?? 0 : 0}%`, background: barColors[index % barColors.length] }} /></span>
+                <em>{person.assigned ? `${person.rate ?? 0}%` : 'N/A'}</em>
+              </li>
+            ))}
+          </ol>
+          {live && live.team.length === 0 ? <p className="board-empty">Le classement sera disponible lorsque suffisamment de tâches auront été renseignées.</p> : null}
         </article>
       </div>
     </section>
@@ -3140,7 +3166,7 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
       ['permissions', 'Permissions', 'calendar', String(Math.max(3, pendingPermissions))],
       ['documents', 'Documents', 'file'],
       ['messaging', 'Messagerie', 'message', String(Math.max(2, badge))],
-      ['alerts', "Centre d'alertes", 'bell', '6'],
+      ['alerts', "Centre d'alerte", 'bell', notices ? String(notices) : ''],
     ]
     const intel: Array<[string, string, string, string?]> = [
       ['assistant', 'Assistant IA', 'spark'],
@@ -3161,6 +3187,13 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
           <span className="lt-label">Intelligence</span>
           {intel.map(link)}
         </div>
+        {page === 'dashboard' ? (
+          <div className="lt-brand">
+            <span className="lt-net" aria-hidden="true" />
+            <p>Des données aujourd’hui, des décisions meilleures demain.</p>
+            <strong>RAC’IN <b>Africa</b></strong>
+          </div>
+        ) : null}
         <div className="lt-foot">
           <button className={`lt-link${page === 'settings' ? ' on' : ''}`} type="button" onClick={() => onPage('settings')}>
             <Icon name="settings" size={16} />
@@ -3210,7 +3243,7 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
   )
 }
 
-function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; notifCount: number; onNavigate: Go; onRole: (next: Role) => void; page: string }) {
+function Topbar({ role, notifCount, onNavigate, onRole, page, onMenu }: { role: Role; notifCount: number; onNavigate: Go; onRole: (next: Role) => void; page: string; onMenu?: () => void }) {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const catalog = role === 'admin'
@@ -3246,6 +3279,7 @@ function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; no
   return (
       <header className="topbar lt-top">
         <div className="lt-crumbs">
+          {onMenu ? <button className="board-menu" type="button" aria-label="Ouvrir le menu" onClick={onMenu}><Icon name="list" size={18} /></button> : null}
           <button type="button" onClick={() => onNavigate('dashboard')}>RAC’IN Africa</button>
           <Icon name="chevron" size={13} />
           <strong>{titles[page] ?? 'Tableau de bord'}</strong>
@@ -3256,9 +3290,18 @@ function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; no
             {role === 'admin' ? 'Vue employé' : 'Vue responsable'}
           </button>
           <div className="lt-search">
-            {searchOpen ? <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher..." aria-label="Recherche" autoFocus /> : null}
-            <button className="lt-icon" type="button" aria-label="Recherche" onClick={() => setSearchOpen((open) => !open)}><Icon name="search" size={17} /></button>
-            {searchOpen && query.trim().length > 1 ? (
+            {role === 'admin' && page === 'dashboard' ? (
+              <label className="board-search">
+                <Icon name="search" size={16} />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un employé, un projet, une tâche..." aria-label="Recherche" />
+              </label>
+            ) : (
+              <>
+                {searchOpen ? <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher..." aria-label="Recherche" autoFocus /> : null}
+                <button className="lt-icon" type="button" aria-label="Recherche" onClick={() => setSearchOpen((open) => !open)}><Icon name="search" size={17} /></button>
+              </>
+            )}
+            {(searchOpen || (role === 'admin' && page === 'dashboard')) && query.trim().length > 1 ? (
               <div className="search-drop">
                 {results.map((item) => <button key={item.label} type="button" onClick={() => { onNavigate(item.page); setQuery(''); setSearchOpen(false) }}>{item.label}<small>{item.meta}</small></button>)}
                 {results.length === 0 ? <button type="button">Aucun résultat</button> : null}
@@ -3391,6 +3434,7 @@ export default function App() {
   const [authed, setAuthed] = useState(false)
   const [role, setRole] = useState<Role>('admin')
   const [page, setPage] = useState('dashboard')
+  const [navOpen, setNavOpen] = useState(false)
   const [focusTask, setFocusTask] = useState('')
   const [focusTodo, setFocusTodo] = useState('')
   const [focusChat, setFocusChat] = useState('')
@@ -3600,10 +3644,10 @@ export default function App() {
   if (!authed) return <Login accounts={accounts} onSuccess={enter} />
 
   return (
-    <div className={`app-shell light${role === 'admin' && page === 'dashboard' ? ' board-mode' : ''}`}>
-      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
+    <div className={`app-shell light${role === 'admin' && page === 'dashboard' ? ' board-mode' : ''}${navOpen ? ' nav-open' : ''}`}>
+      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={(next) => { setNavOpen(false); go(next) }} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
-        <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />
+        <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} onMenu={role === 'admin' && page === 'dashboard' ? () => setNavOpen((open) => !open) : undefined} />
         <main>
           <div className={`content${role === 'admin' && page === 'dashboard' ? ' content-wide' : ''}`}>{view}</div>
         </main>
