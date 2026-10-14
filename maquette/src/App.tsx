@@ -3166,7 +3166,7 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
       ['permissions', 'Permissions', 'calendar', String(Math.max(3, pendingPermissions))],
       ['documents', 'Documents', 'file'],
       ['messaging', 'Messagerie', 'message', String(Math.max(2, badge))],
-      ['alerts', "Centre d'alerte", 'bell', notices ? String(notices) : ''],
+      ['alerts', "Centre d'alertes", 'bell', '6'],
     ]
     const intel: Array<[string, string, string, string?]> = [
       ['assistant', 'Assistant IA', 'spark'],
@@ -3187,13 +3187,6 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
           <span className="lt-label">Intelligence</span>
           {intel.map(link)}
         </div>
-        {page === 'dashboard' ? (
-          <div className="lt-brand">
-            <span className="lt-net" aria-hidden="true" />
-            <p>Des données aujourd’hui, des décisions meilleures demain.</p>
-            <strong>RAC’IN <b>Africa</b></strong>
-          </div>
-        ) : null}
         <div className="lt-foot">
           <button className={`lt-link${page === 'settings' ? ' on' : ''}`} type="button" onClick={() => onPage('settings')}>
             <Icon name="settings" size={16} />
@@ -3243,7 +3236,7 @@ function Sidebar({ role, page, badge, notices, pendingPermissions, onRole, onPag
   )
 }
 
-function Topbar({ role, notifCount, onNavigate, onRole, page, onMenu }: { role: Role; notifCount: number; onNavigate: Go; onRole: (next: Role) => void; page: string; onMenu?: () => void }) {
+function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; notifCount: number; onNavigate: Go; onRole: (next: Role) => void; page: string }) {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const catalog = role === 'admin'
@@ -3279,7 +3272,6 @@ function Topbar({ role, notifCount, onNavigate, onRole, page, onMenu }: { role: 
   return (
       <header className="topbar lt-top">
         <div className="lt-crumbs">
-          {onMenu ? <button className="board-menu" type="button" aria-label="Ouvrir le menu" onClick={onMenu}><Icon name="list" size={18} /></button> : null}
           <button type="button" onClick={() => onNavigate('dashboard')}>RAC’IN Africa</button>
           <Icon name="chevron" size={13} />
           <strong>{titles[page] ?? 'Tableau de bord'}</strong>
@@ -3434,7 +3426,6 @@ export default function App() {
   const [authed, setAuthed] = useState(false)
   const [role, setRole] = useState<Role>('admin')
   const [page, setPage] = useState('dashboard')
-  const [navOpen, setNavOpen] = useState(false)
   const [focusTask, setFocusTask] = useState('')
   const [focusTodo, setFocusTodo] = useState('')
   const [focusChat, setFocusChat] = useState('')
@@ -3644,10 +3635,10 @@ export default function App() {
   if (!authed) return <Login accounts={accounts} onSuccess={enter} />
 
   return (
-    <div className={`app-shell light${role === 'admin' && page === 'dashboard' ? ' board-mode' : ''}${navOpen ? ' nav-open' : ''}`}>
-      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={(next) => { setNavOpen(false); go(next) }} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
+    <div className={`app-shell light${role === 'admin' && page === 'dashboard' ? ' board-mode' : ''}`}>
+      <Sidebar role={role} page={page} badge={messageBadge} notices={bell} pendingPermissions={leaves.filter((item) => item.status === 'En attente').length} onRole={changeRole} onPage={go} onLogout={() => { sessionStorage.removeItem('racin-authed'); void leaveSession().catch(() => undefined); setAuthed(false) }} />
       <div className="workspace">
-        <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} onMenu={role === 'admin' && page === 'dashboard' ? () => setNavOpen((open) => !open) : undefined} />
+        <Topbar role={role} notifCount={bell} onNavigate={go} onRole={changeRole} page={page} />
         <main>
           <div className={`content${role === 'admin' && page === 'dashboard' ? ' content-wide' : ''}`}>{view}</div>
         </main>
