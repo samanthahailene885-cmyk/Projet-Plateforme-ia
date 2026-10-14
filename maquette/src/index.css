@@ -1976,7 +1976,7 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-rate { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .board-rate .board-track { flex: 1; width: auto; min-width: 48px; margin: 0; }
 .board-rate b { flex: none; color: #fff; }
-.board-avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; color: #fff; font-size: 11px; font-weight: 700; }
+.board-avatar { width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; color: #fff; font-size: 11px; font-weight: 700; object-fit: cover; }
 .board-avatar.c0 { background: #2563eb; }
 .board-avatar.c1 { background: #0f766e; }
 .board-avatar.c2 { background: #7c3aed; }

@@ -1,6 +1,24 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { deskCall, ensureAdminSession, enterSession, leaveSession, openSession, showSpace } from './work'
 import loginHero from './assets/login-hero.png'
+import portraitZaina from './assets/portraits/zaina.jpg'
+import portraitMariam from './assets/portraits/mariam.jpg'
+import portraitAicha from './assets/portraits/aicha.jpg'
+import portraitFatou from './assets/portraits/fatou.jpg'
+import portraitMariama from './assets/portraits/mariama.jpg'
+
+const boardPortraits: Record<string, string> = {
+  'zaina zaina': portraitZaina,
+  'mariam bah': portraitMariam,
+  'aicha toure': portraitAicha,
+  'fatou diarra': portraitFatou,
+  'mariama camara': portraitMariama,
+}
+
+function boardPortrait(name: string) {
+  const key = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return boardPortraits[key]
+}
 
 type Role = 'admin' | 'employee'
 type Go = (page: string) => void
@@ -571,7 +589,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             <div className="board-team-head"><span>Employé</span><span>Taux de réalisation</span><span>Tâches réalisées</span><span>Statut</span></div>
             {(live?.team ?? []).map((person, index) => (
               <div className="board-team-row" key={person.name}>
-                <span className="board-person"><span className={`board-avatar c${index % 5}`}>{person.initials}</span><span><strong>{person.name}</strong><small>{person.role}</small></span></span>
+                <span className="board-person">{boardPortrait(person.name) ? <img className="board-avatar" src={boardPortrait(person.name)} alt="" /> : <span className={`board-avatar c${index % 5}`}>{person.initials}</span>}<span><strong>{person.name}</strong><small>{person.role}</small></span></span>
                 <span className="board-rate"><span className="board-track"><i style={{ width: `${person.rate ?? 0}%`, background: barColors[index % barColors.length] }} /></span><b>{person.rate ?? 0}%</b></span>
                 <span>{person.score}/{person.assigned || person.score}</span>
                 <em className={`mark-${(person.mark || 'moyen').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}`}>{person.mark}</em>
@@ -644,7 +662,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             {(live?.team ?? []).map((person, index) => (
               <li key={person.name}>
                 <b>{index + 1}</b>
-                <span className={`board-avatar c${index % 5}`}>{person.initials}</span>
+                {boardPortrait(person.name) ? <img className="board-avatar" src={boardPortrait(person.name)} alt="" /> : <span className={`board-avatar c${index % 5}`}>{person.initials}</span>}
                 <span><strong>{person.name}</strong><small>{person.role}</small></span>
                 <span className="board-track"><i style={{ width: `${person.assigned ? person.rate ?? 0 : 0}%`, background: barColors[index % barColors.length] }} /></span>
                 <em>{person.assigned ? `${person.rate ?? 0}%` : 'N/A'}</em>
