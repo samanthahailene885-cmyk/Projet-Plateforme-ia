@@ -1883,10 +1883,10 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .app-shell.board-mode main,
 .app-shell.board-mode .content { background: #03152B; }
 .app-shell.board-mode .content.content-wide {
-  width: min(1380px, calc(100% - 72px));
-  max-width: 1380px;
+  width: calc(100% - 32px);
+  max-width: none;
   margin: 0 auto;
-  padding: 22px 0 48px;
+  padding: 18px 0 36px;
 }
 .app-shell.board-mode .lt-top { height: 66px; min-height: 66px; background: #041A34; border-bottom-color: #12304D; color: #F4F7FC; }
 .app-shell.board-mode .lt-profile,
@@ -1917,15 +1917,15 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .app-shell.light.board-mode .board h2 { color: #fff; }
 .app-shell.light.board-mode .board th { color: #8ea3bf; }
 .board { color: #e8f0fa; }
-.board-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.board-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
 .board-head h1 { margin: 0; color: #fff; font-size: 30px; letter-spacing: -0.03em; }
 .board-head p { max-width: 680px; margin: 6px 0 0; color: #8ea3bf; font-size: 14px; }
 .board-date { display: flex; align-items: center; gap: 10px; min-width: 180px; padding: 10px 14px; border: 1px solid #1e3a5c; border-radius: 14px; background: #10203a; color: #e8f0fa; }
 .board-date small { display: block; color: #8ea3bf; font-size: 12px; }
 .board-note { color: #fbbf24; }
-.board-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-bottom: 22px; }
+.board-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .board-kpi {
-  position: relative; min-height: 112px; padding: 14px 76px 14px 14px; text-align: left; color: inherit;
+  position: relative; min-height: 118px; padding: 14px 78px 14px 16px; text-align: left; color: inherit;
   display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; align-content: center; row-gap: 4px;
   background: #061C35; border: 1px solid #123B60; border-radius: 14px;
   box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); transition: border-color 160ms ease;
@@ -1948,9 +1948,12 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-ring circle.track { stroke: #1c3354; }
 .board-ring circle.arc { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 22px 22px; }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
-.board-mid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.03fr) minmax(250px, 0.97fr); gap: 22px; margin-bottom: 22px; align-items: start; }
-.board-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.95fr); gap: 22px; }
-.board-stack { display: grid; gap: 20px; min-width: 0; }
+.board-mid { display: grid; grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr) minmax(280px, 0.92fr); gap: 14px; margin-bottom: 14px; align-items: stretch; }
+.board-bottom { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr); gap: 14px; align-items: stretch; }
+.board-stack { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 14px; min-width: 0; height: 100%; }
+.board-mid > .board-card,
+.board-bottom > .board-card,
+.board-stack > .board-card:last-child { height: 100%; }
 .board-card { min-width: 0; width: 100%; padding: 18px; background: #061C35; border: 1px solid #123B60; border-radius: 14px; box-shadow: 0 8px 20px rgba(2, 8, 20, 0.16); }
 .board-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .board-card h2 { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin: 0; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.25; }
@@ -2058,7 +2061,7 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   border: 0; background: transparent; color: #F4F7FC; font-weight: 700; font-size: 13px; outline: none;
 }
 @media (max-width: 1279px) {
-  .app-shell.board-mode .content.content-wide { width: min(1380px, calc(100% - 48px)); padding-top: 16px; }
+  .app-shell.board-mode .content.content-wide { width: calc(100% - 28px); padding-top: 14px; }
 }
 @media (max-width: 1200px) {
   .board-kpis, .board-mid, .board-bottom { grid-template-columns: 1fr 1fr; }
