@@ -654,7 +654,13 @@
                                     </span>
                                 </td>
                                 <td class="ac-task">{{ row.title }}</td>
-                                <td><div class="ac-desc">{{ row.description }}</div></td>
+                                <td><div class="ac-desc">{{ row.description }}</div>
+                                    {% if row.risk_score %}
+                                    <div class="ac-desc">Score {{ row.risk_score }}/100{% if row.project_name %} · {{ row.project_name }}{% endif %}{% if row.risk_due %} · échéance {{ row.risk_due|date:"d/m/Y" }}{% endif %}</div>
+                                    {% if row.risk_detail %}<div class="ac-desc">{{ row.risk_detail }}</div>{% endif %}
+                                    {% if row.risk_recommendation %}<div class="ac-desc">{{ row.risk_recommendation }}</div>{% endif %}
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <div class="ac-who">{{ row.emitter }}</div>
                                     {% if row.role %}<div class="ac-role">({{ row.role }})</div>{% endif %}

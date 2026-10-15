@@ -1647,6 +1647,9 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .lp-alert-card strong { display: block; margin: 3px 0; }
 .lp-alert-card p { color: #69758b; font-size: 13px; }
 .lp-alert-card time { display: block; margin-top: 6px; color: #a2abba; font-size: 12px; }
+.lp-risk-detail { margin-top: 8px; display: grid; gap: 4px; }
+.lp-risk-detail p { margin: 0; color: #52627a; font-size: 12px; line-height: 1.4; }
+.lp-risk-detail button { width: fit-content; margin-top: 4px; border: 0; background: transparent; color: #3478f6; font-size: 12px; font-weight: 700; padding: 0; }
 .lp-alert-card > button { border: 0; background: transparent; color: #69758b; align-self: center; }
 .lp-alert-card.read { opacity: 0.55; }
 
@@ -1950,6 +1953,12 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .board-ring text { fill: #fff; font-size: 8px; font-weight: 700; text-anchor: middle; }
 .board-mid { display: grid; grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr) minmax(280px, 0.92fr); gap: 14px; margin-bottom: 14px; align-items: stretch; }
 .board-bottom { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr); gap: 14px; align-items: stretch; }
+.board-watch { margin-bottom: 14px; }
+.board-watch-grid { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: center; }
+.board-watch-kpis { display: grid; gap: 8px; }
+.board-watch-kpis p { margin: 0; }
+.board-watch-kpis strong { display: block; color: #fff; font-size: 22px; line-height: 1; }
+.board-watch-kpis span { color: #8ea3bf; font-size: 12px; }
 .board-stack { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 14px; min-width: 0; height: 100%; }
 .board-mid > .board-card,
 .board-bottom > .board-card,
@@ -2072,4 +2081,5 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   .board-kpi { padding-right: 84px; }
   .app-shell.board-mode .lt-search { max-width: 220px; min-width: 0; }
   .board-team-head span:nth-child(3), .board-team-row > span:nth-child(3) { display: none; }
+  .board-watch-grid { grid-template-columns: 1fr; }
 }

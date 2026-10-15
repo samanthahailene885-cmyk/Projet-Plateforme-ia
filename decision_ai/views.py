@@ -179,6 +179,7 @@ _KIND_STYLE = {
     'Permission': ('permission', 'Permission', 'green', 'check'),
     'Todo list': ('systeme', 'Système', 'blue', 'info'),
     'Rapport': ('rapport', 'Rapport', 'blue', 'info'),
+    'Difficulté': ('tache', 'Tâche', 'orange', 'exclaim'),
 }
 
 _LEVEL_BUCKET = {
@@ -264,6 +265,13 @@ def _present_alerts(alerts, reads):
             'status_label': status_label,
             'status_tone': status_tone,
             'bucket': bucket,
+            'risk_score': alert.get('risk_score') or '',
+            'risk_cause': alert.get('risk_cause') or '',
+            'risk_recommendation': alert.get('risk_recommendation') or '',
+            'risk_detail': alert.get('risk_detail') or '',
+            'risk_due': alert.get('risk_due'),
+            'project_name': alert.get('project_name') or alert.get('project') or '',
+            'task_title': alert.get('task_title') or '',
         })
     rows.sort(key=lambda row: _BUCKET_ORDER.get(row['bucket'], 9))
     return rows

@@ -1017,21 +1017,53 @@ def alerts_view(request):
     sync_deadline_notifications()
     today = timezone.localdate()
     soon = today + timedelta(days=2)
+    from decision_ai.models import OperationalAlert
+    from decision_ai.risks import api_risk_fields, sync_operational_alerts
+    sync_operational_alerts(today)
+    indexed = {
+        (row.task_id, row.kind): row
+        for row in OperationalAlert.objects.filter(status='open').select_related('project', 'task')
+        if row.task_id
+    }
+    by_project = {
+        (row.project_id, row.kind): row
+        for row in OperationalAlert.objects.filter(status='open').select_related('project', 'task')
+        if row.project_id
+    }
+    seen_tasks = set()
     alerts = []
     late_tasks = Task.objects.select_related('assigned_to__user', 'project').exclude(status__in=Task.CLOSED_STATUSES).filter(due_date__lt=today)
     for task in late_tasks[:12]:
         who = task.assigned_to.full_name if task.assigned_to_id else 'Non assignée'
-        alerts.append({'kind': 'retard', 'title': 'Tâche en retard', 'text': f'« {task.title} » — {who}', 'tone': 'danger'})
-    soon_tasks = Task.objects.select_related('assigned_to__user').exclude(status__in=Task.CLOSED_STATUSES).filter(due_date__gte=today, due_date__lte=soon)
+        item = {'kind': 'retard', 'title': 'Tâche en retard', 'text': f'« {task.title} » — {who}', 'tone': 'danger'}
+        risk = indexed.get((task.pk, 'task_late'))
+        if risk:
+            item.update(api_risk_fields(risk))
+            seen_tasks.add(task.pk)
+        alerts.append(item)
+    soon_tasks = Task.objects.select_related('assigned_to__user', 'project').exclude(status__in=Task.CLOSED_STATUSES).filter(due_date__gte=today, due_date__lte=soon)
     for task in soon_tasks[:8]:
-        alerts.append({'kind': 'echeance', 'title': 'Tâche proche de l\'échéance', 'text': f'« {task.title} » le {task.due_date:%d/%m/%Y}', 'tone': 'warning'})
-    for item in Difficulty.objects.filter(status='open').select_related('employee__user')[:8]:
-        alerts.append({'kind': 'difficulte', 'title': 'Difficulté signalée', 'text': f'{item.employee.full_name} : {item.description[:140]}', 'tone': 'warning'})
+        item = {'kind': 'echeance', 'title': 'Tâche proche de l\'échéance', 'text': f'« {task.title} » le {task.due_date:%d/%m/%Y}', 'tone': 'warning'}
+        risk = indexed.get((task.pk, 'task_soon'))
+        if risk:
+            item.update(api_risk_fields(risk))
+            seen_tasks.add(task.pk)
+        alerts.append(item)
+    for item_row in Difficulty.objects.filter(status='open').select_related('employee__user', 'project', 'task')[:8]:
+        item = {'kind': 'difficulte', 'title': 'Difficulté signalée', 'text': f'{item_row.employee.full_name} : {item_row.description[:140]}', 'tone': 'warning'}
+        risk = OperationalAlert.objects.filter(fingerprint=f'difficulty:{item_row.pk}', status='open').select_related('project', 'task').first()
+        if risk and item_row.task_id not in seen_tasks:
+            item.update(api_risk_fields(risk))
+        alerts.append(item)
     for project in Project.objects.filter(end_date__lt=today).exclude(status__in=['completed', 'cancelled'])[:8]:
-        alerts.append({'kind': 'projet', 'title': 'Projet en retard', 'text': project.name, 'tone': 'danger'})
+        item = {'kind': 'projet', 'title': 'Projet en retard', 'text': project.name, 'tone': 'danger'}
+        risk = by_project.get((project.pk, 'project_end'))
+        if risk:
+            item.update(api_risk_fields(risk))
+        alerts.append(item)
     pending = PermissionRequest.objects.filter(status='pending').select_related('employee__user')
-    for item in pending[:8]:
-        alerts.append({'kind': 'permission', 'title': 'Permission en attente', 'text': f'{item.employee.full_name} — {item.reason[:80]}', 'tone': 'info'})
+    for item_row in pending[:8]:
+        alerts.append({'kind': 'permission', 'title': 'Permission en attente', 'text': f'{item_row.employee.full_name} — {item_row.reason[:80]}', 'tone': 'info'})
     filled = set(DailyPlan.objects.filter(date=today, submitted_at__isnull=False).values_list('employee_id', flat=True))
     missing = Employee.objects.filter(status='active').exclude(pk__in=filled).select_related('user')
     for person in missing[:12]:

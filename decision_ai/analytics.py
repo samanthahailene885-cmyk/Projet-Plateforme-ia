@@ -269,7 +269,8 @@ def collect_alerts(today):
             'detected_on': today,
         })
 
-    return alerts
+    from decision_ai.risks import enrich_alerts
+    return enrich_alerts(alerts, today)
 
 
 def agency_overview(today):

@@ -261,6 +261,7 @@ type LiveDash = {
   compare?: { completed: number | null; in_progress: number | null; overdue: number | null }
   team: { rank: string; initials: string; name: string; role: string; width: string; score: string; assigned?: number; rate?: number; mark?: string }[]
   alerts: { title: string; text: string; kind?: string }[]
+  risks?: { open: number; high: number; medium: number; low: number; projects: { name: string; score: number; count: number; level: string; cause: string }[] }
   brief: string
 }
 
@@ -643,6 +644,29 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
           <button className="board-ai" type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>{reportState === 'loading' ? 'Analyse...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}</button>
         </article>
       </div>
+      <article className="board-card board-watch">
+        <header>
+          <h2>Projets à surveiller</h2>
+          <button type="button" onClick={() => onNavigate('alerts')}>Centre d’alerte →</button>
+        </header>
+        <div className="board-watch-grid">
+          <div className="board-watch-kpis">
+            <p><strong>{live?.risks?.high ?? 0}</strong><span>Risques élevés</span></p>
+            <p><strong>{live?.risks?.open ?? 0}</strong><span>Risques ouverts</span></p>
+            <p><strong>{live?.risks?.projects?.length ?? 0}</strong><span>Projets concernés</span></p>
+          </div>
+          <ul className="board-services">
+            {(live?.risks?.projects ?? []).map((project) => (
+              <li key={project.name}>
+                <span>{project.name}</span>
+                <span className="board-track"><i style={{ width: `${project.score}%`, background: project.level === 'Élevé' ? '#FF5364' : project.level === 'À suivre' ? '#FF9F43' : '#19D3C5' }} /></span>
+                <b>{project.score}</b>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {live && !(live.risks?.projects ?? []).length ? <p className="board-empty">Aucun projet à surveiller pour le moment.</p> : null}
+      </article>
       <div className="board-bottom">
         <article className="board-card">
           <header>
@@ -2825,20 +2849,30 @@ function DocumentsPage({ onNavigate }: { onNavigate: Go }) {
   )
 }
 
-function AlertsPage() {
-  const [alerts, setAlerts] = useState<{ id: string; level: string; tone: string; iconTone: string; icon: string; title: string; text: string; time: string }[]>([])
+function AlertsPage({ onNavigate }: { onNavigate: Go }) {
+  const [alerts, setAlerts] = useState<{ id: string; level: string; tone: string; iconTone: string; icon: string; title: string; text: string; time: string; project: string; task: string; severity: string; cause: string; due: string; recommendation: string; score: number | null; detail: string; page: string }[]>([])
+  const [opened, setOpened] = useState('')
   useEffect(() => {
     deskCall('/api/alertes/').then((data) => {
-      const rows = (data.alerts ?? []) as { kind: string; title: string; text: string; tone: string }[]
+      const rows = (data.alerts ?? []) as { id?: string; kind: string; title: string; text: string; tone: string; project?: string; task?: string; severity?: string; cause?: string; due?: string; recommendation?: string; score?: number; detail?: string; page?: string }[]
       setAlerts(rows.map((item, index) => ({
-        id: `${item.kind}-${index}`,
-        level: item.tone === 'danger' ? 'Priorité haute' : 'Information',
-        tone: item.tone === 'danger' ? 'high' : 'info',
-        iconTone: item.tone === 'danger' ? 'high' : 'info',
+        id: item.id || `${item.kind}-${item.title}-${index}`,
+        level: item.severity || (item.tone === 'danger' ? 'Priorité haute' : 'Information'),
+        tone: item.tone === 'danger' ? 'high' : item.score ? 'soft' : 'info',
+        iconTone: item.tone === 'danger' ? 'high' : item.score ? 'soft' : 'info',
         icon: item.kind === 'permission' || item.kind === 'todo' ? 'bell' : 'alert',
         title: item.title,
         text: item.text,
-        time: 'Aujourd’hui',
+        time: item.due ? `Échéance ${item.due}` : 'Aujourd’hui',
+        project: item.project || '',
+        task: item.task || '',
+        severity: item.severity || '',
+        cause: item.cause || '',
+        due: item.due || '',
+        recommendation: item.recommendation || '',
+        score: item.score ?? null,
+        detail: item.detail || '',
+        page: item.page || '',
       })))
     }).catch(() => undefined)
   }, [])
@@ -2854,9 +2888,18 @@ function AlertsPage() {
               <small>{item.level}</small>
               <strong>{item.title}</strong>
               <p>{item.text}</p>
+              {item.project ? <p>{item.project}{item.task ? ` · ${item.task}` : ''}</p> : null}
               <time>{item.time}</time>
+              {opened === item.id ? (
+                <div className="lp-risk-detail">
+                  {item.score != null ? <p>Score {item.score}/100. {item.detail}</p> : null}
+                  {item.cause ? <p>{item.cause}</p> : null}
+                  {item.recommendation ? <p>{item.recommendation}</p> : null}
+                  {item.page ? <button type="button" onClick={() => onNavigate(item.page)}>{item.page === 'tasks' ? 'Ouvrir la tâche' : 'Ouvrir le projet'}</button> : null}
+                </div>
+              ) : null}
             </span>
-            <button type="button" aria-label="Ouvrir" onClick={() => setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id])}><Icon name="chevron" size={16} /></button>
+            <button type="button" aria-label="Ouvrir" onClick={() => { setOpened((current) => current === item.id ? '' : item.id); setRead((prev) => prev.includes(item.id) ? prev : [...prev, item.id]) }}><Icon name="chevron" size={16} /></button>
           </article>
         ))}
       </div>
@@ -3641,7 +3684,7 @@ export default function App() {
     if (page === 'reports') return role === 'employee' ? <EmployeeReportPage /> : <ReportsPage staff={reportStaff} library={library} />
     if (page === 'permissions') return <PermissionsPage role={role} extra={leaves} who={requester} onSend={(item) => setLeaves((prev) => [item, ...prev])} onDecide={(id, status) => setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, status, seen: true } : item))} />
     if (page === 'documents') return <DocumentsPage onNavigate={go} />
-    if (page === 'alerts') return <AlertsPage />
+    if (page === 'alerts') return <AlertsPage onNavigate={go} />
     if (page === 'messaging') return <MessagingPage key={role} role={role} focus={focusChat} />
     if (page === 'notifications') return <NotificationsPage incoming={leaves} onChanged={setBell} onOpen={(id) => { setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, seen: true } : item)); setPage('permissions') }} onOpenTask={(id) => { setFocusTask(id); setPage('tasks') }} onOpenProject={() => setPage('projects')} onOpenTodo={(id) => { setFocusTodo(id); setPage('todos') }} onOpenMessage={(id) => { setFocusChat(id); setPage('messaging') }} />
     if (page === 'assistant') return <AssistantPage key={role} role={role} />

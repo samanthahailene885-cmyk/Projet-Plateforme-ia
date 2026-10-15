@@ -17,6 +17,7 @@ from permissions.models import PermissionRequest
 from attendance.models import Attendance
 from reports.models import DailyReport
 from decision_ai.analytics import IN_PROGRESS, day_stats, tasks_on_date
+from decision_ai.risks import risk_board
 
 FRENCH_DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 FRENCH_MONTHS = {
@@ -380,6 +381,7 @@ def dashboard_metrics_json(request):
         },
         'alerts': metrics['alert_rows'],
         'brief': _quick_brief(selected),
+        'risks': risk_board(),
     })
 
 
