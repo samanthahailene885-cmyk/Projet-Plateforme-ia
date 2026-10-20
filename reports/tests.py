@@ -184,6 +184,26 @@ class TeamSynthesisTests(TestCase):
         self.assertNotIn('Rapport de la veille', prompt)
         self.assertIn('ne signifie pas', prompt.lower())
 
+    def test_imported_document_text_is_read_for_the_synthesis(self):
+        import io
+
+        from django.core.files.base import ContentFile
+        from reportlab.pdfgen import canvas
+
+        buffer = io.BytesIO()
+        sheet = canvas.Canvas(buffer)
+        sheet.drawString(72, 720, "Avancement de la maquette CuisineFacile pour la page d accueil.")
+        sheet.save()
+        report = DailyReport.objects.get(employee=self.aminata, date=self.today)
+        report.uploaded_pdf.save('jour.pdf', ContentFile(buffer.getvalue()), save=True)
+        dossier = collect_team_synthesis(self.today)
+        prompt = synthesis_prompt(dossier)
+        self.assertIn('CuisineFacile', prompt)
+        self.assertIn("J'ai poursuivi la mise à jour du planning de livraison.", prompt)
+        text = compose_team_synthesis(dossier)
+        self.assertIn('CuisineFacile', text)
+        self.assertNotIn('Moussa', text)
+
     def test_page_shows_backend_counts_and_the_synthesis_button(self):
         response = self.client.get(reverse('reports:list'))
         self.assertContains(response, 'Générer la synthèse IA')

@@ -108,6 +108,14 @@ REMARK_SYSTEM = (
     "Tu renvoies uniquement la phrase reformulée, sans préambule."
 )
 
+SYNTHESIS_SYSTEM = (
+    "Tu rédiges une synthèse globale des rapports journaliers déjà soumis. "
+    "Tu t'appuies sur le texte lu dans les documents importés et sur les notes des employés. "
+    "Tu n'inventes aucun fait, aucun employé et aucune activité absents de ces textes. "
+    "Si le texte d'un fichier n'a pas pu être lu, tu le dis sans le reconstituer à partir de son nom. "
+    "Tu écris en français, en quelques paragraphes, sans juger les employés."
+)
+
 SUMMARY_SYSTEM = (
     "Tu rédiges un résumé pour le responsable d'une agence de communication. "
     "Les chiffres fournis ont déjà été calculés : tu les reprends tels quels. "
@@ -381,12 +389,14 @@ class DecisionAIService:
 
     def synthesize_submitted_reports(self, day):
         """Une synthèse d'équipe à partir des rapports soumis dans la base."""
-        from reports.synthesis import collect_team_synthesis, compose_team_synthesis
+        from reports.synthesis import collect_team_synthesis, compose_team_synthesis, synthesis_prompt
 
         dossier = collect_team_synthesis(day)
         if dossier['analyzed'] == 0:
             raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
-        return compose_team_synthesis(dossier), dossier
+        fallback = compose_team_synthesis(dossier)
+        text = self._complete_or(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), fallback, max_tokens=900)
+        return text, dossier
 
     def generate_monthly_report(self):
         today = timezone.now().date()

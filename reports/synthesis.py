@@ -107,6 +107,7 @@ def collect_team_synthesis(day):
             'position': person.get_position_display(),
             'service': (person.department or '').strip() or 'Non renseigné',
             'content': report.content.strip(),
+            'document': _document_text(report),
             'tasks_completed_note': (report.tasks_completed or '').strip(),
             'tasks_in_progress_note': (report.tasks_in_progress or '').strip(),
             'done': [_activity_line(task) for task in done],
@@ -176,6 +177,8 @@ def synthesis_prompt(dossier):
             f"Service : {report['service']}",
             "Texte du rapport soumis :",
             report['content'],
+            "Texte lu dans le fichier importé :",
+            report.get('document') or "Aucun texte n'a pu être lu dans le fichier.",
             _section('Activités réalisées', report['done']),
             _section('Activités en cours', report['doing']),
             _section('Activités non réalisées', report['skipped']),
@@ -191,6 +194,8 @@ def synthesis_prompt(dossier):
     lines.extend([
         '',
         "Rédige une seule synthèse globale à partir de ces seuls éléments.",
+        "Le texte lu dans chaque fichier importé est la source principale du résumé.",
+        "Si aucun texte n'a pu être lu, dis-le et ne reconstitue pas le document à partir de son nom.",
         "Ne recopie pas les rapports les uns après les autres.",
         "Ne cite aucun employé absent de cette liste.",
     ])
@@ -271,6 +276,28 @@ def _count_word(count, capital=False):
     return word[:1].upper() + word[1:] if capital else word
 
 
+def _document_text(report):
+    uploaded = getattr(report, 'uploaded_pdf', None)
+    if not uploaded:
+        return ''
+    try:
+        from reports.extract import extract_report_text
+        return extract_report_text(uploaded).strip()[:8000]
+    except Exception:
+        return ''
+
+
+def _document_lines(reports):
+    lines = []
+    for report in reports:
+        text = _plain_content(report.get('document') or '')
+        if not text:
+            continue
+        excerpt = text[:900].rstrip()
+        lines.append(f"Le document transmis par {report['name']} indique : {excerpt}")
+    return lines
+
+
 def _file_names(reports):
     found = []
     for report in reports:
@@ -295,6 +322,7 @@ def compose_team_synthesis(dossier):
     remarks = _remarks(reports)
     projects = [name for name in dossier['projects'] if name]
     files = _file_names(reports)
+    documents = _document_lines(reports)
     completed = dossier['completed']
     in_progress = dossier['in_progress']
     missing = dossier['missing']
@@ -383,7 +411,11 @@ def compose_team_synthesis(dossier):
     )
 
     title = f"### Synthèse de la journée — {day.day:02d} {_MONTHS[day.month - 1]} {day.year}"
-    return '\n\n'.join([title, opening, progress, difficulty, project_text, missing_text, closing])
+    parts = [title, opening, progress, difficulty, project_text, missing_text]
+    if documents:
+        parts.append(' '.join(documents))
+    parts.append(closing)
+    return '\n\n'.join(parts)
 
 
 def synthesis_title(day, analyzed):

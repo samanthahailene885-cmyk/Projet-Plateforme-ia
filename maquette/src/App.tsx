@@ -2123,9 +2123,14 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   const [note, setNote] = useState('')
   const [opened, setOpened] = useState<ReportFile | null>(null)
   const [live, setLive] = useState<(typeof dailyReports[number] & { url?: string })[] | null>(null)
+  const [reportDate, setReportDate] = useState('')
+  const [synthesis, setSynthesis] = useState('')
+  const [synthError, setSynthError] = useState('')
+  const [synthesizing, setSynthesizing] = useState(false)
   useEffect(() => {
     deskCall('/api/rapports/').then((data) => {
       const reports = (data.reports ?? []) as { name: string; username: string; submitted: boolean; filename: string; url: string; sent_at: string }[]
+      setReportDate(String(data.date || ''))
       setLive(reports.map((item) => ({
         initials: item.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '—',
         tone: 'violet',
@@ -2158,6 +2163,34 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
     link.download = 'rapports-journaliers.txt'
     link.click()
   }
+  async function generateSynthesis() {
+    setSynthesizing(true)
+    setSynthError('')
+    setSynthesis('')
+    try {
+      await ensureAdminSession()
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+        setSynthError('La liste des rapports n’est pas encore chargée.')
+        return
+      }
+      const response = await fetch('/reports/synthese/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
+        body: new URLSearchParams({ date: reportDate }),
+      })
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; error?: string } | null
+      if (!response.ok || !data?.ok || !data.synthesis) {
+        setSynthError(data?.error || 'La synthèse n’a pas pu être générée.')
+        return
+      }
+      setSynthesis(data.synthesis)
+    } catch (error) {
+      setSynthError(error instanceof Error ? error.message : 'La synthèse n’a pas pu être générée.')
+    } finally {
+      setSynthesizing(false)
+    }
+  }
   function openReport(name: string, url?: string) {
     if (url) {
       const link = document.createElement('a')
@@ -2176,7 +2209,7 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   }
   return (
     <section className="lp">
-      <LightHead kicker="Suivi quotidien" title="Rapports journaliers" text="Centralisez et analysez les comptes rendus de vos équipes." action={<button className="lp-btn" type="button" onClick={exportReports}><Icon name="download" size={14} /> Exporter les rapports</button>} />
+      <LightHead kicker="Suivi quotidien" title="Rapports journaliers" text="Centralisez et analysez les comptes rendus de vos équipes." action={<button className="lp-btn" type="button" disabled={synthesizing} onClick={generateSynthesis}><Icon name="file" size={14} /> {synthesizing ? 'Lecture des rapports…' : 'Générer la synthèse de tous les rapports'}</button>} />
       <div className="lp-day">
         <span className="lp-folder"><Icon name="file" size={16} /></span>
         <div>
@@ -2188,6 +2221,8 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
         <button type="button" onClick={() => setNote('Les 9 employés ont été relancés.')}>Relancer les 9 employés <Icon name="send" size={14} /></button>
       </div>
       {note ? <p className="lp-note">{note}</p> : null}
+      {synthError ? <p className="lp-note bad">{synthError}</p> : null}
+      {synthesis ? <article className="lp-synthesis"><h2>Synthèse globale</h2><p>{synthesis}</p></article> : null}
       <div className="lp-panel">
         <div className="lp-tools">
           <label><Icon name="search" size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un rapport..." /></label>

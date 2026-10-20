@@ -1545,6 +1545,9 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   border-radius: 99px; background: #3478f6; color: white; font-size: 10px;
 }
 .lp-note { margin: -4px 0 12px; color: #1faa78; font-size: 13px; }
+.lp-synthesis { margin: 0 0 14px; padding: 18px 20px; background: #fff; border: 1px solid #e8edf4; border-radius: 16px; }
+.lp-synthesis h2 { margin: 0 0 8px; font-family: Manrope, sans-serif; font-size: 16px; color: #14213d; }
+.lp-synthesis p { margin: 0; white-space: pre-wrap; color: #4d5b73; font-size: 14px; line-height: 1.55; }
 .my-report-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr); gap: 16px; align-items: start; }
 .my-report-grid > article, .my-report-grid > aside {
   background: white; border: 1px solid #e8edf4; border-radius: 16px; padding: 18px 18px 16px;

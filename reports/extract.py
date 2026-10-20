@@ -1,6 +1,5 @@
 """Lecture du texte déjà présent dans un PDF ou un DOCX importé."""
 import io
-import re
 import zipfile
 from xml.etree import ElementTree
 
@@ -8,7 +7,10 @@ from xml.etree import ElementTree
 def extract_report_text(uploaded):
     name = (getattr(uploaded, 'name', '') or '').lower()
     data = uploaded.read()
-    uploaded.seek(0)
+    try:
+        uploaded.seek(0)
+    except (AttributeError, OSError):
+        pass
     if name.endswith('.docx'):
         return _docx_text(data)
     if name.endswith('.pdf'):
@@ -34,12 +36,19 @@ def _docx_text(data):
     return '\n'.join(parts).strip()[:20000]
 
 
+def _readable(text):
+    letters = sum(character.isalpha() for character in text)
+    return letters >= 20 and letters >= len(text) * 0.25
+
+
 def _pdf_text(data):
-    chunks = []
-    for match in re.finditer(br'\(((?:\\\)|[^)]){3,})\)', data):
-        raw = match.group(1).replace(b'\\(', b'(').replace(b'\\)', b')').replace(b'\\n', b'\n')
-        text = raw.decode('latin-1', errors='ignore').strip()
-        letters = sum(character.isalpha() for character in text)
-        if letters >= 3:
-            chunks.append(text)
-    return '\n'.join(chunks).strip()[:20000]
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(data))
+        parts = [(page.extract_text() or '').strip() for page in reader.pages]
+    except Exception:
+        return ''
+    text = '\n'.join(part for part in parts if part).strip()
+    if not _readable(text):
+        return ''
+    return text[:20000]
