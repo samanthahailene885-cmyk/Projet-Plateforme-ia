@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { deskCall, ensureAdminSession, enterSession, leaveSession, openSession, showSpace } from './work'
+import { deskCall, ensureAdminSession, ensureEmployeeSession, enterSession, leaveSession, openSession, showSpace } from './work'
 import loginHero from './assets/login-hero.png'
 import portraitZaina from './assets/portraits/zaina.jpg'
 import portraitMariam from './assets/portraits/mariam.jpg'
@@ -2049,11 +2049,13 @@ function EmployeeReportPage() {
     }
     const body = new FormData()
     body.set('file', file)
+    const note = message.trim()
+    if (note) body.set('message', note)
     try {
+      await ensureEmployeeSession()
       const data = await deskCall('/api/rapports/', { method: 'POST', body })
       setSent(true)
       setError('')
-      setMessage(data.message || 'Rapport envoyé.')
       setHistory((prev) => [{ date: data.report.date, name: data.report.name, time: data.report.sent_at, url: data.report.url }, ...prev])
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Envoi impossible.')
@@ -3621,7 +3623,7 @@ export default function App() {
           setAccount({ username: zaina.username, email: zaina.email, password: '', first: 'zaina', last: 'zaina' })
         }
       }
-    }).catch(() => setRole(next))
+    }).catch(() => undefined)
     const allowed = next === 'admin' ? adminPages : employeePages
     if (!allowed.includes(page)) setPage('dashboard')
   }

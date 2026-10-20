@@ -867,16 +867,20 @@ def reports_view(request):
     )
     if report.uploaded_pdf:
         report.uploaded_pdf.delete(save=False)
+    note = (request.POST.get('message') or '').strip()
     report.uploaded_pdf = uploaded
     report.original_name = filename[:180]
     report.file_size = uploaded.size or 0
     report.ai_generated = False
-    report.content = f'Fichier importé : {filename}.'
+    report.content = note or f'Fichier importé : {filename}.'
     report.save()
     name = _user_card(request.user)['name']
+    notice = f'Rapport de {name} reçu.'
+    if note:
+        notice = f'{notice} {note[:180]}'
     _notify_admins(
         'Rapport reçu',
-        f'Rapport de {name} reçu.',
+        notice,
         'success',
         f'/api/rapports/{report.pk}/fichier/',
     )

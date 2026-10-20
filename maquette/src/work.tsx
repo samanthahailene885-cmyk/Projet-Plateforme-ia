@@ -112,6 +112,19 @@ export async function ensureAdminSession(): Promise<LiveUser> {
   return current
 }
 
+export async function ensureEmployeeSession(): Promise<LiveUser> {
+  await openSession()
+  let current = await openSession().catch(() => null)
+  if (current?.role === 'employee') return current
+  if (!current) current = await enterSession('admin', 'admin123')
+  if (current.role !== 'employee') {
+    const data = await call('/api/basculer/', { method: 'POST', body: '{}' })
+    current = data.user as LiveUser
+  }
+  if (!current || current.role !== 'employee') throw new Error('Reconnectez-vous pour envoyer le rapport.')
+  return current
+}
+
 export async function leaveSession() {
   await openSession()
   await call('/api/deconnexion/', { method: 'POST', body: '{}' })
