@@ -2145,6 +2145,8 @@ function synthesisSections(text: string) {
   flush()
   return sections.filter((section) => {
     if (!section.lines.length) return false
+    const title = section.title.toLowerCase()
+    if (['situation des projets', 'difficult', 'vigilance', 'recommand', 'participation'].some((part) => title.includes(part))) return false
     const blob = section.lines.join(' ').toLowerCase()
     return section.title || !blob.includes('analyse générative')
   })

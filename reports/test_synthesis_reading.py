@@ -109,12 +109,9 @@ class SynthesisReadingTests(TestCase):
                 content="Le client bloque la validation du visuel. J'ai préparé la maquette du projet Campagne.",
             ),
         ]))
-        vigilance = text.split('### D. Difficultés')[1].split('### E.')[0]
-        advances = text.split('### B. Avancées')[1].split('### C.')[0]
-        self.assertIn('bloque', vigilance.lower())
-        self.assertNotIn('réalisation confirmée', vigilance.lower())
-        self.assertIn('préparation', advances.lower())
-        self.assertIn('Recommandation :', text)
+        self.assertIn('préparation', text.lower())
+        self.assertNotIn('Situation des projets', text)
+        self.assertNotIn('Actions recommandées', text)
 
     def test_confirmed_work_and_ongoing_work_are_both_visible(self):
         text = compose_team_synthesis(_dossier(self.day, [
@@ -132,9 +129,9 @@ class SynthesisReadingTests(TestCase):
         text = compose_team_synthesis(_dossier(self.day, [
             _report('Zaina Zaina', content='Préparation de la maquette CuisineFacile.'),
         ], missing=4))
-        self.assertIn('Rapports non soumis : 4', text)
-        self.assertIn('ne signifie pas une absence', text)
-        self.assertNotIn('inactivité', text.split('ne signifie pas')[0][-40:])
+        self.assertIn('CuisineFacile', text)
+        self.assertNotIn('Participation aux rapports', text)
+        self.assertNotIn('absence', text.lower())
 
     def test_document_date_and_cited_name_are_flagged(self):
         document = (
@@ -151,9 +148,8 @@ class SynthesisReadingTests(TestCase):
         self.assertIn('Zaina Zaina', text)
         self.assertIn('19 mai 2026', text)
         self.assertIn('20 octobre 2026', text)
-        self.assertIn('Abdourahamane Hindoune', text)
         self.assertIn('sans modifier les dates', text)
-        self.assertIn('Recommandation :', text)
+        self.assertNotIn('Actions recommandées', text)
         self.assertNotIn('retard', text.lower())
 
     def test_many_reports_stay_concise_and_complete(self):
@@ -165,7 +161,7 @@ class SynthesisReadingTests(TestCase):
         text = compose_team_synthesis(dossier)
         prompt = synthesis_prompt(dossier)
         self.assertIn('40 rapports ont été soumis', text)
-        self.assertIn('Rapports reçus : 40', text)
+        self.assertNotIn('Participation aux rapports', text)
         self.assertIn('Employé 1', prompt)
         self.assertIn('Employé 40', prompt)
         self.assertIn('autre', text)
