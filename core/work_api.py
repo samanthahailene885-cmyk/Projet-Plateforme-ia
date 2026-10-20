@@ -844,8 +844,10 @@ def reports_view(request):
                 'submitted': bool(report and report.uploaded_pdf),
                 'filename': report.original_name if report else '',
                 'url': f'/api/rapports/{report.pk}/fichier/' if report and report.uploaded_pdf else '',
-                'sent_at': timezone.localtime(report.updated_at).strftime('%H:%M') if report else '',
+                'sent_at': timezone.localtime(report.updated_at).strftime('%H:%M') if report and report.uploaded_pdf else '',
+                'updated_at': report.updated_at.isoformat() if report and report.uploaded_pdf else '',
             })
+        rows.sort(key=lambda row: row['updated_at'], reverse=True)
         return JsonResponse({'ok': True, 'date': day.isoformat(), 'reports': rows})
     if request.method == 'GET':
         mine = DailyReport.objects.filter(employee=request.user).order_by('-date')

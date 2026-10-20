@@ -2146,6 +2146,10 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   const rows = source.filter((item) => {
     const blob = `${item.name} ${item.project} ${item.role}`.toLowerCase()
     return blob.includes(query.toLowerCase()) && (status === 'Tous' || item.status === status)
+  }).slice().sort((a, b) => {
+    const rank = (item: { status: string }) => item.status === 'Soumis' ? 0 : 1
+    if (rank(a) !== rank(b)) return rank(a) - rank(b)
+    return (b.time || '').localeCompare(a.time || '')
   })
   function exportReports() {
     const text = ['Employé;Date;Projet;Statut;Soumis à;Activités', ...rows.map((item) => `${item.name};${item.date};${item.project};${item.status};${item.time};${item.tasks}`)].join('\n')
@@ -2156,7 +2160,13 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   }
   function openReport(name: string, url?: string) {
     if (url) {
-      window.open(url, '_blank', 'noopener')
+      const link = document.createElement('a')
+      link.href = url
+      link.target = '_blank'
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
       return
     }
     const file = library.find((item) => item.url || item.html) ?? null
@@ -2190,13 +2200,13 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
               <tr key={item.name}>
                 <td><span className="lp-person"><b className={item.tone}>{item.initials}</b><span><strong>{item.name}</strong><small>{item.role}</small></span></span></td>
                 <td>{item.date}</td>
-                <td className="link">{item.project}</td>
+                <td>{item.url ? <a className="lp-open" href={item.url} target="_blank" rel="noopener">{item.project}</a> : item.project}</td>
                 <td><em className={item.status === 'Soumis' ? 'ok' : 'warn'}>{item.status}</em></td>
                 <td className="muted">{item.time}</td>
-                <td>{item.tasks}</td>
+                <td>{item.url ? <a className="lp-open" href={item.url} target="_blank" rel="noopener">{item.tasks}</a> : item.tasks}</td>
                 <td className="lp-actions">
                   <button type="button" aria-label="Voir" onClick={() => openReport(item.name, item.url)}><Icon name="eye" size={14} /></button>
-                  <button type="button" aria-label="Télécharger" onClick={() => { if (item.url) window.open(item.url, '_blank', 'noopener'); else exportReports() }}><Icon name="download" size={14} /></button>
+                  <button type="button" aria-label="Télécharger" onClick={() => { if (item.url) openReport(item.name, item.url); else exportReports() }}><Icon name="download" size={14} /></button>
                   <button type="button" aria-label="Actions">•••</button>
                 </td>
               </tr>
