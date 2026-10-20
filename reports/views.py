@@ -446,21 +446,44 @@ def team_synthesis(request):
         reference_date=day,
     )
     generated = timezone.localtime(summary.created_at)
+    generative = bool(dossier.get('generative'))
+    notice = ''
+    if not generative:
+        detail = (dossier.get('ai_error') or '').strip()
+        notice = (
+            "Le service d'intelligence artificielle n'a pas rédigé cette synthèse. "
+            "Le texte ci-dessous est une lecture directe des rapports, pas une analyse générative."
+        )
+        if detail:
+            notice = f"{notice} {detail}"
+    sources = []
+    for report in dossier.get('reports') or []:
+        sources.append({
+            'name': report.get('name') or '',
+            'filename': report.get('filename') or '',
+            'url': f"/api/rapports/{report['id']}/fichier/" if report.get('has_file') and report.get('id') else '',
+            'activity_date': report.get('activity_date') or '',
+            'submitted_at': report.get('submitted_at') or '',
+            'points': report.get('points') or [],
+        })
     return JsonResponse({
         'ok': True,
         'synthesis': text,
         'html': synthesis_to_html(text),
+        'generative': generative,
+        'notice': notice,
+        'brief': dossier.get('brief') or '',
         'analyzed': dossier['analyzed'],
         'missing': dossier['missing'],
         'date_label': f"{day.day} {FRENCH_MONTHS[day.month - 1]} {day.year}",
         'generated_at': f"{generated:%d/%m/%Y} à {generated:%H:%M}",
+        'sources': sources,
         'stats': {
             'submitted': dossier['submitted'],
             'missing': dossier['missing'],
+            'active': dossier.get('active', 0),
             'analyzed': dossier['analyzed'],
-            'difficulties': dossier['difficulties'],
-            'completed': dossier['completed'],
-            'in_progress': dossier['in_progress'],
+            'projects': dossier.get('reading', {}).get('projects') or dossier.get('projects') or [],
         },
     })
 

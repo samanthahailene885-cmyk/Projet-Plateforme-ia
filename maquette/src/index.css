@@ -1545,9 +1545,39 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
   border-radius: 99px; background: #3478f6; color: white; font-size: 10px;
 }
 .lp-note { margin: -4px 0 12px; color: #1faa78; font-size: 13px; }
-.lp-synthesis { margin: 0 0 14px; padding: 18px 20px; background: #fff; border: 1px solid #e8edf4; border-radius: 16px; }
-.lp-synthesis h2 { margin: 0 0 8px; font-family: Manrope, sans-serif; font-size: 16px; color: #14213d; }
-.lp-synthesis p { margin: 0; white-space: pre-wrap; color: #4d5b73; font-size: 14px; line-height: 1.55; }
+.lp-synthesis { margin: 0 0 14px; padding: 18px 20px 8px; background: #041A34; border: 1px solid #12304D; border-radius: 16px; color: #E7EEF8; }
+.app-shell.light .lp-synthesis h2,
+.app-shell.light .lp-synthesis h3,
+.app-shell.light .lp-synthesis h4,
+.lp-synthesis h2, .lp-synthesis h3, .lp-synthesis h4 { color: #F4F7FC; }
+.lp-synthesis header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.lp-synthesis header small, .lp-synthesis time { display: block; color: #9CB1CC; font-size: 12px; }
+.lp-synthesis h2 { margin: 2px 0; font-family: Manrope, sans-serif; font-size: 20px; }
+.lp-synthesis header em { flex: none; border-radius: 99px; padding: 6px 10px; font-style: normal; font-size: 12px; font-weight: 700; }
+.lp-synthesis header em.model { background: rgba(25, 211, 197, 0.16); color: #19D3C5; }
+.lp-synthesis header em.reading { background: rgba(255, 159, 67, 0.16); color: #FF9F43; }
+.lp-synthesis-notice { margin: 12px 0 0; color: #FFD7A8; font-size: 13px; line-height: 1.45; }
+.lp-synthesis-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; padding: 0; list-style: none; }
+.lp-synthesis-stats li { background: #062040; border: 1px solid #12304D; border-radius: 12px; padding: 10px 12px; }
+.lp-synthesis-stats b { display: block; font-family: Manrope, sans-serif; font-size: 20px; color: #F4F7FC; }
+.lp-synthesis-stats span { color: #9CB1CC; font-size: 12px; }
+.lp-synthesis section { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: #062040; border-left: 3px solid #168BFF; }
+.lp-synthesis section.done { border-left-color: #19D3C5; }
+.lp-synthesis section.watch { border-left-color: #FF9F43; }
+.lp-synthesis section.action { border-left-color: #A66BFF; }
+.lp-synthesis section.project { border-left-color: #168BFF; }
+.lp-synthesis section.people { border-left-color: #7188A7; }
+.lp-synthesis h3 { margin: 0 0 8px; font-family: Manrope, sans-serif; font-size: 14px; }
+.lp-synthesis h4 { margin: 10px 0 4px; font-size: 13px; color: #9CB1CC; }
+.lp-synthesis p { margin: 0 0 6px; color: #D5E0EE; font-size: 14px; line-height: 1.5; }
+.lp-synthesis p.bullet { padding-left: 14px; }
+.lp-synthesis-sources > button { margin: 4px 0 12px; background: transparent; border: 0; color: #7CB6FF; font-weight: 700; cursor: pointer; }
+.lp-synthesis-sources ul { list-style: none; margin: 0 0 12px; padding: 0; max-height: 280px; overflow: auto; display: grid; gap: 8px; }
+.lp-synthesis-sources li { background: #062040; border-radius: 12px; padding: 10px 12px; }
+.lp-synthesis-sources strong, .lp-synthesis-sources small { display: block; }
+.lp-synthesis-sources small { color: #9CB1CC; font-size: 12px; }
+.lp-synthesis-sources a { color: #7CB6FF; font-size: 13px; }
+@media (max-width: 800px) { .lp-synthesis-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .my-report-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr); gap: 16px; align-items: start; }
 .my-report-grid > article, .my-report-grid > aside {
   background: white; border: 1px solid #e8edf4; border-radius: 16px; padding: 18px 18px 16px;

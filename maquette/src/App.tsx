@@ -464,7 +464,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
   const [days, setDays] = useState<7 | 30 | 90>(7)
   const [live, setLive] = useState<LiveDash | null>(null)
   const [notice, setNotice] = useState('')
-  const [reportState, setReportState] = useState<'idle' | 'loading' | 'done'>('idle')
+  const [reportState, setReportState] = useState<'idle' | 'loading' | 'done' | 'reading'>('idle')
   const [synthesis, setSynthesis] = useState('')
   const [synthesisError, setSynthesisError] = useState('')
   useEffect(() => {
@@ -516,14 +516,14 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
         body: new URLSearchParams({ date: new Date().toISOString().slice(0, 10) }),
       })
-      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; error?: string } | null
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; brief?: string; generative?: boolean; error?: string } | null
       if (!response.ok || !data?.ok || !data.synthesis) {
         setSynthesisError(data?.error || 'Le service IA est momentanément indisponible.')
         setReportState('idle')
         return
       }
-      setSynthesis(data.synthesis)
-      setReportState('done')
+      setSynthesis(data.brief || data.synthesis)
+      setReportState(data.generative === false ? 'reading' : 'done')
     } catch {
       setSynthesisError('Le service IA est momentanément indisponible.')
       setReportState('idle')
@@ -641,7 +641,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: Go }) {
             {live && live.alerts.length === 0 ? <p className="board-empty">Tout est à jour.</p> : null}
             {!live && !notice ? <p className="board-empty">Calcul des indicateurs...</p> : null}
           </div>
-          <button className="board-ai" type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>{reportState === 'loading' ? 'Analyse...' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}</button>
+          <button className="board-ai" type="button" disabled={reportState === 'loading'} onClick={() => { void generateSynthesis() }}>{reportState === 'loading' ? 'Analyse...' : reportState === 'reading' ? 'Lecture des rapports' : reportState === 'done' ? 'Synthèse générée' : 'Générer la synthèse IA'}</button>
         </article>
       </div>
       <article className="board-card board-watch">
@@ -2117,6 +2117,98 @@ function EmployeeReportPage() {
   )
 }
 
+type SynthesisSource = { name: string; filename: string; url: string; activity_date: string; submitted_at: string; points: string[] }
+type SynthesisBoardData = {
+  text: string
+  generative: boolean
+  notice: string
+  period: string
+  stats: { submitted: number; missing: number; active: number; projects: string[] }
+  sources: SynthesisSource[]
+}
+
+function synthesisSections(text: string) {
+  const sections: { title: string; lines: string[] }[] = []
+  let title = ''
+  let lines: string[] = []
+  const flush = () => {
+    const kept = lines.map((line) => line.trim()).filter(Boolean)
+    if (title || kept.length) sections.push({ title, lines: kept })
+  }
+  for (const raw of text.split('\n')) {
+    if (raw.startsWith('### ')) {
+      flush()
+      title = raw.slice(4).trim()
+      lines = []
+    } else lines.push(raw)
+  }
+  flush()
+  return sections.filter((section) => section.title || !section.lines.join(' ').toLowerCase().includes('analyse générative'))
+}
+
+function synthesisTone(title: string) {
+  const value = title.toLowerCase()
+  if (value.includes('difficult') || value.includes('vigilance')) return 'watch'
+  if (value.includes('recommand')) return 'action'
+  if (value.includes('avanc')) return 'done'
+  if (value.includes('projet')) return 'project'
+  if (value.includes('participation')) return 'people'
+  return 'plain'
+}
+
+function SynthesisBoard({ data }: { data: SynthesisBoardData }) {
+  const [open, setOpen] = useState(false)
+  const sections = synthesisSections(data.text)
+  return (
+    <article className="lp-synthesis">
+      <header>
+        <div>
+          <small>Période analysée</small>
+          <h2>Synthèse des rapports</h2>
+          <time>{data.period}</time>
+        </div>
+        <em className={data.generative ? 'model' : 'reading'}>{data.generative ? 'Analyse du modèle' : 'Lecture des rapports'}</em>
+      </header>
+      {data.notice ? <p className="lp-synthesis-notice">{data.notice}</p> : null}
+      <ul className="lp-synthesis-stats">
+        <li><b>{data.stats.submitted}</b><span>reçus</span></li>
+        <li><b>{data.stats.missing}</b><span>non soumis</span></li>
+        <li><b>{data.stats.active}</b><span>employés</span></li>
+        <li><b>{data.stats.projects.length}</b><span>projets cités</span></li>
+      </ul>
+      {sections.map((section) => (
+        <section className={synthesisTone(section.title)} key={section.title || 'intro'}>
+          {section.title ? <h3>{section.title.replace(/^[A-F]\.\s*/, '')}</h3> : null}
+          {section.lines.map((line, index) => (
+            line.startsWith('- ')
+              ? <p className="bullet" key={`${section.title}-${index}`}>{line.slice(2)}</p>
+              : line.startsWith('Projet :')
+                ? <h4 key={`${section.title}-${index}`}>{line}</h4>
+                : <p key={`${section.title}-${index}`}>{line}</p>
+          ))}
+        </section>
+      ))}
+      {data.sources.length ? (
+        <div className="lp-synthesis-sources">
+          <button type="button" onClick={() => setOpen((value) => !value)}>{open ? 'Masquer le détail des rapports' : `Voir le détail des ${data.sources.length} rapports sources`}</button>
+          {open ? (
+            <ul>
+              {data.sources.map((source) => (
+                <li key={`${source.name}-${source.submitted_at}-${source.filename}`}>
+                  <strong>{source.name}</strong>
+                  <small>{[source.activity_date, source.submitted_at ? `soumis ${source.submitted_at}` : ''].filter(Boolean).join(' · ')}</small>
+                  {source.url ? <a href={source.url} target="_blank" rel="noopener">{source.filename || 'Ouvrir le rapport'}</a> : null}
+                  {source.points.map((point) => <p key={point}>{point}</p>)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  )
+}
+
 function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Tous')
@@ -2124,7 +2216,7 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   const [opened, setOpened] = useState<ReportFile | null>(null)
   const [live, setLive] = useState<(typeof dailyReports[number] & { url?: string })[] | null>(null)
   const [reportDate, setReportDate] = useState('')
-  const [synthesis, setSynthesis] = useState('')
+  const [board, setBoard] = useState<SynthesisBoardData | null>(null)
   const [synthError, setSynthError] = useState('')
   const [synthesizing, setSynthesizing] = useState(false)
   useEffect(() => {
@@ -2166,7 +2258,7 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
   async function generateSynthesis() {
     setSynthesizing(true)
     setSynthError('')
-    setSynthesis('')
+    setBoard(null)
     try {
       await ensureAdminSession()
       if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
@@ -2179,12 +2271,24 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
         body: new URLSearchParams({ date: reportDate }),
       })
-      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; error?: string } | null
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; error?: string; generative?: boolean; notice?: string; date_label?: string; sources?: SynthesisSource[]; stats?: { submitted?: number; missing?: number; active?: number; projects?: string[] } } | null
       if (!response.ok || !data?.ok || !data.synthesis) {
         setSynthError(data?.error || 'La synthèse n’a pas pu être générée.')
         return
       }
-      setSynthesis(data.synthesis)
+      setBoard({
+        text: data.synthesis,
+        generative: Boolean(data.generative),
+        notice: data.notice || '',
+        period: data.date_label || reportDate,
+        stats: {
+          submitted: data.stats?.submitted ?? 0,
+          missing: data.stats?.missing ?? 0,
+          active: data.stats?.active ?? 0,
+          projects: data.stats?.projects ?? [],
+        },
+        sources: data.sources ?? [],
+      })
     } catch (error) {
       setSynthError(error instanceof Error ? error.message : 'La synthèse n’a pas pu être générée.')
     } finally {
@@ -2222,7 +2326,7 @@ function ReportsPage({ library }: { staff: Staff[]; library: ReportFile[] }) {
       </div>
       {note ? <p className="lp-note">{note}</p> : null}
       {synthError ? <p className="lp-note bad">{synthError}</p> : null}
-      {synthesis ? <article className="lp-synthesis"><h2>Synthèse globale</h2><p>{synthesis}</p></article> : null}
+      {board ? <SynthesisBoard data={board} /> : null}
       <div className="lp-panel">
         <div className="lp-tools">
           <label><Icon name="search" size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un rapport..." /></label>
@@ -2966,6 +3070,7 @@ function AiReportsPage() {
   const [text, setText] = useState('')
   const [html, setHtml] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const reportDay = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const reportLabel = reportDay.charAt(0).toUpperCase() + reportDay.slice(1)
@@ -2981,18 +3086,21 @@ function AiReportsPage() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
         body: new URLSearchParams({ date: day }),
       })
-      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; html?: string; error?: string } | null
+      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; html?: string; error?: string; notice?: string; generative?: boolean } | null
       if (!response.ok || !data?.ok || !data.synthesis) {
         setText('')
         setHtml('')
+        setNotice('')
         setError(data?.error || 'Aucun rapport soumis ne permet de rédiger la synthèse.')
       } else {
         setText(data.synthesis)
         setHtml(data.html || '')
+        setNotice(data.generative === false ? (data.notice || 'Lecture directe des rapports, pas une analyse générative.') : '')
       }
     } catch {
       setText('')
       setHtml('')
+      setNotice('')
       setError('La synthèse n’a pas pu être affichée.')
     }
     setLoading(false)
@@ -3001,6 +3109,7 @@ function AiReportsPage() {
     <section className="lp">
       <LightHead kicker="RAC’IN Africa" title="Rapports IA" text="La synthèse est produite à partir des rapports réellement soumis." action={<button className="lp-btn" type="button" disabled={loading} onClick={() => { void generate() }}><Icon name="spark" size={14} /> {loading ? 'Analyse...' : 'Générer la synthèse IA'}</button>} />
       {error ? <p className="lp-note bad">{error}</p> : null}
+      {notice ? <p className="lp-note">{notice}</p> : null}
       {text ? (
         <div className="lp-synth">
           <aside>

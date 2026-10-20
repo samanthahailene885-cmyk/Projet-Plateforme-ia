@@ -109,11 +109,16 @@ REMARK_SYSTEM = (
 )
 
 SYNTHESIS_SYSTEM = (
-    "Tu rédiges une synthèse globale des rapports journaliers déjà soumis. "
-    "Tu t'appuies sur le texte lu dans les documents importés et sur les notes des employés. "
-    "Tu n'inventes aucun fait, aucun employé et aucune activité absents de ces textes. "
-    "Si le texte d'un fichier n'a pas pu être lu, tu le dis sans le reconstituer à partir de son nom. "
-    "Tu écris en français, en quelques paragraphes, sans juger les employés."
+    "Tu rédiges une synthèse globale d'aide à la décision pour le responsable. "
+    "Tu regroupes les travaux similaires au lieu de résumer chaque rapport séparément. "
+    "Tu t'appuies sur le texte lu dans les documents, les notes et les faits déjà extraits. "
+    "Un statut de tâche vide ne signifie pas qu'aucun travail n'a été décrit. "
+    "Tu ne présentes pas une réflexion ou une préparation comme un livrable terminé. "
+    "Tu n'inventes aucun fait, employé, projet, retard, difficulté ou résultat. "
+    "Tu n'attribues aucun pourcentage. "
+    "Tu distingues clairement les recommandations des faits. "
+    "Si le texte d'un fichier n'a pas pu être lu, tu le dis sans le reconstituer. "
+    "Tu écris en français, de façon concise, sans juger les employés."
 )
 
 SUMMARY_SYSTEM = (
@@ -395,7 +400,15 @@ class DecisionAIService:
         if dossier['analyzed'] == 0:
             raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
         fallback = compose_team_synthesis(dossier)
-        text = self._complete_or(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), fallback, max_tokens=900)
+        try:
+            text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1400)
+            if not (text or '').strip():
+                raise AIServiceError("Le modèle n'a renvoyé aucun texte.")
+            dossier['generative'] = True
+        except AIServiceError as exc:
+            text = fallback
+            dossier['generative'] = False
+            dossier['ai_error'] = str(exc)
         return text, dossier
 
     def generate_monthly_report(self):

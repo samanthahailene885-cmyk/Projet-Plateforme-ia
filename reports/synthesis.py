@@ -5,6 +5,8 @@ Les décomptes sont calculés ici. Le modèle de langage ne fait que les reformu
 import html
 import re
 
+from django.utils import timezone
+
 from decision_ai.analytics import IN_PROGRESS, tasks_on_date
 from employees.models import Employee
 from reports.models import DailyReport
@@ -51,8 +53,19 @@ def _activity_line(task):
 
 
 def _section(title, lines):
-    body = '\n'.join(lines) if lines else 'Aucune.'
+    body = '\n'.join(lines) if lines else 'Non renseigné.'
     return f'{title} :\n{body}'
+
+
+def _document_text(report):
+    uploaded = getattr(report, 'uploaded_pdf', None)
+    if not uploaded:
+        return ''
+    try:
+        from reports.extract import extract_report_text
+        return extract_report_text(uploaded).strip()[:8000]
+    except Exception:
+        return ''
 
 
 def collect_team_synthesis(day):
@@ -108,6 +121,11 @@ def collect_team_synthesis(day):
             'service': (person.department or '').strip() or 'Non renseigné',
             'content': report.content.strip(),
             'document': _document_text(report),
+            'id': report.pk,
+            'filename': report.original_name or '',
+            'has_file': bool(report.uploaded_pdf),
+            'activity_date': report.date.isoformat(),
+            'submitted_at': timezone.localtime(report.updated_at).strftime('%d/%m/%Y %H:%M') if report.updated_at else '',
             'tasks_completed_note': (report.tasks_completed or '').strip(),
             'tasks_in_progress_note': (report.tasks_in_progress or '').strip(),
             'done': [_activity_line(task) for task in done],
@@ -122,7 +140,7 @@ def collect_team_synthesis(day):
         })
 
     submitted = len(reports)
-    return {
+    dossier = {
         'date': day,
         'active': len(people),
         'submitted': submitted,
@@ -137,9 +155,19 @@ def collect_team_synthesis(day):
         'projects': projects,
         'reports': reports,
     }
+    return _with_reading(dossier)
+
+
+def _with_reading(dossier):
+    from reports.reading import ensure_reading
+    ensure_reading(dossier)
+    return dossier
 
 
 def synthesis_prompt(dossier):
+    from reports.reading import prompt_facts
+
+    dossier = _with_reading(dossier)
     day = dossier['date']
     lines = [
         f"Date analysée : {day:%d/%m/%Y}",
@@ -168,7 +196,11 @@ def synthesis_prompt(dossier):
     ]
     if not dossier['reports']:
         lines.append("Aucun rapport soumis.")
+    excerpt_limit = 500 if len(dossier['reports']) > 8 else 2500
     for index, report in enumerate(dossier['reports'], start=1):
+        document = (report.get('document') or '').strip()
+        if len(document) > excerpt_limit:
+            document = document[:excerpt_limit].rstrip() + '… [extrait]'
         lines.extend([
             '',
             f"--- Rapport {index} ---",
@@ -178,7 +210,7 @@ def synthesis_prompt(dossier):
             "Texte du rapport soumis :",
             report['content'],
             "Texte lu dans le fichier importé :",
-            report.get('document') or "Aucun texte n'a pu être lu dans le fichier.",
+            document or "Aucun texte n'a pu être lu dans le fichier.",
             _section('Activités réalisées', report['done']),
             _section('Activités en cours', report['doing']),
             _section('Activités non réalisées', report['skipped']),
@@ -193,229 +225,30 @@ def synthesis_prompt(dossier):
         ])
     lines.extend([
         '',
-        "Rédige une seule synthèse globale à partir de ces seuls éléments.",
-        "Le texte lu dans chaque fichier importé est la source principale du résumé.",
-        "Si aucun texte n'a pu être lu, dis-le et ne reconstitue pas le document à partir de son nom.",
+        "Rédige une seule synthèse globale, pas une succession de résumés individuels.",
+        "Réponds avec ces sections, et omets une section seulement si elle n'a aucun fait :",
+        "### A. Synthèse exécutive",
+        "### B. Avancées majeures",
+        "### C. Situation des projets",
+        "### D. Difficultés et points de vigilance",
+        "### E. Actions recommandées au responsable",
+        "### F. Participation aux rapports",
+        "Le texte lu dans chaque fichier est la source principale. Les statuts vides ne prouvent pas l'absence de travail.",
+        "Ne présente pas une réflexion ou une préparation comme un livrable terminé.",
+        "Si le texte d'un fichier n'a pas pu être lu, dis-le et ne reconstitue pas le document à partir de son nom.",
         "Ne recopie pas les rapports les uns après les autres.",
         "Ne cite aucun employé absent de cette liste.",
+        "N'écris pas qu'un rapport manquant est une absence.",
+        "",
+        prompt_facts(dossier),
     ])
     return '\n'.join(lines)
 
 
-def _plain_content(content):
-    parts = []
-    for block in re.split(r'\n\s*\n', content or ''):
-        line = ' '.join(piece.strip() for piece in block.splitlines() if piece.strip())
-        line = re.sub(r'^[■•\-\s]+', '', line).strip()
-        if line:
-            parts.append(line if line[-1] in '.!?' else line + '.')
-    return ' '.join(parts)
-
-
-def _join_names(values):
-    values = [value for value in values if value]
-    if not values:
-        return ''
-    if len(values) == 1:
-        return values[0]
-    return ', '.join(values[:-1]) + ' et ' + values[-1]
-
-
-def _activity_sentences(reports, key):
-    sentences = []
-    for report in reports:
-        for item in report[key]:
-            if not item['title']:
-                continue
-            sentence = f"{report['name']} : {item['title']}"
-            if item['project']:
-                sentence += f", projet {item['project']}"
-            if item['remark']:
-                sentence += f". Remarque enregistrée : {item['remark']}"
-            if sentence[-1] not in '.!?':
-                sentence += '.'
-            sentences.append(sentence)
-    return sentences
-
-
-_MONTHS = (
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-)
-
-
-def _titles(reports, key):
-    found = []
-    for report in reports:
-        for item in report[key]:
-            title = (item.get('title') or '').strip()
-            if title and title not in found:
-                found.append(title)
-    return found
-
-
-def _remarks(reports):
-    found = []
-    for report in reports:
-        for item in report['remark_items']:
-            remark = (item.get('remark') or '').strip()
-            if not remark or remark in found:
-                continue
-            title = (item.get('title') or '').strip()
-            found.append(f'{remark}, sur l’activité « {title} »' if title else remark)
-    return found
-
-
-def _count_word(count, capital=False):
-    words = {
-        1: 'une', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
-        6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
-        11: 'onze', 12: 'douze',
-    }
-    word = words.get(count, str(count))
-    return word[:1].upper() + word[1:] if capital else word
-
-
-def _document_text(report):
-    uploaded = getattr(report, 'uploaded_pdf', None)
-    if not uploaded:
-        return ''
-    try:
-        from reports.extract import extract_report_text
-        return extract_report_text(uploaded).strip()[:8000]
-    except Exception:
-        return ''
-
-
-def _document_lines(reports):
-    lines = []
-    for report in reports:
-        text = _plain_content(report.get('document') or '')
-        if not text:
-            continue
-        excerpt = text[:900].rstrip()
-        lines.append(f"Le document transmis par {report['name']} indique : {excerpt}")
-    return lines
-
-
-def _file_names(reports):
-    found = []
-    for report in reports:
-        text = _plain_content(report.get('content') or '')
-        match = re.search(r'Fichier import[ée]\s*:\s*(\S+)', text, flags=re.IGNORECASE)
-        if not match:
-            continue
-        name = match.group(1).strip().rstrip('.')
-        if name and name not in found:
-            found.append(name)
-    return found
-
-
 def compose_team_synthesis(dossier):
-    """Texte continu, rédigé uniquement avec les rapports et activités enregistrés."""
-    reports = dossier['reports']
-    day = dossier['date']
-    authors = _join_names(report['name'] for report in reports)
-    done = _titles(reports, 'done_items')
-    doing = _titles(reports, 'doing_items')
-    skipped = _titles(reports, 'skipped_items')
-    remarks = _remarks(reports)
-    projects = [name for name in dossier['projects'] if name]
-    files = _file_names(reports)
-    documents = _document_lines(reports)
-    completed = dossier['completed']
-    in_progress = dossier['in_progress']
-    missing = dossier['missing']
-
-    if dossier['submitted'] == 1:
-        opening = f"L’analyse du rapport journalier soumis par {authors}"
-    else:
-        opening = f"L’analyse des rapports journaliers soumis par {authors}"
-    opening += " montre l’activité enregistrée pour cette journée."
-    if done:
-        label = 'activité a été réalisée' if len(done) == 1 else 'activités ont été réalisées'
-        opening += f" {_count_word(len(done), capital=True)} {label} : {_join_names(done)}."
-    else:
-        opening += " Aucune activité terminée n’est indiquée dans ces rapports."
-    if files:
-        opening += f" Le document transmis est {_join_names(files)}."
-
-    if doing:
-        if len(doing) == 1:
-            progress = f"Une activité reste en cours et nécessite un suivi afin de respecter les échéances prévues : {doing[0]}."
-        else:
-            progress = (
-                f"{_count_word(len(doing), capital=True)} activités restent en cours et nécessitent un suivi "
-                f"afin de respecter les échéances prévues : {_join_names(doing)}."
-            )
-    elif completed:
-        progress = "Les activités liées aux rapports soumis sont terminées. Aucune activité ne reste en cours."
-    else:
-        progress = "Aucune activité en cours n’est indiquée dans les rapports soumis."
-
-    if remarks:
-        difficulty = (
-            "Des difficultés ont également été signalées, notamment concernant "
-            f"{_join_names(remarks)}. Ces situations peuvent nécessiter une intervention "
-            "ou un accompagnement du responsable."
-        )
-    else:
-        difficulty = "Aucune difficulté particulière n’a été signalée dans les rapports soumis."
-
-    unfinished = skipped
-    if projects:
-        subject = f"Le projet {projects[0]}" if len(projects) == 1 else f"Les projets {_join_names(projects)}"
-        verb = "concentre" if len(projects) == 1 else "concentrent"
-        project_text = f"{subject} {verb} les activités enregistrées dans les rapports soumis."
-        if unfinished or doing:
-            project_text += (
-                " Une attention particulière devra être accordée aux activités qui n’ont pas encore été finalisées"
-                + (f" : {_join_names(unfinished)}." if unfinished else ".")
-            )
-    else:
-        project_text = "Aucun projet n’est rattaché aux activités des rapports soumis."
-        if unfinished:
-            project_text += f" Les activités non finalisées sont : {_join_names(unfinished)}."
-
-    if missing == 1:
-        missing_text = "Un employé n’a pas encore soumis son rapport journalier. Un rapport non soumis ne signifie pas une absence."
-    elif missing:
-        missing_text = (
-            f"{_count_word(missing, capital=True)} employés n’ont pas encore soumis leur rapport journalier. "
-            "Un rapport non soumis ne signifie pas une absence."
-        )
-    else:
-        missing_text = "Tous les employés actifs ont soumis leur rapport pour cette journée."
-
-    if completed and in_progress:
-        closing = (
-            "En conclusion, l’activité globale de l’équipe présente un avancement réel, "
-            f"avec {_count_word(completed)} {'tâche finalisée' if completed == 1 else 'tâches finalisées'} "
-            f"et {_count_word(in_progress)} {'autre toujours en cours' if in_progress == 1 else 'autres toujours en cours'}."
-        )
-    elif completed:
-        closing = (
-            "En conclusion, les activités liées aux rapports soumis sont finalisées : "
-            f"{_count_word(completed)} {'tâche est terminée' if completed == 1 else 'tâches sont terminées'} "
-            "et aucune ne reste en cours."
-        )
-    elif in_progress:
-        closing = (
-            "En conclusion, les activités enregistrées sont encore en cours et demandent un suivi du responsable."
-        )
-    else:
-        closing = "En conclusion, les rapports soumis ne font apparaître aucune activité terminée ni en cours."
-    closing += (
-        " Cette synthèse permet au responsable d’obtenir rapidement une vision globale de la journée "
-        "sans avoir à consulter individuellement chaque rapport."
-    )
-
-    title = f"### Synthèse de la journée — {day.day:02d} {_MONTHS[day.month - 1]} {day.year}"
-    parts = [title, opening, progress, difficulty, project_text, missing_text]
-    if documents:
-        parts.append(' '.join(documents))
-    parts.append(closing)
-    return '\n\n'.join(parts)
+    """Lecture structurée des rapports. Ce n'est pas une analyse générative."""
+    from reports.reading import render_synthesis
+    return render_synthesis(dossier)
 
 
 def synthesis_title(day, analyzed):
@@ -434,8 +267,16 @@ def synthesis_to_html(text):
     """Transforme les titres Markdown en HTML échappé. Le texte du modèle n'est pas interprété."""
     blocks = []
     paragraph = []
+    items = []
+
+    def flush_items():
+        if not items:
+            return
+        blocks.append('<ul>' + ''.join(f'<li>{item}</li>' for item in items) + '</ul>')
+        items.clear()
 
     def flush():
+        flush_items()
         if not paragraph:
             return
         blocks.append('<p>' + '<br>'.join(paragraph) + '</p>')
@@ -450,6 +291,12 @@ def synthesis_to_html(text):
             flush()
             blocks.append(f'<h3>{html.escape(line[4:].strip())}</h3>')
             continue
+        if line.startswith('- '):
+            if paragraph:
+                flush()
+            items.append(html.escape(line[2:].strip()))
+            continue
+        flush_items()
         paragraph.append(html.escape(line))
     flush()
     return '\n'.join(blocks)
