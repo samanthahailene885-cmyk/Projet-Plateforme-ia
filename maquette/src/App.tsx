@@ -2143,7 +2143,11 @@ function synthesisSections(text: string) {
     } else lines.push(raw)
   }
   flush()
-  return sections.filter((section) => section.title || !section.lines.join(' ').toLowerCase().includes('analyse générative'))
+  return sections.filter((section) => {
+    if (!section.lines.length) return false
+    const blob = section.lines.join(' ').toLowerCase()
+    return section.title || !blob.includes('analyse générative')
+  })
 }
 
 function synthesisTone(title: string) {

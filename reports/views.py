@@ -449,13 +449,10 @@ def team_synthesis(request):
     generative = bool(dossier.get('generative'))
     notice = ''
     if not generative:
-        detail = (dossier.get('ai_error') or '').strip()
         notice = (
-            "Le service d'intelligence artificielle n'a pas rédigé cette synthèse. "
-            "Le texte ci-dessous est une lecture directe des rapports, pas une analyse générative."
+            "Lecture directe des rapports soumis. "
+            "Ce n'est pas une analyse générative."
         )
-        if detail:
-            notice = f"{notice} {detail}"
     sources = []
     for report in dossier.get('reports') or []:
         sources.append({
