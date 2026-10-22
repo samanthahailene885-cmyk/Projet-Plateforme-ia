@@ -44,22 +44,35 @@ type TaskRow = {
 }
 type Notice = { text: string; ok: boolean }
 
+let csrfMemory = ''
+
+function remember(data: { csrfToken?: string } | null) {
+  if (data && typeof data.csrfToken === 'string' && data.csrfToken) csrfMemory = data.csrfToken
+}
+
 function token() {
-  const found = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))
-  return found ? decodeURIComponent(found.split('=')[1]) : ''
+  if (csrfMemory) return csrfMemory
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : ''
 }
 
 async function readJson(response: Response) {
   const text = await response.text()
-  if (!text) throw new Error('Le serveur de données ne répond pas. Relancez run.bat, puis réessayez.')
+  if (!text) throw new Error('La plateforme n’a pas répondu. Réessayez dans un instant.')
   try {
     return JSON.parse(text)
   } catch {
-    throw new Error('Le serveur de données ne répond pas. Relancez run.bat, puis réessayez.')
+    throw new Error('La plateforme n’a pas répondu correctement. Réessayez dans un instant.')
   }
 }
 
-async function call(url: string, options: RequestInit = {}) {
+async function refreshCsrf() {
+  csrfMemory = ''
+  const response = await fetch('/api/session/', { credentials: 'same-origin' })
+  remember(await readJson(response))
+}
+
+async function call(url: string, options: RequestInit = {}, allowRetry = true): Promise<any> {
   const headers = new Headers(options.headers)
   const csrf = token()
   if (options.body instanceof FormData) {
@@ -72,28 +85,45 @@ async function call(url: string, options: RequestInit = {}) {
   try {
     response = await fetch(url, { credentials: 'same-origin', ...options, headers })
   } catch {
-    throw new Error('Le serveur de données ne répond pas. Relancez la plateforme, puis réessayez.')
+    throw new Error('La plateforme n’a pas répondu. Réessayez dans un instant.')
   }
-  const data = await readJson(response)
-  if (!response.ok) throw new Error(data.error || 'Action impossible.')
+  let data: any
+  try {
+    data = await readJson(response)
+  } catch (error) {
+    if (allowRetry && response.status === 403) {
+      await refreshCsrf()
+      return call(url, options, false)
+    }
+    throw error
+  }
+  remember(data)
+  if (!response.ok) {
+    if (allowRetry && response.status === 403) {
+      await refreshCsrf()
+      return call(url, options, false)
+    }
+    throw new Error(typeof data.error === 'string' ? data.error : 'Action impossible.')
+  }
   return data
 }
 
 export async function openSession(): Promise<LiveUser | null> {
   const response = await fetch('/api/session/', { credentials: 'same-origin' })
   const data = await readJson(response)
+  remember(data)
   return data.authenticated ? data.user : null
 }
 
 export async function switchSession(): Promise<LiveUser> {
   const data = await call('/api/basculer/', { method: 'POST', body: '{}' })
-  return data.user
+  return data.user as LiveUser
 }
 
 export async function enterSession(username: string, password: string): Promise<LiveUser> {
   await openSession()
   const data = await call('/api/connexion/', { method: 'POST', body: JSON.stringify({ username, password }) })
-  return data.user
+  return data.user as LiveUser
 }
 
 export async function ensureAdminSession(): Promise<LiveUser> {

@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from django.http import HttpResponse
-from django.test import RequestFactory, SimpleTestCase
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase
 
 from core.maquette_middleware import MaquetteMiddleware
 
@@ -32,3 +32,16 @@ class MaquetteMiddlewareTests(SimpleTestCase):
     def test_built_assets_are_served_from_the_maquette(self):
         response = self.middleware(self.factory.get('/assets/app.js', HTTP_ACCEPT='*/*'))
         self.assertContains(response, 'console.log(1)')
+
+
+class ApiCsrfTests(TestCase):
+    def test_api_without_token_returns_json(self):
+        client = Client(enforce_csrf_checks=True)
+        response = client.post(
+            '/api/connexion/',
+            data='{"username": "admin", "password": "x"}',
+            content_type='application/json',
+            HTTP_ORIGIN='http://testserver',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['ok'], False)

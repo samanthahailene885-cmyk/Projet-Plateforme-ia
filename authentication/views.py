@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.views.csrf import csrf_failure as django_csrf_failure
 from django.views.generic import CreateView, UpdateView
@@ -44,7 +45,13 @@ def login_view(request):
 def csrf_failure(request, reason=""):
     """
     Un jeton périmé sur la connexion renvoie au formulaire, avec un jeton neuf.
+    L'interface appelle /api/ : elle doit recevoir du JSON, pas la page HTML.
     """
+    if request.path.startswith('/api/'):
+        return JsonResponse({
+            'ok': False,
+            'error': 'La session de la page a expiré. Réessayez.',
+        }, status=403)
     if request.path == reverse('authentication:login'):
         return redirect(f"{reverse('authentication:login')}?expire=1")
     return django_csrf_failure(request, reason=reason)

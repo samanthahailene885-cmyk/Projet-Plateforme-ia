@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -266,12 +267,17 @@ def _store_documents(request, task):
     return stored
 
 
+def _with_csrf(request, payload, status=200):
+    payload['csrfToken'] = get_token(request)
+    return JsonResponse(payload, status=status)
+
+
 @ensure_csrf_cookie
 @require_GET
 def session_view(request):
     if not request.user.is_authenticated:
-        return JsonResponse({'authenticated': False})
-    return JsonResponse({'authenticated': True, 'user': _session_user(request)})
+        return _with_csrf(request, {'authenticated': False})
+    return _with_csrf(request, {'authenticated': True, 'user': _session_user(request)})
 
 
 def _ensure_zaina():
@@ -328,13 +334,13 @@ def login_view(request):
     if user is None or not user.is_active:
         return JsonResponse({'ok': False, 'error': 'Identifiant ou mot de passe incorrect.'}, status=401)
     login(request, user)
-    return JsonResponse({'ok': True, 'user': _session_user(request)})
+    return _with_csrf(request, {'ok': True, 'user': _session_user(request)})
 
 
 @require_POST
 def logout_view(request):
     logout(request)
-    return JsonResponse({'ok': True})
+    return _with_csrf(request, {'ok': True})
 
 
 @require_POST
@@ -348,7 +354,7 @@ def switch_view(request):
         admin_id = request.user.pk
         login(request, employee.user)
         request.session['preview_admin_id'] = admin_id
-        return JsonResponse({'ok': True, 'user': _session_user(request)})
+        return _with_csrf(request, {'ok': True, 'user': _session_user(request)})
 
     admin_id = request.session.get('preview_admin_id')
     admin = User.objects.filter(pk=admin_id, role='admin', is_active=True).first() if admin_id else None
@@ -356,7 +362,7 @@ def switch_view(request):
         return JsonResponse({'ok': False, 'error': 'Connectez-vous avec le compte responsable pour revenir.'}, status=403)
     login(request, admin)
     request.session.pop('preview_admin_id', None)
-    return JsonResponse({'ok': True, 'user': _session_user(request)})
+    return _with_csrf(request, {'ok': True, 'user': _session_user(request)})
 
 
 @require_GET
