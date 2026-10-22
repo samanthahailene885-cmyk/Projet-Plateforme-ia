@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 
@@ -20,6 +21,8 @@ from decision_ai.analytics import (
 
 
 logger = logging.getLogger(__name__)
+
+_THINKING = re.compile(r'<think>.*?</think>', re.IGNORECASE | re.DOTALL)
 
 
 class AIServiceError(Exception):
@@ -145,15 +148,28 @@ class DecisionAIService:
         self.model = (getattr(settings, 'OLLAMA_MODEL', '') or '').strip()
         timeout = getattr(settings, 'OLLAMA_TIMEOUT', 60)
         self.timeout = timeout if isinstance(timeout, (int, float)) and timeout > 0 else 60
+        self.hosted_url = (getattr(settings, 'AI_BASE_URL', '') or '').strip().rstrip('/')
+        self.hosted_model = (getattr(settings, 'AI_MODEL', '') or '').strip()
+        self.hosted_key = (getattr(settings, 'AI_API_KEY', '') or '').strip()
+        hosted_timeout = getattr(settings, 'AI_TIMEOUT', 80)
+        self.hosted_timeout = hosted_timeout if isinstance(hosted_timeout, (int, float)) and hosted_timeout > 0 else 80
+
+    def _uses_local_model(self):
+        return bool(self.base_url and self.model)
 
     def _complete(self, system, user_content, max_tokens=900):
-        """Demande une formulation au modèle local. N'invente rien si Ollama ne répond pas."""
-        if not self.base_url or not self.model:
-            raise AIServiceError(
-                "Le modèle local n'est pas configuré. "
-                "Indiquez OLLAMA_BASE_URL et OLLAMA_MODEL, puis redémarrez l'application. "
-                "Aucun texte n'a été inventé."
-            )
+        """Demande une formulation au modèle. N'invente rien s'il ne répond pas."""
+        if self._uses_local_model():
+            return self._complete_local(system, user_content, max_tokens)
+        if self.hosted_url and self.hosted_model:
+            return self._complete_hosted(system, user_content, max_tokens)
+        raise AIServiceError(
+            "Le modèle local n'est pas configuré. "
+            "Indiquez OLLAMA_BASE_URL et OLLAMA_MODEL, puis redémarrez l'application. "
+            "Aucun texte n'a été inventé."
+        )
+
+    def _complete_local(self, system, user_content, max_tokens):
         payload = json.dumps({
             'model': self.model,
             'messages': [
@@ -197,9 +213,66 @@ class DecisionAIService:
             )
         message = data.get('message') if isinstance(data, dict) else None
         text = (message.get('content') or '').strip() if isinstance(message, dict) else ''
+        text = _visible_answer(text)
         if not text:
             raise AIServiceError(
                 "Le modèle local a renvoyé une réponse vide. "
+                "Aucun texte de remplacement n'a été généré."
+            )
+        return text
+
+    def _hosted_endpoint(self):
+        url = self.hosted_url
+        if url.endswith('/chat/completions') or url.endswith('/openai'):
+            return url
+        return f'{url}/chat/completions'
+
+    def _complete_hosted(self, system, user_content, max_tokens):
+        payload = json.dumps({
+            'model': self.hosted_model,
+            'messages': [
+                {'role': 'system', 'content': system},
+                {'role': 'user', 'content': user_content},
+            ],
+            'temperature': 0.2,
+            'max_tokens': max_tokens,
+            'stream': False,
+        }).encode('utf-8')
+        headers = {'Content-Type': 'application/json'}
+        if self.hosted_key:
+            headers['Authorization'] = f'Bearer {self.hosted_key}'
+        request = urllib.request.Request(
+            self._hosted_endpoint(),
+            data=payload,
+            headers=headers,
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.hosted_timeout) as response:
+                raw = response.read().decode('utf-8')
+        except urllib.error.HTTPError as exc:
+            logger.warning('Le modèle hébergé a répondu HTTP %s.', exc.code)
+            raise AIServiceError(
+                "Le modèle hébergé n'a pas pu répondre. Aucun texte n'a été inventé."
+            )
+        except (urllib.error.URLError, TimeoutError, OSError):
+            logger.warning('Le modèle hébergé est injoignable.')
+            raise AIServiceError(
+                "Le modèle hébergé est indisponible. Aucun texte n'a été inventé."
+            )
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            raise AIServiceError(
+                "Le modèle hébergé a renvoyé une réponse illisible. Aucun texte n'a été inventé."
+            )
+        choices = data.get('choices') if isinstance(data, dict) else None
+        message = choices[0].get('message') if isinstance(choices, list) and choices else None
+        text = (message.get('content') or '').strip() if isinstance(message, dict) else ''
+        text = _visible_answer(text)
+        if not text:
+            raise AIServiceError(
+                "Le modèle hébergé a renvoyé une réponse vide. "
                 "Aucun texte de remplacement n'a été généré."
             )
         return text
@@ -334,7 +407,8 @@ class DecisionAIService:
             raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
         fallback = compose_team_synthesis(dossier)
         previous_timeout = self.timeout
-        self.timeout = min(previous_timeout, 20)
+        if self._uses_local_model():
+            self.timeout = min(previous_timeout, 20)
         try:
             text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1400)
             if not (text or '').strip():
@@ -374,6 +448,10 @@ class DecisionAIService:
             f"Alertes ouvertes aujourd'hui : {len(alerts)}."
         )
         return self._complete_or(MONTHLY_SYSTEM, content, fallback, max_tokens=800)
+
+
+def _visible_answer(text):
+    return _THINKING.sub('', text or '').strip()
 
 
 def _stats_block(stats):

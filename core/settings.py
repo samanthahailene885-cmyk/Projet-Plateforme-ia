@@ -194,11 +194,27 @@ OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
 OPENAI_TIMEOUT = config('OPENAI_TIMEOUT', default=45, cast=int)
 
-# L'assistant formule les faits déjà calculés avec un modèle local (Ollama).
-# Render ne l'héberge pas : les réponses factuelles Django sont utilisées telles quelles.
+# Modèle local (Ollama) sur l'ordinateur de développement.
+# L'instance gratuite Render dispose de 512 Mo : elle ne peut pas charger qwen2.5:3b.
 OLLAMA_BASE_URL = '' if ON_RENDER else config('OLLAMA_BASE_URL', default='http://127.0.0.1:11434')
 OLLAMA_MODEL = config('OLLAMA_MODEL', default='qwen2.5:3b')
 OLLAMA_TIMEOUT = config('OLLAMA_TIMEOUT', default=60, cast=int)
+
+# Modèle hébergé, appelé par le site en ligne quand Ollama n'est pas disponible.
+# Une clé Groq, si elle est renseignée, remplace le service public par défaut.
+_ai_key = (config('AI_API_KEY', default='') or config('GROQ_API_KEY', default='')).strip()
+_ai_url = config('AI_BASE_URL', default='').strip()
+_ai_model = config('AI_MODEL', default='').strip()
+if config('GROQ_API_KEY', default='').strip() and not _ai_url:
+    _ai_url = 'https://api.groq.com/openai/v1/chat/completions'
+    _ai_model = _ai_model or 'qwen/qwen3.8-27b'
+if ON_RENDER and not _ai_url:
+    _ai_url = 'https://text.pollinations.ai/openai'
+    _ai_model = _ai_model or 'openai-fast'
+AI_BASE_URL = _ai_url
+AI_MODEL = _ai_model
+AI_API_KEY = _ai_key
+AI_TIMEOUT = config('AI_TIMEOUT', default=80, cast=int)
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'

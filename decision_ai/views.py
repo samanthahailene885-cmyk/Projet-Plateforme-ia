@@ -66,7 +66,7 @@ def employee_chat(request):
             answer = DecisionAIService().answer_employee(question, facts)
         except AIServiceError:
             answer = (
-                "Le modèle local est indisponible. "
+                "Le modèle est indisponible. "
                 "Voici uniquement vos faits enregistrés :\n"
                 + facts
             )

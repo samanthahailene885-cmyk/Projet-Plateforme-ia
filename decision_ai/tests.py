@@ -483,6 +483,72 @@ class AIUnavailableTests(PlatformDataMixin, TestCase):
         self.assertEqual(body['messages'][0]['content'], 'Système')
         self.assertEqual(body['messages'][1]['content'], 'Faits autorisés')
 
+    def test_hosted_model_is_called_when_ollama_is_absent(self):
+        import json
+        from urllib.request import Request
+
+        raw = json.dumps({
+            'choices': [{'message': {'content': '<think>brouillon</think>Synthèse rédigée.'}}],
+        }).encode()
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return raw
+
+        with override_settings(
+            OLLAMA_BASE_URL='',
+            OLLAMA_MODEL='',
+            AI_BASE_URL='https://text.pollinations.ai/openai',
+            AI_MODEL='openai-fast',
+            AI_API_KEY='',
+            AI_TIMEOUT=80,
+        ):
+            with patch('decision_ai.services.urllib.request.urlopen', return_value=FakeResponse()) as opened:
+                text = DecisionAIService()._complete('Système', 'Faits autorisés', max_tokens=20)
+        self.assertEqual(text, 'Synthèse rédigée.')
+        sent = opened.call_args.args[0]
+        self.assertIsInstance(sent, Request)
+        self.assertEqual(sent.full_url, 'https://text.pollinations.ai/openai')
+        self.assertNotIn('Authorization', sent.headers)
+        body = json.loads(sent.data.decode())
+        self.assertEqual(body['model'], 'openai-fast')
+        self.assertFalse(body['stream'])
+        self.assertEqual(opened.call_args.kwargs['timeout'], 80)
+
+    def test_hosted_model_sends_the_key_to_a_chat_endpoint(self):
+        import json
+
+        raw = json.dumps({'choices': [{'message': {'content': 'Texte.'}}]}).encode()
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return raw
+
+        with override_settings(
+            OLLAMA_BASE_URL='',
+            OLLAMA_MODEL='',
+            AI_BASE_URL='https://api.groq.com/openai/v1',
+            AI_MODEL='qwen/qwen3.8-27b',
+            AI_API_KEY='secret-test',
+        ):
+            with patch('decision_ai.services.urllib.request.urlopen', return_value=FakeResponse()) as opened:
+                DecisionAIService()._complete('Système', 'Faits', max_tokens=20)
+        sent = opened.call_args.args[0]
+        self.assertEqual(sent.full_url, 'https://api.groq.com/openai/v1/chat/completions')
+        self.assertEqual(sent.headers['Authorization'], 'Bearer secret-test')
+
     def test_empty_remark_is_rejected(self):
         response = self.client.post(reverse('decision_ai:improve_remark'), {'remark': '  '})
         self.assertEqual(response.status_code, 400)
