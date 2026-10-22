@@ -837,24 +837,47 @@ def reports_view(request):
     denied = _deny(request)
     if denied:
         return denied
-    day = _parse_date(request.GET.get('date') or request.POST.get('date')) or timezone.localdate()
+    requested = _parse_date(request.GET.get('date') or request.POST.get('date'))
+    day = requested or timezone.localdate()
     if request.user.is_admin() and request.method == 'GET':
-        people = Employee.objects.filter(status='active').select_related('user').order_by('user__first_name')
-        rows = []
-        for person in people:
-            report = DailyReport.objects.filter(employee=person.user, date=day).first()
-            rows.append({
-                'employee_id': person.pk,
-                'name': person.full_name,
-                'username': person.user.username,
-                'submitted': bool(report and report.uploaded_pdf),
-                'filename': report.original_name if report else '',
-                'url': f'/api/rapports/{report.pk}/fichier/' if report and report.uploaded_pdf else '',
-                'sent_at': timezone.localtime(report.updated_at).strftime('%H:%M') if report and report.uploaded_pdf else '',
-                'updated_at': report.updated_at.isoformat() if report and report.uploaded_pdf else '',
-            })
-        rows.sort(key=lambda row: row['updated_at'], reverse=True)
-        return JsonResponse({'ok': True, 'date': day.isoformat(), 'reports': rows})
+        def rows_for(chosen):
+            people = Employee.objects.filter(status='active').select_related('user').order_by('user__first_name')
+            built = []
+            for person in people:
+                report = DailyReport.objects.filter(employee=person.user, date=chosen).first()
+                text = (report.content or '').strip() if report else ''
+                has_file = bool(report and report.uploaded_pdf)
+                submitted = has_file or bool(text and text != 'Rapport importé.')
+                built.append({
+                    'employee_id': person.pk,
+                    'name': person.full_name,
+                    'username': person.user.username,
+                    'submitted': submitted,
+                    'filename': (report.original_name or 'Rapport du jour') if submitted and report else '',
+                    'url': f'/api/rapports/{report.pk}/fichier/' if has_file else '',
+                    'sent_at': timezone.localtime(report.updated_at).strftime('%H:%M') if submitted and report else '',
+                    'updated_at': report.updated_at.isoformat() if submitted and report else '',
+                })
+            built.sort(key=lambda row: row['updated_at'], reverse=True)
+            return built
+
+        rows = rows_for(day)
+        # Les données générées couvrent plusieurs jours. S'il n'y a rien
+        # aujourd'hui, on montre le dernier jour qui contient des rapports.
+        if requested is None and not any(row['submitted'] for row in rows):
+            for offset in range(1, 15):
+                previous = day - timedelta(days=offset)
+                candidate = rows_for(previous)
+                if any(row['submitted'] for row in candidate):
+                    day = previous
+                    rows = candidate
+                    break
+        return JsonResponse({
+            'ok': True,
+            'date': day.isoformat(),
+            'today': timezone.localdate().isoformat(),
+            'reports': rows,
+        })
     if request.method == 'GET':
         mine = DailyReport.objects.filter(employee=request.user).order_by('-date')
         return JsonResponse({'ok': True, 'reports': [_report_card(item) for item in mine[:20]]})

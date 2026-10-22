@@ -3081,22 +3081,31 @@ function AiReportsPage() {
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const [reports, setReports] = useState<{ name: string; submitted: boolean; filename: string; url: string; sent_at: string }[] | null>(null)
+  const [reportDate, setReportDate] = useState('')
+  const [reportsToday, setReportsToday] = useState(true)
   const reportDay = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const reportLabel = reportDay.charAt(0).toUpperCase() + reportDay.slice(1)
   useEffect(() => {
     let stop = false
     deskCall('/api/rapports/').then((data) => {
       if (stop) return
+      const chosen = String(data.date || '')
+      setReportDate(chosen)
+      setReportsToday(!data.today || chosen === String(data.today))
       setReports((data.reports ?? []) as { name: string; submitted: boolean; filename: string; url: string; sent_at: string }[])
     }).catch(() => { if (!stop) setReports([]) })
     return () => { stop = true }
   }, [])
   const received = (reports ?? []).filter((item) => item.submitted)
+  const when = reportsToday || !reportDate ? 'aujourd’hui' : `le ${reportDate.split('-').reverse().join('/')}`
+  const shownDay = reportDate
+    ? new Date(`${reportDate}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : reportDay
+  const shownLabel = shownDay.charAt(0).toUpperCase() + shownDay.slice(1)
   async function generate() {
     setLoading(true)
     setError('')
     const now = new Date()
-    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const day = reportDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     try {
       const response = await fetch('/reports/synthese/', {
         method: 'POST',
@@ -3126,7 +3135,7 @@ function AiReportsPage() {
   return (
     <section className="lp">
       <LightHead kicker="RAC’IN Africa" title="Rapports IA" text="La synthèse est produite à partir des rapports réellement soumis." action={<button className="lp-btn" type="button" disabled={loading} onClick={() => { void generate() }}><Icon name="spark" size={14} /> {loading ? 'Analyse...' : 'Générer la synthèse IA'}</button>} />
-      {reports === null ? <p className="muted">Chargement des rapports soumis...</p> : <p className="muted">{received.length} rapport{received.length > 1 ? 's' : ''} soumis aujourd’hui{reports.length ? ` sur ${reports.length} employés` : ''}.</p>}
+      {reports === null ? <p className="muted">Chargement des rapports soumis...</p> : <p className="muted">{received.length} rapport{received.length > 1 ? 's' : ''} soumis {when}{reports.length ? ` sur ${reports.length} employés` : ''}.</p>}
       {received.length ? (
         <ul className="lp-report-list">
           {received.map((item) => (
@@ -3146,14 +3155,14 @@ function AiReportsPage() {
             <span><Icon name="spark" size={18} /></span>
             <em>Rapports soumis</em>
             <h2>Synthèse des rapports</h2>
-            <time>{reportLabel}</time>
+            <time>{shownLabel}</time>
           </aside>
           <div>
             {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : <p style={{ whiteSpace: 'pre-wrap' }}>{text}</p>}
-            <button className="lp-btn" type="button" onClick={() => downloadSynthesis(reportLabel, text)}><Icon name="download" size={14} /> Télécharger</button>
+            <button className="lp-btn" type="button" onClick={() => downloadSynthesis(shownLabel, text)}><Icon name="download" size={14} /> Télécharger</button>
           </div>
         </div>
-      ) : <p className="muted">{loading ? 'Lecture des rapports soumis…' : received.length ? 'Ces rapports sont prêts. La synthèse s’affiche ici après l’analyse.' : 'Aucun rapport soumis aujourd’hui.'}</p>}
+      ) : <p className="muted">{loading ? 'Lecture des rapports soumis…' : received.length ? 'Ces rapports sont prêts. La synthèse s’affiche ici après l’analyse.' : 'Aucun rapport soumis sur les derniers jours.'}</p>}
     </section>
   )
 }

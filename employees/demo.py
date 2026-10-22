@@ -373,7 +373,7 @@ def _create_plans_and_reports(rng, today):
             },
         )
         plans += 1
-        submit = rng.random() < (0.55 if day == today else 0.8)
+        submit = True if day == today else rng.random() < 0.8
         if not submit:
             continue
         done = [task.title for task in day_tasks if task.status == 'completed']
