@@ -126,6 +126,12 @@ export async function enterSession(username: string, password: string): Promise<
   return data.user as LiveUser
 }
 
+export async function enterDemonstration(): Promise<LiveUser> {
+  await openSession()
+  const data = await call('/api/entree/', { method: 'POST', body: '{}' })
+  return data.user as LiveUser
+}
+
 export async function ensureAdminSession(): Promise<LiveUser> {
   await openSession()
   let current = await openSession()

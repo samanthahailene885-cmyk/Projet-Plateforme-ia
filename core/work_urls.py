@@ -5,6 +5,7 @@ from . import work_api
 urlpatterns = [
     path('session/', work_api.session_view, name='work_session'),
     path('connexion/', work_api.login_view, name='work_login'),
+    path('entree/', work_api.guest_entry_view, name='work_guest'),
     path('deconnexion/', work_api.logout_view, name='work_logout'),
     path('basculer/', work_api.switch_view, name='work_switch'),
     path('employes/', work_api.employees_view, name='work_employees'),

@@ -338,6 +338,19 @@ def login_view(request):
 
 
 @require_POST
+def guest_entry_view(request):
+    """Ouvre l'espace responsable sans identifiant, pour la démonstration."""
+    user = User.objects.filter(username='admin', role='admin', is_active=True).first()
+    if user is None:
+        user = User.objects.filter(role='admin', is_active=True).order_by('pk').first()
+    if user is None:
+        return JsonResponse({'ok': False, 'error': "Le compte de démonstration n'est pas prêt."}, status=503)
+    login(request, user)
+    request.session.pop('preview_admin_id', None)
+    return _with_csrf(request, {'ok': True, 'user': _session_user(request)})
+
+
+@require_POST
 def logout_view(request):
     logout(request)
     return _with_csrf(request, {'ok': True})

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { deskCall, ensureAdminSession, ensureEmployeeSession, enterSession, leaveSession, openSession, showSpace } from './work'
+import { deskCall, ensureAdminSession, ensureEmployeeSession, enterDemonstration, enterSession, leaveSession, openSession, showSpace } from './work'
 import loginHero from './assets/login-hero.png'
 import portraitZaina from './assets/portraits/zaina.jpg'
 import portraitMariam from './assets/portraits/mariam.jpg'
@@ -3570,12 +3570,33 @@ function Topbar({ role, notifCount, onNavigate, onRole, page }: { role: Role; no
 }
 
 function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (account: Account, role?: Role) => void }) {
+  const hosted = window.location.hostname.endsWith('onrender.com')
   const [mode, setMode] = useState<'login' | 'create'>('login')
   const [identifiant, setIdentifiant] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState(hosted)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ first: '', last: '', username: '', email: '', password: '', confirm: '' })
+  function arrive(session: { username: string; first: string; last: string; role: string }) {
+    onSuccess({
+      username: session.username,
+      email: '',
+      password: '',
+      first: session.first || 'Amadou',
+      last: session.last || 'Mensah',
+    }, session.role === 'admin' ? 'admin' : 'employee')
+  }
+  function enterDirect() {
+    setPending(true)
+    setError('')
+    void enterDemonstration().then(arrive).catch((reason) => {
+      setError(reason instanceof Error && reason.message ? reason.message : "L'accès direct n'a pas abouti. Réessayez.")
+      setPending(false)
+    })
+  }
+  useEffect(() => {
+    if (hosted) enterDirect()
+  }, [])
   function create(event: FormEvent) {
     event.preventDefault()
     const username = form.username.trim().toLowerCase()
@@ -3644,7 +3665,10 @@ function Login({ accounts, onSuccess }: { accounts: Account[]; onSuccess: (accou
           })
         }}>
           <h2>Connexion</h2>
-          <p className="intro">Saisissez votre identifiant pour accéder à la plateforme.</p>
+          <p className="intro">L'espace du responsable s'ouvre sans identifiant.</p>
+          <button className="btn full" type="button" disabled={pending} onClick={enterDirect}>{pending ? 'Ouverture…' : 'Accéder à la plateforme →'}</button>
+          {error ? <p className="intro" style={{ color: '#b91c1c' }}>{error}</p> : null}
+          <p className="intro" style={{ marginTop: 18 }}>Ou saisissez un identifiant.</p>
           <label>Identifiant<input value={identifiant} onChange={(event) => setIdentifiant(event.target.value)} autoComplete="username" required /></label>
           <label>Mot de passe<input type="password" value={motDePasse} onChange={(event) => setMotDePasse(event.target.value)} autoComplete="current-password" required /></label>
           {error ? <p className="intro" style={{ color: '#b91c1c' }}>{error}</p> : null}

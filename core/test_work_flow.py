@@ -27,6 +27,14 @@ class WorkFlowTests(TestCase):
         self.awa = Employee.objects.create(user=self.awa_user, position='designer', hire_date=self.today, status='active')
         self.other = Employee.objects.create(user=self.other_user, position='developer', hire_date=self.today, status='active')
 
+    def test_guest_entry_opens_the_manager_space_without_credentials(self):
+        response = self.client.post('/api/entree/', data='{}', content_type='application/json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['ok'])
+        self.assertEqual(response.json()['user']['role'], 'admin')
+        session = self.client.get('/api/session/')
+        self.assertTrue(session.json()['authenticated'])
+
     def test_full_chain_updates_the_database_and_hides_other_employees(self):
         self.client.login(username='boss-flow', password='testpass123')
         created = self.client.post('/api/projets/', data={
