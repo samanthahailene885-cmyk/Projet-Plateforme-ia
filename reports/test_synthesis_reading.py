@@ -164,7 +164,9 @@ class SynthesisReadingTests(TestCase):
         self.assertNotIn('Participation aux rapports', text)
         self.assertIn('Employé 1', prompt)
         self.assertIn('Employé 40', prompt)
-        self.assertIn('autre', text)
+        for index in range(1, 41):
+            self.assertIn(f'Employé {index}', text)
+        self.assertNotIn('détail des rapports sources', text)
         self.assertLess(len(text.split('### A. Synthèse exécutive')[1].split('### B.')[0]), 1200)
         self.assertNotIn('Aucune activité terminée', text)
         self.assertEqual(prompt.count("Rédige une seule synthèse"), 1)

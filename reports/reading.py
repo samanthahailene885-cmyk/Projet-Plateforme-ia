@@ -48,7 +48,6 @@ _PROJECT_STOP = {
     'filtres', 'categorie', 'categories', 'recherche', 'structure', 'disposition',
     'affichage', 'maquette', 'rapport', 'objectif', 'generale', 'general',
 }
-_SHOW_LIMIT = 12
 _POINT_LIMIT = 8
 
 
@@ -226,6 +225,43 @@ def _label(item):
     if item['kind'] == 'next':
         return 'prochaine étape'
     return 'travail décrit, sans confirmation de livrable'
+
+
+def _core_activity(text):
+    folded = _fold(text)
+    folded = re.sub(r'\([^)]*\)', ' ', folded)
+    folded = re.sub(r'\[[^\]]*\]', ' ', folded)
+    folded = re.sub(
+        r'\b(en cours|termines?|terminees?|non realisees?|statut|note dans le rapport comme|dans la base|notee?)\b',
+        ' ',
+        folded,
+    )
+    return re.sub(r'[^a-z0-9]+', ' ', folded).strip()
+
+
+def _collapse_items(items):
+    """Une activité ne doit apparaître qu'une fois, même si le texte et la base la redisent."""
+    kept = []
+    for item in items:
+        core = _core_activity(item['text'])
+        if not core or core.startswith('rapport du '):
+            continue
+        match = None
+        for current in kept:
+            other = _core_activity(current['text'])
+            if current['author'] != item['author'] or current['kind'] != item['kind'] or not other:
+                continue
+            if other == core or other in core or core in other:
+                match = current
+                break
+        if match is None:
+            kept.append(item)
+            continue
+        if len(item['text']) < len(match['text']):
+            match['text'] = item['text']
+        if item.get('project') and not match.get('project'):
+            match['project'] = item['project']
+    return kept
 
 
 def _remember(bucket, item):
@@ -469,14 +505,15 @@ def _read_report(report, day):
         if folded in spellings and spellings[folded] not in text_projects and name not in text_projects:
             continue
 
+    items = _collapse_items(items)
     points = []
-    for item in items[:12]:
+    for item in items[:8]:
         if item['kind'] == 'note':
             points.append(f"Note transmise : {item['text']}")
         else:
             points.append(f"{_label(item)} : {item['text']}")
     return {
-        'items': items[:12],
+        'items': items[:8],
         'points': points[:_POINT_LIMIT],
         'cited': cited,
         'date_gaps': gaps,
@@ -613,29 +650,40 @@ def render_synthesis(dossier):
         reading['brief'],
     ]
     work = reading['work']
-    if work:
+    authors = {}
+    for item in work:
+        authors.setdefault(item['author'] or 'Employé', []).append(item)
+    for report in dossier.get('reports') or []:
+        authors.setdefault(report.get('name') or 'Employé', [])
+    if authors:
         parts.extend(['', '### B. Avancées majeures', ''])
-        shown = 0
+
+        def project_of(rows):
+            for item in rows:
+                if item.get('project'):
+                    return item['project']
+            return 'Projet non renseigné'
+
+        ordered = sorted(authors.items(), key=lambda pair: (project_of(pair[1]), pair[0]))
         current = None
-        ordered = sorted(work, key=lambda item: (item['project'] or 'Non renseigné', item['kind']))
-        for item in ordered:
-            if shown >= _SHOW_LIMIT:
-                break
-            project = item['project'] or 'Projet non renseigné'
+        for author, rows in ordered:
+            project = project_of(rows)
             if project != current:
                 if current is not None:
                     parts.append('')
-                parts.append(f"Projet : {project}")
+                parts.append(f'Projet : {project}')
                 current = project
-            parts.append(_bullet(item))
-            shown += 1
-        hidden = len(ordered) - shown
-        if hidden:
-            parts.append('')
-            parts.append(
-                f"{hidden} autre{'s' if hidden > 1 else ''} élément{'s' if hidden > 1 else ''} "
-                "figure dans le détail des rapports sources."
-            )
+            if not rows:
+                parts.append(f'- {author} — rapport soumis, sans activité distincte identifiable.')
+                continue
+            for item in rows[:4]:
+                parts.append(_bullet(item))
+            extra = len(rows) - 4
+            if extra > 0:
+                parts.append(
+                    f"- {author} — {extra} autre{'s' if extra > 1 else ''} "
+                    f"activité{'s' if extra > 1 else ''} dans son rapport."
+                )
     return '\n'.join(parts).strip() + '\n'
 
 
