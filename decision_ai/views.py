@@ -61,12 +61,15 @@ def employee_chat(request):
     day = timezone.localdate()
     answer = answer_from_records(employee, question, day)
     if answer is None:
+        facts = facts_for_model(employee, day)
         try:
-            answer = DecisionAIService().answer_employee(question, facts_for_model(employee, day))
+            answer = DecisionAIService().answer_employee(question, facts)
         except AIServiceError:
-            return JsonResponse({
-                'error': 'Le service IA est momentanément indisponible.',
-            }, status=503)
+            answer = (
+                "Le modèle local est indisponible. "
+                "Voici uniquement vos faits enregistrés :\n"
+                + facts
+            )
     AIChat.objects.create(user=request.user, question=question, answer=answer)
     return JsonResponse({'question': question, 'answer': answer})
 

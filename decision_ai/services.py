@@ -1,14 +1,10 @@
+import json
 import logging
+import urllib.error
+import urllib.request
 
 from django.conf import settings
 from django.utils import timezone
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    AuthenticationError,
-    OpenAI,
-    RateLimitError,
-)
 
 from decision_ai.analytics import (
     assistant_context,
@@ -34,27 +30,6 @@ class NoSubmittedReportsError(AIServiceError):
     """Aucun rapport soumis : l'appel au modèle n'a pas lieu."""
 
 
-def _api_error_parts(exc):
-    body = getattr(exc, 'body', None) or {}
-    error = body.get('error') if isinstance(body, dict) else {}
-    if not isinstance(error, dict):
-        error = {}
-    return (
-        type(exc).__name__,
-        getattr(exc, 'status_code', None),
-        error.get('code'),
-        error.get('type'),
-    )
-
-
-def _log_api_error(exc):
-    kind, status, code, error_type = _api_error_parts(exc)
-    logger.warning(
-        'Appel OpenAI refusé (%s, statut %s, code %s, type %s).',
-        kind, status, code, error_type,
-    )
-
-
 def _activity_sentence(task):
     title = (task.get('title') or '').strip().rstrip('.')
     extras = []
@@ -78,16 +53,6 @@ def compose_employee_report(payload):
         if sentence:
             lines.append(f'■ {sentence}')
     return '\n\n'.join(lines)
-
-
-def _quota_exhausted(exc):
-    body = getattr(exc, 'body', None) or {}
-    error = body.get('error') if isinstance(body, dict) else {}
-    details = ''
-    if isinstance(error, dict):
-        details = f"{error.get('code') or ''} {error.get('type') or ''}"
-    blob = f'{details} {exc}'
-    return 'insufficient_quota' in blob or 'credit_balance_exhausted' in blob
 
 
 REPORT_SYSTEM = (
@@ -175,97 +140,66 @@ TEAM_SYNTHESIS_SYSTEM = (
 
 
 class DecisionAIService:
-    _quota_blocked = False
-
     def __init__(self):
-        api_key = (getattr(settings, 'OPENAI_API_KEY', '') or '').strip()
-        self.model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o-mini')
-        timeout = getattr(settings, 'OPENAI_TIMEOUT', 45)
-        self.client = None
-        self._setup_error = None
-        if not api_key or api_key == 'your-openai-api-key':
-            self._setup_error = (
-                "Le service d'intelligence artificielle n'est pas configuré. "
-                "Dans le fichier .env, remplacez OPENAI_API_KEY par une clé réelle "
-                "(platform.openai.com), puis redémarrez l'application."
-            )
-            return
-        try:
-            self.client = OpenAI(api_key=api_key, timeout=timeout)
-        except Exception:
-            self.client = None
-            self._setup_error = (
-                "Le client OpenAI n'a pas pu démarrer. "
-                "Vérifiez que le paquet openai est compatible avec les bibliothèques installées, "
-                "puis redémarrez l'application."
-            )
+        self.base_url = (getattr(settings, 'OLLAMA_BASE_URL', '') or '').strip().rstrip('/')
+        self.model = (getattr(settings, 'OLLAMA_MODEL', '') or '').strip()
+        timeout = getattr(settings, 'OLLAMA_TIMEOUT', 60)
+        self.timeout = timeout if isinstance(timeout, (int, float)) and timeout > 0 else 60
 
     def _complete(self, system, user_content, max_tokens=900):
-        if not self.client:
+        """Demande une formulation au modèle local. N'invente rien si Ollama ne répond pas."""
+        if not self.base_url or not self.model:
             raise AIServiceError(
-                self._setup_error
-                or "Le service d'intelligence artificielle est indisponible."
+                "Le modèle local n'est pas configuré. "
+                "Indiquez OLLAMA_BASE_URL et OLLAMA_MODEL, puis redémarrez l'application. "
+                "Aucun texte n'a été inventé."
             )
-        if DecisionAIService._quota_blocked:
+        payload = json.dumps({
+            'model': self.model,
+            'messages': [
+                {'role': 'system', 'content': system},
+                {'role': 'user', 'content': user_content},
+            ],
+            'stream': False,
+            'options': {
+                'temperature': 0.2,
+                'num_predict': max_tokens,
+            },
+        }).encode('utf-8')
+        request = urllib.request.Request(
+            f'{self.base_url}/api/chat',
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                raw = response.read().decode('utf-8')
+        except urllib.error.HTTPError as exc:
+            logger.warning('Ollama a répondu HTTP %s.', exc.code)
             raise AIServiceError(
-                "Le compte OpenAI n'a plus de crédit. "
-                "Ajoutez des crédits dans la facturation sur platform.openai.com, "
-                "puis relancez la génération. Aucun texte n'a été inventé à la place."
+                "Le modèle local n'a pas pu répondre. "
+                "Vérifiez qu'Ollama est démarré et que le modèle indiqué est installé. "
+                "Aucun texte n'a été inventé."
+            )
+        except (urllib.error.URLError, TimeoutError, OSError):
+            logger.warning('Ollama est injoignable.')
+            raise AIServiceError(
+                "Le modèle local est indisponible. "
+                "Démarrez Ollama sur cet ordinateur, puis réessayez. "
+                "Aucun texte n'a été inventé."
             )
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {'role': 'system', 'content': system},
-                    {'role': 'user', 'content': user_content},
-                ],
-                max_tokens=max_tokens,
-                temperature=0.2,
-            )
-            text = (response.choices[0].message.content or '').strip()
-        except AIServiceError:
-            raise
-        except AuthenticationError as exc:
-            _log_api_error(exc)
+            data = json.loads(raw)
+        except json.JSONDecodeError:
             raise AIServiceError(
-                "La clé OPENAI_API_KEY a été refusée par le service. "
-                "Vérifiez la clé dans le fichier .env, puis redémarrez l'application. "
-                "Aucun texte n'a été inventé à la place."
+                "Le modèle local a renvoyé une réponse illisible. Aucun texte n'a été inventé."
             )
-        except APITimeoutError as exc:
-            _log_api_error(exc)
-            raise AIServiceError(
-                "Le service d'intelligence artificielle a mis trop de temps à répondre. "
-                "Réessayez dans quelques instants. Aucun texte n'a été inventé."
-            )
-        except RateLimitError as exc:
-            _log_api_error(exc)
-            if _quota_exhausted(exc):
-                DecisionAIService._quota_blocked = True
-                raise AIServiceError(
-                    "Le compte OpenAI n'a plus de crédit. "
-                    "Ajoutez des crédits dans la facturation sur platform.openai.com, "
-                    "puis relancez la génération. Aucun texte n'a été inventé à la place."
-                )
-            raise AIServiceError(
-                "Le service d'intelligence artificielle est temporairement saturé. "
-                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
-            )
-        except APIConnectionError as exc:
-            _log_api_error(exc)
-            raise AIServiceError(
-                "Le service d'intelligence artificielle est temporairement indisponible. "
-                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
-            )
-        except Exception as exc:
-            _log_api_error(exc)
-            raise AIServiceError(
-                "Le service d'intelligence artificielle est temporairement indisponible. "
-                "Réessayez dans quelques instants. Aucun texte n'a été inventé à la place."
-            )
+        message = data.get('message') if isinstance(data, dict) else None
+        text = (message.get('content') or '').strip() if isinstance(message, dict) else ''
         if not text:
             raise AIServiceError(
-                "Le service d'intelligence artificielle a renvoyé une réponse vide. "
+                "Le modèle local a renvoyé une réponse vide. "
                 "Aucun texte de remplacement n'a été généré."
             )
         return text
@@ -287,11 +221,10 @@ class DecisionAIService:
                 "Données insuffisantes : aucune activité n'est enregistrée pour cette date. "
                 "Le rapport n'a pas été généré."
             )
-        if self.client and not DecisionAIService._quota_blocked:
-            try:
-                return self._complete(REPORT_SYSTEM, format_employee_payload(payload), max_tokens=900)
-            except AIServiceError:
-                pass
+        try:
+            return self._complete(REPORT_SYSTEM, format_employee_payload(payload), max_tokens=900)
+        except AIServiceError:
+            pass
         from decision_ai.briefing import narrate_employee_day
         return narrate_employee_day(payload) or compose_employee_report(payload)
 
@@ -400,6 +333,8 @@ class DecisionAIService:
         if dossier['analyzed'] == 0:
             raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
         fallback = compose_team_synthesis(dossier)
+        previous_timeout = self.timeout
+        self.timeout = min(previous_timeout, 20)
         try:
             text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1400)
             if not (text or '').strip():
@@ -409,6 +344,8 @@ class DecisionAIService:
             text = fallback
             dossier['generative'] = False
             dossier['ai_error'] = str(exc)
+        finally:
+            self.timeout = previous_timeout
         return text, dossier
 
     def generate_monthly_report(self):

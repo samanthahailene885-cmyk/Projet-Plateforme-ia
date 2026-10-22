@@ -1872,20 +1872,22 @@ function TodosPage({ role, focusEmployee = '' }: { role: Role; staff: Staff[]; p
         )
       }
       const received = board.filter((row) => row.sent).length
+      const withWork = board.filter((row) => row.items.length > 0).length
+      const ordered = [...board].sort((a, b) => b.items.length - a.items.length || Number(b.sent) - Number(a.sent))
       return (
         <section className="lp">
           <LightHead kicker={todayLabel} title="Todo Lists du jour" text="Ouvrez la liste transmise par chaque employé." />
           <div className="lp-stats">
-            <span><i className="ok" /><b>{received}</b> reçue{received > 1 ? 's' : ''}</span>
-            <span><i className="warn" /><b>{board.length - received}</b> en attente</span>
+            <span><i className="ok" /><b>{withWork}</b> avec activités</span>
+            <span><i className="warn" /><b>{received}</b> reçue{received > 1 ? 's' : ''}</span>
           </div>
           <article className="lp-panel">
-            <header><div><h2>Réception</h2><p>Todo Lists transmises aujourd’hui</p></div></header>
-            {board.map((row) => (
+            <header><div><h2>Réception</h2><p>Todo Lists du jour</p></div></header>
+            {ordered.map((row) => (
               <button className="lp-act" type="button" key={row.employee.id} onClick={() => setOpenId(String(row.employee.id))}>
                 <span className="lp-person"><b>{row.employee.initials || row.employee.name.slice(0, 2).toUpperCase()}</b></span>
-                <span className="grow"><strong>{properName(row.employee.name)}</strong><small>{row.sent ? `${row.items.length} activité${row.items.length > 1 ? 's' : ''}` : 'Todo List non envoyée'}</small></span>
-                <em className={row.sent ? 'ok' : 'wait'}>{row.sent ? 'Reçue' : 'Non reçue'}</em>
+                <span className="grow"><strong>{properName(row.employee.name)}</strong><small>{row.items.length ? `${row.items.length} activité${row.items.length > 1 ? 's' : ''}` : 'Aucune activité aujourd’hui'}</small></span>
+                <em className={row.sent ? 'ok' : row.items.length ? 'info' : 'wait'}>{row.sent ? 'Reçue' : row.items.length ? 'Préparée' : 'Non reçue'}</em>
                 <time>{row.sent ? row.sentAt : '—'}</time>
                 <Icon name="chevron" size={16} />
               </button>
@@ -2694,7 +2696,7 @@ function AssistantPage({ role }: { role: Role }) {
           <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Posez une question sur l’activité de votre entreprise..." aria-label="Question" />
           <button type="submit" aria-label="Envoyer"><Icon name="send" size={16} /></button>
         </form>
-        <p className="ai-disclaimer">L’assistant peut commettre des erreurs. Vérifiez les informations importantes.</p>
+        <p className="ai-disclaimer">Les chiffres viennent de la base. Le modèle local ne fait que les formuler. Vérifiez les informations importantes.</p>
       </section>
     )
 }
@@ -3078,8 +3080,18 @@ function AiReportsPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [reports, setReports] = useState<{ name: string; submitted: boolean; filename: string; url: string; sent_at: string }[] | null>(null)
   const reportDay = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const reportLabel = reportDay.charAt(0).toUpperCase() + reportDay.slice(1)
+  useEffect(() => {
+    let stop = false
+    deskCall('/api/rapports/').then((data) => {
+      if (stop) return
+      setReports((data.reports ?? []) as { name: string; submitted: boolean; filename: string; url: string; sent_at: string }[])
+    }).catch(() => { if (!stop) setReports([]) })
+    return () => { stop = true }
+  }, [])
+  const received = (reports ?? []).filter((item) => item.submitted)
   async function generate() {
     setLoading(true)
     setError('')
@@ -3114,6 +3126,18 @@ function AiReportsPage() {
   return (
     <section className="lp">
       <LightHead kicker="RAC’IN Africa" title="Rapports IA" text="La synthèse est produite à partir des rapports réellement soumis." action={<button className="lp-btn" type="button" disabled={loading} onClick={() => { void generate() }}><Icon name="spark" size={14} /> {loading ? 'Analyse...' : 'Générer la synthèse IA'}</button>} />
+      {reports === null ? <p className="muted">Chargement des rapports soumis...</p> : <p className="muted">{received.length} rapport{received.length > 1 ? 's' : ''} soumis aujourd’hui{reports.length ? ` sur ${reports.length} employés` : ''}.</p>}
+      {received.length ? (
+        <ul className="lp-report-list">
+          {received.map((item) => (
+            <li key={`${item.name}-${item.filename}`}>
+              <strong>{item.name}</strong>
+              {item.url ? <a href={item.url} target="_blank" rel="noopener">{item.filename || 'Ouvrir le rapport'}</a> : <span>{item.filename || 'Rapport soumis'}</span>}
+              {item.sent_at ? <time>{item.sent_at}</time> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {error ? <p className="lp-note bad">{error}</p> : null}
       {notice ? <p className="lp-note">{notice}</p> : null}
       {text ? (
@@ -3129,7 +3153,7 @@ function AiReportsPage() {
             <button className="lp-btn" type="button" onClick={() => downloadSynthesis(reportLabel, text)}><Icon name="download" size={14} /> Télécharger</button>
           </div>
         </div>
-      ) : <p className="muted">Aucune synthèse n’est affichée tant que les rapports du jour n’ont pas été analysés.</p>}
+      ) : <p className="muted">{loading ? 'Lecture des rapports soumis…' : received.length ? 'Ces rapports sont prêts. La synthèse s’affiche ici après l’analyse.' : 'Aucun rapport soumis aujourd’hui.'}</p>}
     </section>
   )
 }

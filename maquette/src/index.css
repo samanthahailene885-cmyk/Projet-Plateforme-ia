@@ -1733,6 +1733,10 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .ai-ask input { flex: 1; height: 40px; border: 0; background: transparent; color: #14213d; font-size: 14px; }
 .ai-ask button { width: 40px; height: 40px; border: 0; border-radius: 10px; background: #3478f6; color: white; }
 .ai-disclaimer { margin-top: 16px; color: #a2abba; font-size: 11px; }
+.lp-report-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.lp-report-list li { display: flex; gap: 12px; align-items: center; background: white; border: 1px solid #e8edf4; border-radius: 12px; padding: 10px 14px; }
+.lp-report-list a { color: #2f6fed; }
+.lp-report-list time { margin-left: auto; color: #8b97ab; font-size: 12px; }
 .lp-synth { display: grid; grid-template-columns: 280px minmax(0, 1fr); background: white; border: 1px solid #e8edf4; border-radius: 18px; overflow: hidden; }
 .lp-synth aside {
   background: linear-gradient(180deg, #16315f, #0a1733); color: white;

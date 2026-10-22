@@ -758,6 +758,117 @@ def _open_tasks():
     return Task.objects.exclude(status__in=CLOSED).select_related('project', 'assigned_to__user')
 
 
+def _missing_todo_answer(today):
+    active = Employee.objects.select_related('user').filter(status='active').order_by('user__last_name', 'user__first_name')
+    filled_ids = set(tasks_on_date(today).values_list('assigned_to_id', flat=True))
+    filled_ids.discard(None)
+    missing = [employee.full_name for employee in active if employee.pk not in filled_ids]
+    if missing:
+        text = "Employés actifs sans todo list aujourd'hui : " + ', '.join(missing) + '.'
+    else:
+        text = "Tous les employés actifs ont une todo list aujourd'hui."
+    return text + " Une todo list manquante n'est pas une absence."
+
+
+def _absence_answer(today):
+    absent = Attendance.objects.filter(date=today, status='absent').select_related('employee__user')
+    names = [row.employee.full_name for row in absent]
+    if names:
+        text = "Absents enregistrés aujourd'hui : " + ', '.join(names) + '.'
+    else:
+        text = "Aucune absence n'est enregistrée aujourd'hui."
+    return text + " Une todo list manquante n'est pas une absence."
+
+
+def _late_tasks_answer(today):
+    rows = list(
+        Task.objects.filter(due_date__lt=today)
+        .exclude(status__in=CLOSED)
+        .select_related('project', 'assigned_to__user')
+        .order_by('due_date', 'title')[:20]
+    )
+    total = Task.objects.filter(due_date__lt=today).exclude(status__in=CLOSED).count()
+    if total == 0:
+        return "Aucune tâche ouverte n'a d'échéance dépassée."
+    lines = []
+    for task in rows:
+        who = task.assigned_to.full_name if task.assigned_to_id else 'Non assignée'
+        project = task.project.name if task.project_id else 'Sans projet'
+        lines.append(f"- {task.title} | {who} | {project} | échéance {task.due_date:%d/%m/%Y}")
+    head = (
+        "1 tâche ouverte a une échéance dépassée."
+        if total == 1
+        else f"{total} tâches ouvertes ont une échéance dépassée."
+    )
+    extra = '' if total <= len(lines) else f"\nEt {total - len(lines)} autre(s)."
+    return head + '\n' + '\n'.join(lines) + extra
+
+
+def _signaled_difficulties():
+    rows = list(
+        Difficulty.objects.filter(status='open')
+        .select_related('employee__user', 'project', 'task')
+        .order_by('employee__user__last_name', 'reported_on')
+    )
+    if not rows:
+        return "Aucune difficulté ouverte n'est enregistrée."
+    lines = []
+    for item in rows:
+        who = item.employee.full_name
+        project = item.project.name if item.project_id else 'Sans projet'
+        task = f" — {item.task.title}" if item.task_id else ''
+        lines.append(f"- {who} ({project}{task}) : {item.description.strip()}")
+    head = (
+        "1 difficulté ouverte est signalée."
+        if len(lines) == 1
+        else f"{len(lines)} difficultés ouvertes sont signalées."
+    )
+    return head + '\n' + '\n'.join(lines)
+
+
+def _delay_risk_answer(today):
+    rows = project_delay_risks(today)
+    if not rows:
+        return "Aucun projet en cours ne présente de risque de retard selon les règles enregistrées."
+    lines = [f"- {row['project'].name} : {row['reason']}." for row in rows]
+    head = (
+        "1 projet présente un risque de retard."
+        if len(lines) == 1
+        else f"{len(lines)} projets présentent un risque de retard."
+    )
+    return head + '\n' + '\n'.join(lines)
+
+
+def _pending_permissions_answer():
+    rows = list(
+        PermissionRequest.objects.filter(status='pending')
+        .select_related('employee__user')
+        .order_by('start_date', 'pk')
+    )
+    if not rows:
+        return "Aucune demande d'autorisation n'est en attente."
+    lines = []
+    for item in rows:
+        who = item.employee.full_name
+        kind = item.get_type_display()
+        lines.append(f"- {who} — {kind} du {item.start_date:%d/%m/%Y} au {item.end_date:%d/%m/%Y}")
+    head = (
+        "1 demande d'autorisation est en attente."
+        if len(lines) == 1
+        else f"{len(lines)} demandes d'autorisation sont en attente."
+    )
+    return head + '\n' + '\n'.join(lines)
+
+
+def _submitted_synthesis_answer(today):
+    from reports.synthesis import collect_team_synthesis, compose_team_synthesis
+
+    dossier = collect_team_synthesis(today)
+    if dossier['analyzed'] == 0:
+        return "Aucun rapport soumis n'est disponible pour cette date. Aucune synthèse n'a été inventée."
+    return compose_team_synthesis(dossier)
+
+
 def manager_catalog_answer(question, today):
     """Réponses factuelles aux questions types du responsable. None si la question est autre."""
     folded = _fold(question)
@@ -766,6 +877,28 @@ def manager_catalog_answer(question, today):
 
     def has(*words):
         return any(word in folded for word in words)
+
+    if has('risque') and has('projet'):
+        return _delay_risk_answer(today)
+
+    if has('tache', 'activite') and has('retard') and not has('employe'):
+        return _late_tasks_answer(today)
+
+    if (has('todo', 'to-do', 'to do') and has('pas', 'sans', 'manque')
+            and has('rempli', 'renseign', 'envoye', 'soumis')):
+        return _missing_todo_answer(today)
+
+    if has('absent') and not has('todo', 'to-do', 'to do'):
+        return _absence_answer(today)
+
+    if has('attente') and has('permission', 'autorisation', 'demande'):
+        return _pending_permissions_answer()
+
+    if has('difficult') and (has('signal') or (has('employe') and not has('projet', 'plus'))):
+        return _signaled_difficulties()
+
+    if has('synthese') and has('rapport'):
+        return _submitted_synthesis_answer(today)
 
     if has('projet') and has('retard') and not has('employe', 'tache', 'activite'):
         rows = _late_projects(today)
@@ -933,32 +1066,6 @@ def manager_catalog_answer(question, today):
         if len(names) == 1:
             return f'Le projet {names[0]} nécessite une attention immédiate en raison d\'un retard ou d\'une priorité élevée.'
         return f'Les projets {_join(names)} nécessitent une attention immédiate en raison de leur retard ou de leur priorité élevée.'
-
-    if has('synthese') and has('rapport'):
-        sent = DailyReport.objects.filter(date=today).values('employee_id').distinct().count()
-        done = Task.objects.filter(status='completed', completed_at__date=today).count()
-        doing = Task.objects.filter(status__in=IN_PROGRESS).count()
-        missed = tasks_on_date(today).filter(status__in=['todo', 'not_done']).count()
-        if sent == 0:
-            sent_bit = "Aujourd'hui, aucun employé n'a soumis son rapport."
-        elif sent == 1:
-            sent_bit = "Aujourd'hui, 1 employé a soumis son rapport."
-        else:
-            sent_bit = f"Aujourd'hui, {sent} employés ont soumis leur rapport."
-        done_bit = f'{done} activité a été réalisée' if done == 1 else f'{done} activités ont été réalisées'
-        if doing == 0:
-            doing_bit = "aucune n'est encore en cours"
-        elif doing == 1:
-            doing_bit = '1 est encore en cours'
-        else:
-            doing_bit = f'{doing} sont encore en cours'
-        if missed == 0:
-            missed_bit = "aucune n'est restée non réalisée"
-        elif missed == 1:
-            missed_bit = "1 n'a pas été réalisée"
-        else:
-            missed_bit = f'{missed} n\'ont pas été réalisées'
-        return f'{sent_bit} {done_bit}, {doing_bit} et {missed_bit}.'
 
     if has('rapport') and has('pas encore', 'n ont pas', 'sans rapport', 'manquant'):
         sent_ids = set(DailyReport.objects.filter(date=today).values_list('employee_id', flat=True))

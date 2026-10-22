@@ -12,6 +12,7 @@ from decision_ai.analytics import (
     collect_alerts,
     day_stats,
     employee_report_payload,
+    manager_catalog_answer,
     recorded_answer,
     tasks_on_date,
 )
@@ -20,7 +21,7 @@ from decision_ai.models import AIChat
 from decision_ai.services import AIServiceError, DecisionAIService, compose_employee_report
 from employees.models import Employee
 from reports.models import DailyReport
-from tasks.models import Task
+from tasks.models import Difficulty, Task
 
 User = get_user_model()
 
@@ -112,6 +113,66 @@ class AnalyticsTests(PlatformDataMixin, TestCase):
         self.assertIn('Grace Hopper', context)
         self.assertIn("pas une absence", context)
         self.assertNotIn('Images inventées', context)
+
+    def test_known_manager_questions_do_not_call_the_model(self):
+        from attendance.models import Attendance
+
+        from projects.models import Project
+
+        Attendance.objects.create(employee=self.other, date=self.today, status='absent')
+        safe = Project.objects.create(
+            name='Campagne en cours',
+            client='Client',
+            start_date=self.today - timedelta(days=10),
+            end_date=self.today + timedelta(days=40),
+            status='in_progress',
+            progress=80,
+        )
+        Project.objects.create(
+            name='Site client',
+            client='Client',
+            start_date=self.today - timedelta(days=30),
+            end_date=self.today - timedelta(days=1),
+            status='in_progress',
+            progress=20,
+        )
+        Task.objects.create(
+            title='Maquette en retard',
+            project=safe,
+            assigned_to=self.employee,
+            status='todo',
+            due_date=self.today - timedelta(days=1),
+        )
+        Difficulty.objects.create(
+            employee=self.employee,
+            description='Validation client bloquée',
+            reported_on=self.today,
+            status='open',
+        )
+        PermissionRequest.objects.create(
+            employee=self.employee,
+            type='permission',
+            start_date=self.today,
+            end_date=self.today,
+            reason='Rendez-vous',
+            status='pending',
+        )
+        expected = {
+            "Quels employés n'ont pas rempli leur Todo List aujourd'hui ?": "n'est pas une absence",
+            "Qui est absent aujourd'hui ?": 'Grace Hopper',
+            'Quelles tâches sont en retard ?': 'Maquette en retard',
+            'Quels employés ont signalé des difficultés ?': 'Validation client bloquée',
+            "Quelles demandes d'autorisation sont en attente ?": 'Ada Lovelace',
+            'Génère la synthèse des rapports journaliers soumis.': 'Aucun rapport soumis',
+            'Quels projets présentent des risques de retard ?': 'Site client',
+        }
+        with patch.object(DecisionAIService, '_complete', side_effect=AssertionError('modèle appelé')):
+            for question, needle in expected.items():
+                answer = manager_catalog_answer(question, self.today)
+                self.assertIsNotNone(answer, question)
+                self.assertIn(needle, answer, question)
+        absence = manager_catalog_answer("Qui est absent aujourd'hui ?", self.today)
+        self.assertNotIn('Ada Lovelace', absence)
 
     def test_permission_answer_names_the_request(self):
         PermissionRequest.objects.create(
@@ -348,7 +409,7 @@ class ReportTests(PlatformDataMixin, TestCase):
         self.assertEqual(response.status_code, 302)
 
 
-@override_settings(OPENAI_API_KEY='')
+@override_settings(OLLAMA_BASE_URL='')
 class AIUnavailableTests(PlatformDataMixin, TestCase):
     def test_assistant_reports_missing_configuration(self):
         response = self.admin_client.post(
@@ -374,6 +435,53 @@ class AIUnavailableTests(PlatformDataMixin, TestCase):
         self.assertNotIn('Ada Lovelace', answer)
         self.assertIn("n'est pas une absence", answer)
         self.assertNotIn('OpenAI', answer)
+
+    def test_employee_sees_only_own_facts_when_the_local_model_is_down(self):
+        Task.objects.create(
+            title='Visuel Ada', assigned_to=self.employee, status='todo', planned_date=self.today,
+        )
+        Task.objects.create(
+            title='Secret Grace', assigned_to=self.other, status='todo', planned_date=self.today,
+        )
+        response = self.client.post(reverse('decision_ai:employee_chat'), {
+            'question': 'Peux-tu me rappeler ce qui me concerne ?',
+        })
+        self.assertEqual(response.status_code, 200)
+        answer = response.json()['answer']
+        self.assertIn('indisponible', answer)
+        self.assertIn('Ada Lovelace', answer)
+        self.assertIn('Visuel Ada', answer)
+        self.assertNotIn('Secret Grace', answer)
+        self.assertNotIn('Grace Hopper', answer)
+
+    def test_complete_calls_the_local_chat_endpoint(self):
+        import json
+        from urllib.request import Request
+
+        raw = json.dumps({'message': {'content': 'Formulation locale.'}}).encode()
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return raw
+
+        with override_settings(OLLAMA_BASE_URL='http://127.0.0.1:11434', OLLAMA_MODEL='qwen2.5:3b'):
+            with patch('decision_ai.services.urllib.request.urlopen', return_value=FakeResponse()) as opened:
+                text = DecisionAIService()._complete('Système', 'Faits autorisés', max_tokens=20)
+        self.assertEqual(text, 'Formulation locale.')
+        sent = opened.call_args.args[0]
+        self.assertIsInstance(sent, Request)
+        self.assertEqual(sent.full_url, 'http://127.0.0.1:11434/api/chat')
+        body = json.loads(sent.data.decode())
+        self.assertEqual(body['model'], 'qwen2.5:3b')
+        self.assertFalse(body['stream'])
+        self.assertEqual(body['messages'][0]['content'], 'Système')
+        self.assertEqual(body['messages'][1]['content'], 'Faits autorisés')
 
     def test_empty_remark_is_rejected(self):
         response = self.client.post(reverse('decision_ai:improve_remark'), {'remark': '  '})

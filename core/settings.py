@@ -194,6 +194,12 @@ OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
 OPENAI_TIMEOUT = config('OPENAI_TIMEOUT', default=45, cast=int)
 
+# L'assistant formule les faits déjà calculés avec un modèle local (Ollama).
+# Render ne l'héberge pas : les réponses factuelles Django sont utilisées telles quelles.
+OLLAMA_BASE_URL = '' if ON_RENDER else config('OLLAMA_BASE_URL', default='http://127.0.0.1:11434')
+OLLAMA_MODEL = config('OLLAMA_MODEL', default='qwen2.5:3b')
+OLLAMA_TIMEOUT = config('OLLAMA_TIMEOUT', default=60, cast=int)
+
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'
 

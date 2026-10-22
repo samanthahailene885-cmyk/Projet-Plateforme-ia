@@ -367,7 +367,10 @@ def _create_plans_and_reports(rng, today):
         DailyPlan.objects.update_or_create(
             employee=employee,
             date=day,
-            defaults={'objective': f"Avancer sur {day_tasks[0].project.name}."},
+            defaults={
+                'objective': f"Avancer sur {day_tasks[0].project.name}.",
+                'submitted_at': timezone.make_aware(datetime.combine(day, time(8, 30))),
+            },
         )
         plans += 1
         submit = rng.random() < (0.55 if day == today else 0.8)
