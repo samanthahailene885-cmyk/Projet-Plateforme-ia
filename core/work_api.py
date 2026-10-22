@@ -476,7 +476,7 @@ def project_detail_view(request, pk):
     if project is None:
         return JsonResponse({'ok': False, 'error': 'Projet introuvable.'}, status=404)
     if request.method == 'GET':
-        tasks = _task_qs(request.user).filter(project=project).exclude(status='cancelled')
+        tasks = _task_qs(request.user).filter(project=project).exclude(status='cancelled').order_by('-created_at', '-pk')
         return JsonResponse({'ok': True, 'project': _project_payload(project), 'tasks': [_task_payload(item) for item in tasks]})
     if not request.user.is_admin():
         return JsonResponse({'ok': False, 'error': 'Seul le responsable modifie un projet.'}, status=403)
@@ -533,7 +533,7 @@ def tasks_view(request):
     if denied:
         return denied
     if request.method == 'GET':
-        rows = _task_qs(request.user).exclude(status='cancelled')
+        rows = _task_qs(request.user).exclude(status='cancelled').order_by('-created_at', '-pk')
         query = (request.GET.get('q') or '').strip()
         status = (request.GET.get('status') or '').strip()
         project_id = request.GET.get('project') or ''

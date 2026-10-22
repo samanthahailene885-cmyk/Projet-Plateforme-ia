@@ -41,6 +41,15 @@ class WorkFlowTests(TestCase):
         self.assertEqual(created.status_code, 200, created.content)
         project_id = created.json()['project']['id']
 
+        earlier = Task.objects.create(
+            title='Ancienne activité',
+            project_id=project_id,
+            assigned_to=self.awa,
+            priority='urgent',
+            status='todo',
+            due_date=self.today,
+            created_by=self.admin,
+        )
         brief = SimpleUploadedFile('Brief_Marenova.pdf', b'%PDF-1.4 brief', content_type='application/pdf')
         assigned = self.client.post('/api/taches/', data={
             'title': 'Préparer le visuel principal',
@@ -55,6 +64,10 @@ class WorkFlowTests(TestCase):
         task_id = assigned.json()['task']['id']
         document_id = assigned.json()['task']['documents'][0]['id']
         self.assertIn('Awa', assigned.json()['message'])
+        listing = self.client.get('/api/taches/')
+        self.assertEqual(listing.json()['tasks'][0]['id'], task_id)
+        self.assertNotEqual(listing.json()['tasks'][0]['id'], earlier.pk)
+        earlier.delete()
 
         self.client.logout()
         self.client.login(username='awa-flow', password='testpass123')
