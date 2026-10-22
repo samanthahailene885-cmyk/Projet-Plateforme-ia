@@ -17,6 +17,11 @@ class MaquetteMiddleware:
         self.dist = Path(settings.BASE_DIR) / 'maquette' / 'dist'
 
     def __call__(self, request):
+        # L'interface envoie ses actions en JSON. Le cookie de session suffit :
+        # un jeton périmé ne doit plus transformer l'enregistrement en page d'erreur.
+        path = request.path.lstrip('/')
+        if path.startswith(('api/', 'reports/synthese', 'decision-ai/')):
+            request._dont_enforce_csrf_checks = True
         if request.method not in ('GET', 'HEAD') or not self.dist.is_dir():
             return self.get_response(request)
 

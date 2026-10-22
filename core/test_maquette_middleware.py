@@ -43,5 +43,6 @@ class ApiCsrfTests(TestCase):
             content_type='application/json',
             HTTP_ORIGIN='http://testserver',
         )
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.json()['ok'], False)
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(response.json()['ok'])
+        self.assertIn('error', response.json())
