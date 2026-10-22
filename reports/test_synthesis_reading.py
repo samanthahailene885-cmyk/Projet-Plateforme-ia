@@ -87,7 +87,10 @@ class SynthesisReadingTests(TestCase):
             _report('Mme Aminata Sangaré', content="J'ai poursuivi la maquette du projet Campagne."),
             _report('M. Awa Traoré', content="J'ai préparé les visuels du projet Campagne."),
         ]))
-        self.assertEqual(text.count('Projet : Campagne'), 1)
+        self.assertIn('Campagne', text)
+        self.assertIn('Résumé général', text)
+        self.assertIn('2. Activités réalisées', text)
+        self.assertIn('6. Conclusion et recommandations', text)
         self.assertIn('Mme Aminata Sangaré', text)
         self.assertIn('M. Awa Traoré', text)
         self.assertNotIn('Aucune activité terminée', text)
@@ -99,8 +102,8 @@ class SynthesisReadingTests(TestCase):
         ]))
         self.assertIn('CuisineFacile', text)
         self.assertIn('Marenova', text)
-        self.assertIn('Projet : CuisineFacile', text)
-        self.assertIn('Projet : Marenova', text)
+        self.assertIn('2. Activités réalisées', text)
+        self.assertLess(text.find('CuisineFacile'), text.find('Marenova'))
 
     def test_difficulties_are_separated_from_achievements(self):
         text = compose_team_synthesis(_dossier(self.day, [
@@ -110,6 +113,12 @@ class SynthesisReadingTests(TestCase):
             ),
         ]))
         self.assertIn('préparation', text.lower())
+        self.assertIn('4. Difficultés signalées', text)
+        self.assertLess(
+            text.lower().find('préparation'),
+            text.find('4. Difficultés signalées'),
+        )
+        self.assertIn('bloque', text.lower())
         self.assertNotIn('Situation des projets', text)
         self.assertNotIn('Actions recommandées', text)
 
@@ -120,8 +129,10 @@ class SynthesisReadingTests(TestCase):
                 content="J'ai finalisé la page d'accueil et je poursuis la newsletter du projet Campagne.",
             ),
         ]))
-        self.assertIn('réalisation confirmée', text)
-        self.assertIn('activité en cours', text)
+        self.assertIn('2. Activités réalisées', text)
+        self.assertIn('3. Activités en cours', text)
+        self.assertLess(text.find("page d'accueil"), text.find('3. Activités en cours'))
+        self.assertLess(text.find('3. Activités en cours'), text.find('newsletter'))
         self.assertIn("page d'accueil", text)
         self.assertIn('newsletter', text)
 
@@ -160,14 +171,17 @@ class SynthesisReadingTests(TestCase):
         dossier = _dossier(self.day, reports)
         text = compose_team_synthesis(dossier)
         prompt = synthesis_prompt(dossier)
-        self.assertIn('40 rapports ont été soumis', text)
+        self.assertIn('40 rapports journaliers', text)
+        self.assertIn('Résumé général', text)
+        self.assertIn('2. Activités réalisées', text)
+        self.assertIn('6. Conclusion et recommandations', text)
         self.assertNotIn('Participation aux rapports', text)
         self.assertIn('Employé 1', prompt)
         self.assertIn('Employé 40', prompt)
-        for index in range(1, 41):
-            self.assertIn(f'Employé {index}', text)
+        self.assertIn('lot 1', text)
+        self.assertIn('lot 40', text)
         self.assertNotIn('détail des rapports sources', text)
-        self.assertLess(len(text.split('### A. Synthèse exécutive')[1].split('### B.')[0]), 1200)
+        self.assertLess(len(text.split('Résumé général')[1].split('2. Activités réalisées')[0]), 1200)
         self.assertNotIn('Aucune activité terminée', text)
         self.assertEqual(prompt.count("Rédige une seule synthèse"), 1)
 

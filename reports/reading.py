@@ -8,12 +8,6 @@ import unicodedata
 from datetime import date, datetime
 
 
-_DISCLAIMER = (
-    "Lecture directe des rapports soumis. "
-    "Ce texte reprend uniquement les faits écrits ou enregistrés. "
-    "Ce n'est pas une analyse générative."
-)
-
 _FILE_NOTE = re.compile(r'^fichier import[ée]\s*:', re.IGNORECASE)
 _HEADING = re.compile(r'^\d{1,2}\s*[—–-]\s+\S')
 _PROJECT = re.compile(
@@ -633,57 +627,241 @@ def _brief(dossier, work, difficulties, notes, projects, gaps):
     return ' '.join(sentences[:5])
 
 
-def _bullet(item):
-    return f"- {item['author']} — {_label(item)} : {item['text']}"
+_THEMES = (
+    ('Graphisme', ('visuel', 'affiche', 'graphi', 'logo', 'illustration', 'charte')),
+    ('Community management', (
+        'publication', 'facebook', 'instagram', 'reseau social', 'reseaux sociaux',
+        'calendrier editorial', 'community', 'communique',
+    )),
+    ('Développement web', (
+        'page', 'site', 'affichage', 'mobile', 'interface', 'integration',
+        'developpement', 'maquette', 'web',
+    )),
+    ('Communication et marketing', (
+        'campagne', 'marketing', 'communication', 'client', 'proposition',
+    )),
+)
+
+_THEME_PHRASE = {
+    'Graphisme': 'à la création graphique',
+    'Community management': 'à la gestion des réseaux sociaux',
+    'Développement web': 'au développement web',
+    'Communication et marketing': 'à la communication digitale',
+}
+
+
+def _theme(item):
+    folded = _fold(f"{item.get('text') or ''} {item.get('project') or ''}")
+    for label, words in _THEMES:
+        if any(word in folded for word in words):
+            return label
+    return 'Autres activités'
+
+
+def _plain_activity(text):
+    cleaned = re.sub(r'\s*\([^)]{0,120}\)', '', text or '')
+    return _clean(cleaned).strip(' .')
+
+
+def _phrases(items, with_authors):
+    phrases = []
+    seen = set()
+    for item in items:
+        phrase = _plain_activity(item.get('text'))
+        if not phrase:
+            continue
+        key = _fold(phrase)
+        if key in seen:
+            continue
+        seen.add(key)
+        if with_authors and item.get('author'):
+            phrase = f'{phrase} ({item["author"]})'
+        phrases.append(phrase)
+    return phrases
+
+
+def _theme_lines(items, with_authors):
+    groups = {}
+    order = []
+    for item in items:
+        theme = _theme(item)
+        if theme not in groups:
+            order.append(theme)
+            groups[theme] = []
+        groups[theme].append(item)
+    lines = []
+    for theme in order:
+        phrases = _phrases(groups[theme], with_authors)
+        if not phrases:
+            continue
+        if len(phrases) > 4:
+            shown = phrases[:3]
+            if phrases[-1] not in shown:
+                shown.append(phrases[-1])
+            extra = len(phrases) - len(shown)
+            body = _join(shown)
+            if extra:
+                body += (
+                    f", et {extra} autre{'s' if extra > 1 else ''} "
+                    f"activité{'s' if extra > 1 else ''} du même ordre"
+                )
+        else:
+            body = _join(phrases)
+        lines.append(f'- {theme} : {body}.')
+    return lines
+
+
+def _general_summary(dossier, reading):
+    day = _period(dossier.get('date'))
+    count = len(dossier.get('reports') or [])
+    work = reading['work']
+    themes = []
+    for item in work:
+        theme = _theme(item)
+        if theme not in themes:
+            themes.append(theme)
+    if count > 1:
+        opening = f'Les {count} rapports journaliers transmis pour le {day}'
+    elif count == 1:
+        opening = f'Le rapport journalier transmis pour le {day}'
+    else:
+        opening = f'Les rapports transmis pour le {day}'
+    named = [theme for theme in themes if theme != 'Autres activités']
+    plural = count != 1
+    if named:
+        verb = 'font' if plural else 'fait'
+        sentence = (
+            f"{opening} {verb} état d’activités liées "
+            f"{_join(_THEME_PHRASE.get(theme, theme) for theme in named)}."
+        )
+    elif work:
+        verb = 'décrivent' if plural else 'décrit'
+        sentence = f'{opening} {verb} les travaux déclarés par l’équipe.'
+    else:
+        verb = 'ne décrivent pas' if plural else 'ne décrit pas'
+        sentence = f'{opening} {verb} de travaux identifiables.'
+    projects = [name for name in reading.get('projects') or [] if name]
+    if projects:
+        sentence += f" Les projets cités sont {_join(projects[:6])}."
+    confirmed = [item for item in work if item['kind'] == 'confirmed']
+    open_work = [item for item in work if item['kind'] != 'confirmed']
+    if confirmed and open_work:
+        sentence += (
+            ' Certaines réalisations sont confirmées. '
+            'D’autres éléments restent des préparations ou des travaux en cours.'
+        )
+    elif work and not confirmed:
+        sentence += ' Aucun livrable n’est explicitement confirmé comme terminé.'
+    return sentence
 
 
 def render_synthesis(dossier):
     reading = ensure_reading(dossier)
     day = _period(dossier.get('date'))
-    parts = [
-        _DISCLAIMER,
-        '',
-        f"### Synthèse de la journée — {day}",
-        '',
-        '### A. Synthèse exécutive',
-        '',
-        reading['brief'],
-    ]
     work = reading['work']
-    authors = {}
-    for item in work:
-        authors.setdefault(item['author'] or 'Employé', []).append(item)
+    authors = {
+        item.get('author')
+        for item in work
+        if item.get('author')
+    }
     for report in dossier.get('reports') or []:
-        authors.setdefault(report.get('name') or 'Employé', [])
-    if authors:
-        parts.extend(['', '### B. Avancées majeures', ''])
+        if report.get('name'):
+            authors.add(report['name'])
+    with_authors = 0 < len(authors) <= 8
+    done = [item for item in work if item['kind'] in {'confirmed', 'preparing', 'described'}]
+    ongoing = [item for item in work if item['kind'] == 'ongoing']
+    difficulties = reading.get('difficulties') or []
+    gaps = reading.get('gaps') or []
+    missing = int(dossier.get('missing') or 0)
 
-        def project_of(rows):
-            for item in rows:
-                if item.get('project'):
-                    return item['project']
-            return 'Projet non renseigné'
+    parts = ['Résumé général', '', _general_summary(dossier, reading), '', '2. Activités réalisées', '']
+    if done:
+        if not any(item['kind'] == 'confirmed' for item in done):
+            parts.append(
+                'Les rapports décrivent les préparations et les travaux suivants. '
+                'Aucun livrable n’est explicitement confirmé comme terminé.'
+            )
+            parts.append('')
+        parts.extend(_theme_lines(done, with_authors))
+    elif ongoing:
+        parts.append('Aucune activité n’est confirmée comme terminée dans les rapports reçus.')
+    else:
+        parts.append('Les rapports reçus ne décrivent pas de travaux identifiables.')
 
-        ordered = sorted(authors.items(), key=lambda pair: (project_of(pair[1]), pair[0]))
-        current = None
-        for author, rows in ordered:
-            project = project_of(rows)
-            if project != current:
-                if current is not None:
-                    parts.append('')
-                parts.append(f'Projet : {project}')
-                current = project
-            if not rows:
-                parts.append(f'- {author} — rapport soumis, sans activité distincte identifiable.')
-                continue
-            for item in rows[:4]:
-                parts.append(_bullet(item))
-            extra = len(rows) - 4
-            if extra > 0:
-                parts.append(
-                    f"- {author} — {extra} autre{'s' if extra > 1 else ''} "
-                    f"activité{'s' if extra > 1 else ''} dans son rapport."
-                )
+    parts.extend(['', '3. Activités en cours', ''])
+    ongoing_phrases = _phrases(ongoing, with_authors)
+    if ongoing_phrases:
+        shown = ongoing_phrases[:6]
+        extra = len(ongoing_phrases) - len(shown)
+        shown = [phrase[:1].upper() + phrase[1:] if phrase else phrase for phrase in shown]
+        sentence = (
+            'Certaines tâches restent en cours de réalisation : '
+            f'{_join(shown)}.'
+        )
+        if extra == 1:
+            sentence += ' Une autre activité reste également ouverte.'
+        elif extra:
+            sentence += f' {extra} autres activités restent également ouvertes.'
+        sentence += (
+            ' Leur état d’avancement doit être vérifié à partir des rapports '
+            'et des statuts des tâches enregistrées.'
+        )
+        parts.append(sentence)
+    elif done:
+        parts.append(
+            'Les éléments décrits restent des préparations ou des travaux non clos. '
+            'Leur avancement doit être vérifié à partir des rapports '
+            'et des statuts des tâches enregistrées.'
+        )
+    else:
+        parts.append('Les rapports reçus ne décrivent pas d’activité encore ouverte.')
+
+    parts.extend(['', '4. Difficultés signalées', ''])
+    if difficulties:
+        for item in difficulties[:8]:
+            author = item.get('author') or 'Un employé'
+            parts.append(f'{author} signale : {_plain_activity(item.get("text"))}.')
+        extra = len(difficulties) - 8
+        if extra > 0:
+            label = 'autre difficulté figure' if extra == 1 else 'autres difficultés figurent'
+            parts.append(f'{extra} {label} dans les rapports.')
+    else:
+        parts.append('Aucune difficulté n’a été signalée dans les rapports reçus.')
+
+    parts.extend(['', '5. Points nécessitant l’attention du responsable', ''])
+    if ongoing or any(item['kind'] != 'confirmed' for item in work):
+        parts.append('- Vérifier les activités qui ne sont pas confirmées comme terminées.')
+    if difficulties:
+        parts.append('- Traiter les difficultés signalées avant de considérer les livrables comme prêts.')
+    projects = [name for name in reading.get('projects') or [] if name]
+    if projects:
+        parts.append(
+            f'- S’assurer que les activités des projets cités avancent : {_join(projects[:6])}.'
+        )
+    if missing == 1:
+        parts.append(
+            '- Consulter le rapport non soumis avant de conclure sur l’activité de toute l’équipe.'
+        )
+    elif missing:
+        parts.append(
+            f'- Consulter les {missing} rapports non soumis avant de conclure sur l’activité de toute l’équipe.'
+        )
+    for gap in gaps[:4]:
+        parts.append(f'- {gap}')
+    if parts[-1] == '':
+        parts.append('- Aucun point particulier n’est ressorti des rapports reçus.')
+
+    parts.extend(['', '6. Conclusion et recommandations', ''])
+    closing = (
+        f'Les rapports du {day} permettent d’obtenir une vue d’ensemble des activités déclarées. '
+        'Il est recommandé de vérifier les activités non confirmées comme terminées'
+    )
+    if difficulties:
+        closing += ', de traiter les difficultés signalées'
+    if missing:
+        closing += ' et de consulter les rapports non soumis'
+    closing += '.'
+    parts.append(closing)
     return '\n'.join(parts).strip() + '\n'
 
 

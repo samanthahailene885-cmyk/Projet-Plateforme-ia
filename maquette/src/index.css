@@ -1759,6 +1759,8 @@ tbody tr:hover td { background: rgba(37, 99, 235, 0.08); }
 .lp-synth h3 { font-family: Manrope, sans-serif; font-size: 15px; margin: 18px 0 4px; color: #14213d; }
 .lp-synth h3:first-child { margin-top: 0; }
 .lp-synth p { color: #4d5b73; font-size: 14px; line-height: 1.55; margin: 0 0 8px; }
+.lp-synth ul { margin: 0 0 8px; padding-left: 18px; color: #4d5b73; }
+.lp-synth li { font-size: 14px; line-height: 1.55; margin: 0 0 6px; }
 
 .team-mail { color: #14213d; }
 .team-mail-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }

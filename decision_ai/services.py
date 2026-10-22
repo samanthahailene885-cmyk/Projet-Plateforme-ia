@@ -77,16 +77,30 @@ REMARK_SYSTEM = (
 )
 
 SYNTHESIS_SYSTEM = (
-    "Tu rédiges une synthèse globale d'aide à la décision pour le responsable. "
-    "Tu regroupes les travaux similaires au lieu de résumer chaque rapport séparément. "
-    "Tu t'appuies sur le texte lu dans les documents, les notes et les faits déjà extraits. "
-    "Un statut de tâche vide ne signifie pas qu'aucun travail n'a été décrit. "
+    "Tu rédiges la synthèse des rapports journaliers pour le responsable de RAC'IN Africa. "
+    "Tu regroupes les travaux par métier, au lieu de résumer chaque employé séparément. "
+    "Tu t'appuies uniquement sur les rapports, les notes et les faits fournis. "
+    "Tu n'inventes aucune activité, aucun employé, aucun projet, aucun retard, "
+    "aucune difficulté et aucun chiffre. "
     "Tu ne présentes pas une réflexion ou une préparation comme un livrable terminé. "
-    "Tu n'inventes aucun fait, employé, projet, retard, difficulté ou résultat. "
-    "Tu n'attribues aucun pourcentage. "
-    "Tu distingues clairement les recommandations des faits. "
-    "Si le texte d'un fichier n'a pas pu être lu, tu le dis sans le reconstituer. "
-    "Tu écris en français, de façon concise, sans juger les employés."
+    "Tu n'attribues aucun pourcentage et tu ne juges pas les employés. "
+    "Si aucune difficulté n'est écrite, tu l'indiques explicitement. "
+    "Un rapport non soumis n'est pas une absence. "
+    "Tu suis exactement ce plan, avec ces titres, dans cet ordre : "
+    "Résumé général ; "
+    "2. Activités réalisées ; "
+    "3. Activités en cours ; "
+    "4. Difficultés signalées ; "
+    "5. Points nécessitant l'attention du responsable ; "
+    "6. Conclusion et recommandations. "
+    "Le résumé général est un paragraphe. "
+    "Les activités réalisées sont des puces par métier réellement présent "
+    "(Graphisme, Community management, Développement web, Communication et marketing). "
+    "Les activités en cours forment un paragraphe. "
+    "Les difficultés forment un ou deux paragraphes. "
+    "Les points d'attention sont des puces tirées des faits. "
+    "La conclusion est un paragraphe de recommandations, séparé des faits. "
+    "Tu écris en français."
 )
 
 SUMMARY_SYSTEM = (
@@ -135,10 +149,10 @@ TEAM_SYNTHESIS_SYSTEM = (
     "Si aucune difficulté n'est présente, écris qu'aucune difficulté n'a été signalée. "
     "N'écris pas qu'une activité est en cours si le décompte en cours est 0. "
     "N'écris pas qu'un projet concentre l'activité si aucun projet n'est fourni. "
-    "Réponds en français, en quatre à six paragraphes continus, sans puces. "
-    "Commence par le titre « Synthèse de la journée », puis le bilan des activités réalisées, "
-    "puis les activités encore en cours s'il y en a, puis les difficultés réellement présentes, "
-    "puis les projets réellement cités, puis une conclusion qui donne une vision globale de la journée."
+    "Réponds en français avec les titres Résumé général, "
+    "2. Activités réalisées, 3. Activités en cours, 4. Difficultés signalées, "
+    "5. Points nécessitant l'attention du responsable, "
+    "6. Conclusion et recommandations."
 )
 
 
@@ -400,7 +414,12 @@ class DecisionAIService:
 
     def synthesize_submitted_reports(self, day):
         """Une synthèse d'équipe à partir des rapports soumis dans la base."""
-        from reports.synthesis import collect_team_synthesis, compose_team_synthesis, synthesis_prompt
+        from reports.synthesis import (
+            collect_team_synthesis,
+            compose_team_synthesis,
+            synthesis_has_expected_shape,
+            synthesis_prompt,
+        )
 
         dossier = collect_team_synthesis(day)
         if dossier['analyzed'] == 0:
@@ -410,9 +429,11 @@ class DecisionAIService:
         if self._uses_local_model():
             self.timeout = min(previous_timeout, 20)
         try:
-            text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1400)
+            text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1600)
             if not (text or '').strip():
                 raise AIServiceError("Le modèle n'a renvoyé aucun texte.")
+            if not synthesis_has_expected_shape(text):
+                raise AIServiceError("Le modèle n'a pas suivi le plan de synthèse.")
             dossier['generative'] = True
         except AIServiceError as exc:
             text = fallback

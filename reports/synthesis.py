@@ -15,6 +15,7 @@ from reports.models import DailyReport
 SYNTHESIS_TYPE = 'team_daily_synthesis'
 
 _TITLE_COUNT = re.compile(r'\((\d+) rapports?\)')
+_NUMBERED_HEADING = re.compile(r'^\d+\.\s+\S.{0,120}$')
 
 
 def _person_name(user):
@@ -226,10 +227,20 @@ def synthesis_prompt(dossier):
     lines.extend([
         '',
         "Rédige une seule synthèse globale, pas une succession de résumés individuels.",
-        "Réponds uniquement avec ces deux sections :",
-        "### A. Synthèse exécutive",
-        "### B. Avancées majeures",
-        "N'ajoute pas de situation des projets, de points de vigilance, de recommandations ni de participation.",
+        "Reproduis exactement ces titres, dans cet ordre, sans en ajouter :",
+        "Résumé général",
+        "2. Activités réalisées",
+        "3. Activités en cours",
+        "4. Difficultés signalées",
+        "5. Points nécessitant l'attention du responsable",
+        "6. Conclusion et recommandations",
+        "Le résumé général est un paragraphe sur les métiers réellement présents.",
+        "Les activités réalisées sont des puces, une par métier cité dans les rapports.",
+        "Les activités en cours forment un paragraphe.",
+        "Les difficultés reprennent uniquement les remarques écrites. "
+        "S'il n'y en a pas, écris qu'aucune difficulté n'a été signalée.",
+        "Les points d'attention sont des puces concrètes, tirées des faits.",
+        "La conclusion est un paragraphe de recommandations, séparé des faits.",
         "Le texte lu dans chaque fichier est la source principale. Les statuts vides ne prouvent pas l'absence de travail.",
         "Ne présente pas une réflexion ou une préparation comme un livrable terminé.",
         "Si le texte d'un fichier n'a pas pu être lu, dis-le et ne reconstitue pas le document à partir de son nom.",
@@ -240,6 +251,19 @@ def synthesis_prompt(dossier):
         prompt_facts(dossier),
     ])
     return '\n'.join(lines)
+
+
+def synthesis_has_expected_shape(text):
+    folded = (text or '').replace('’', "'").replace('‘', "'")
+    required = (
+        'Résumé général',
+        'Activités réalisées',
+        'Activités en cours',
+        'Difficultés signalées',
+        "Points nécessitant l'attention du responsable",
+        'Conclusion et recommandations',
+    )
+    return all(title in folded for title in required)
 
 
 def compose_team_synthesis(dossier):
@@ -287,6 +311,10 @@ def synthesis_to_html(text):
         if line.startswith('### '):
             flush()
             blocks.append(f'<h3>{html.escape(line[4:].strip())}</h3>')
+            continue
+        if line == 'Résumé général' or _NUMBERED_HEADING.match(line):
+            flush()
+            blocks.append(f'<h3>{html.escape(line)}</h3>')
             continue
         if line.startswith('- '):
             if paragraph:
