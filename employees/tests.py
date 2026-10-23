@@ -102,3 +102,32 @@ class DemoDataTests(TestCase):
         self.assertEqual(Project.objects.filter(is_demo=True).count(), 0)
         self.assertTrue(User.objects.filter(username='sophie-reelle').exists())
         self.assertTrue(Employee.objects.filter(user=self.real).exists())
+
+    def test_generate_gives_zaina_today_work_and_reset_keeps_her_account(self):
+        from reports.models import DailyReport
+        from tasks.models import Task
+
+        zaina_user = User.objects.create_user(
+            username='nouzou', password='nabihouddine', role='employee',
+            first_name='Zaina', last_name='Zaina',
+        )
+        zaina = Employee.objects.create(
+            user=zaina_user, position='designer', department='Création',
+            hire_date=timezone.now().date(), status='active',
+        )
+        from employees.demo import generate_demo_data, reset_demo_data
+
+        generate_demo_data(employee_count=5, project_count=3, task_count=20, days=7)
+        today = timezone.localdate()
+        self.assertFalse(zaina_user.is_demo)
+        self.assertTrue(Task.objects.filter(
+            assigned_to=zaina, planned_date=today, project__is_demo=True,
+        ).exists())
+        self.assertTrue(DailyReport.objects.filter(employee=zaina_user, date=today).exclude(content='').exists())
+        self.assertTrue(zaina.projects.filter(is_demo=True).exists())
+
+        reset_demo_data()
+        zaina_user.refresh_from_db()
+        self.assertTrue(User.objects.filter(pk=zaina_user.pk, is_demo=False).exists())
+        self.assertFalse(Task.objects.filter(assigned_to=zaina, project__is_demo=True).exists())
+        self.assertFalse(DailyReport.objects.filter(employee=zaina_user, date=today).exists())

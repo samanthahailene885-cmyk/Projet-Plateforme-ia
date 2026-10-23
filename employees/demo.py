@@ -167,10 +167,33 @@ def demo_counts():
     }
 
 
+def _clear_traces_on_real_accounts():
+    """Retire le travail de démonstration posé sur un compte réel, sans supprimer le compte."""
+    demo_tasks = Task.objects.filter(project__is_demo=True).exclude(assigned_to__user__is_demo=True)
+    seen = set()
+    for employee_id, day in demo_tasks.exclude(planned_date__isnull=True).values_list('assigned_to_id', 'planned_date'):
+        if not employee_id or (employee_id, day) in seen:
+            continue
+        seen.add((employee_id, day))
+        DailyPlan.objects.filter(employee_id=employee_id, date=day).delete()
+        user_id = Employee.objects.filter(pk=employee_id).values_list('user_id', flat=True).first()
+        if user_id:
+            DailyReport.objects.filter(employee_id=user_id, date=day).delete()
+    PermissionRequest.objects.filter(
+        reason__startswith='Demande de démonstration',
+        employee__user__is_demo=False,
+    ).delete()
+    Attendance.objects.filter(
+        notes='Absence enregistrée pour la démonstration.',
+        employee__user__is_demo=False,
+    ).delete()
+
+
 def reset_demo_data():
     """Supprime uniquement les enregistrements marqués comme démonstration."""
     counts = demo_counts()
     with transaction.atomic():
+        _clear_traces_on_real_accounts()
         Difficulty.objects.filter(is_demo=True).delete()
         Difficulty.objects.filter(employee__user__is_demo=True).delete()
         Task.objects.filter(project__is_demo=True).delete()
@@ -301,12 +324,13 @@ def _titles_for(employee, rng):
     return pool
 
 
-def _create_tasks(rng, employees, projects, today, days, task_count):
+def _create_tasks(rng, employees, projects, today, days, task_count, keep_present=None):
     active = [employee for employee in employees if employee.status == 'active']
     dates = _dates(today, days)
-    rng.shuffle(active)
-    missing_count = 1 if len(active) <= 3 else max(2, len(active) // 3)
-    missing_today = set(active[:missing_count])
+    pool = [employee for employee in active if keep_present is None or employee.pk != keep_present.pk]
+    rng.shuffle(pool)
+    missing_count = 1 if len(pool) <= 3 else max(2, len(pool) // 3)
+    missing_today = set(pool[:missing_count])
     present_today = [employee for employee in active if employee not in missing_today]
     titles = {employee.pk: _titles_for(employee, rng) for employee in active}
 
@@ -318,7 +342,11 @@ def _create_tasks(rng, employees, projects, today, days, task_count):
         return pool.pop()
 
     planned = []
+    if keep_present is not None and keep_present in active:
+        planned.append((keep_present, today, 'today'))
     for employee in present_today:
+        if keep_present is not None and employee.pk == keep_present.pk:
+            continue
         planned.append((employee, today, 'today'))
     if present_today and dates[0] < today:
         planned.append((present_today[0], dates[0], 'late'))
@@ -525,7 +553,10 @@ def _attach_documents(tasks):
             )
             document.file.save(name, ContentFile(data), save=True)
             briefs += 1
-    reports = DailyReport.objects.filter(employee__is_demo=True).select_related('employee')
+    report_users = set(
+        Task.objects.filter(project__is_demo=True, assigned_to__isnull=False).values_list('assigned_to__user_id', flat=True)
+    )
+    reports = DailyReport.objects.filter(employee_id__in=report_users).select_related('employee')
     for report in reports:
         user = report.employee
         name = f'Rapport_{report.date:%Y%m%d}_{_file_slug(user.last_name)}.pdf'
@@ -573,7 +604,15 @@ def generate_demo_data(employee_count, project_count, task_count, days):
     with _without_admin_notifications():
         employees = _create_employees(rng, employee_count, today)
         projects = _create_projects(rng, project_count, employees, today)
-        tasks, missing_today = _create_tasks(rng, employees, projects, today, days, task_count)
+        zaina = _zaina_employee()
+        if zaina is not None:
+            employees.append(zaina)
+            host = next((project for project in projects if project.status == 'in_progress'), projects[0] if projects else None)
+            if host is not None:
+                host.assigned_employees.add(zaina)
+        tasks, missing_today = _create_tasks(
+            rng, employees, projects, today, days, task_count, keep_present=zaina,
+        )
         plans, reports = _create_plans_and_reports(rng, today)
         permissions = _create_permissions(rng, employees, today)
         difficulties = _create_difficulties()
@@ -581,7 +620,7 @@ def generate_demo_data(employee_count, project_count, task_count, days):
         _mark_one_recorded_absence(missing_today, today)
     alerts = len(collect_alerts(today))
     return {
-        'employees': len(employees),
+        'employees': employee_count,
         'projects': len(projects),
         'tasks': len(tasks),
         'plans': plans,
@@ -591,4 +630,11 @@ def generate_demo_data(employee_count, project_count, task_count, days):
         'difficulties': difficulties,
         'alerts': alerts,
         'password': DEMO_PASSWORD,
+        'includes_zaina': zaina is not None,
     }
+
+
+def _zaina_employee():
+    """Le compte ouvert par le bouton Vue employé. Il n'est jamais marqué démonstration."""
+    from core.work_api import _ensure_zaina
+    return _ensure_zaina()

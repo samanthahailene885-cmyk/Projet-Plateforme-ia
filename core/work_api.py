@@ -1421,7 +1421,8 @@ def demonstration_view(request):
         'message': (
             f"{summary['employees']} employés, {summary['projects']} projets, "
             f"{summary['tasks']} tâches, {summary['reports']} rapports et "
-            f"{summary['documents']} documents ont été préparés pour le tableau de bord."
+            f"{summary['documents']} documents ont été préparés pour le tableau de bord. "
+            "Le compte de Zaina a aussi reçu des tâches et un rapport."
         ),
         **summary,
     })

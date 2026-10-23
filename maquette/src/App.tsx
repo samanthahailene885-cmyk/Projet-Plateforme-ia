@@ -3299,7 +3299,7 @@ function DemoPage({ onNavigate }: { onNavigate: Go }) {
     setBusy(false)
   }
   return (
-    <GenericPage title="Générateur de données" subtitle="Prépare un tableau de bord explicable : projets, tâches, rapports et documents PDF. Les comptes déjà présents, dont Zaina, restent en place.">
+    <GenericPage title="Générateur de données" subtitle="Prépare projets, tâches, rapports et documents PDF. Le compte de Zaina est inclus, pour que la vue employé montre son travail.">
       <div className="stack" style={{ maxWidth: 720 }}>
         <article className="card card-pad">
           <h2>Déjà préparées</h2>
