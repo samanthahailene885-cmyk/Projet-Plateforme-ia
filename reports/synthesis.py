@@ -95,11 +95,15 @@ def collect_team_synthesis(day):
             if task.status != 'cancelled'
         ]
         report = stored.get(person.user_id)
-        submitted = report is not None and bool((report.content or '').strip())
+        text = (report.content or '').strip() if report else ''
+        has_file = bool(report and report.uploaded_pdf)
+        submitted = report is not None and (has_file or bool(text and text != 'Rapport importé.'))
         if not tasks:
             without_activity += 1
         if not submitted:
             continue
+        if not text or text == 'Rapport importé.':
+            text = f"Rapport transmis : {report.original_name or 'fichier joint'}."
 
         done = [task for task in tasks if task.status == 'completed']
         doing = [task for task in tasks if task.status in IN_PROGRESS]
@@ -120,7 +124,7 @@ def collect_team_synthesis(day):
             'name': _person_name(user),
             'position': person.get_position_display(),
             'service': (person.department or '').strip() or 'Non renseigné',
-            'content': report.content.strip(),
+            'content': text,
             'document': _document_text(report),
             'id': report.pk,
             'filename': report.original_name or '',

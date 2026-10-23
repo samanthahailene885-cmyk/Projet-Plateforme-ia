@@ -20,6 +20,7 @@ urlpatterns = [
     path('taches/<int:pk>/documents/<int:document_id>/', work_api.task_document_view, name='work_task_document'),
     path('todos/', work_api.todos_view, name='work_todos'),
     path('rapports/', work_api.reports_view, name='work_reports'),
+    path('rapports/synthese/', work_api.reports_synthesis_view, name='work_reports_synthesis'),
     path('rapports/<int:pk>/fichier/', work_api.report_file_view, name='work_report_file'),
     path('permissions/', work_api.permissions_view, name='work_permissions'),
     path('permissions/<int:pk>/', work_api.permission_decide_view, name='work_permission'),

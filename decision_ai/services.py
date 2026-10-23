@@ -264,15 +264,10 @@ class DecisionAIService:
         try:
             with urllib.request.urlopen(request, timeout=self.hosted_timeout) as response:
                 raw = response.read().decode('utf-8')
-        except urllib.error.HTTPError as exc:
-            logger.warning('Le modèle hébergé a répondu HTTP %s.', exc.code)
+        except Exception:
+            logger.warning('Le modèle hébergé n’a pas répondu à temps.')
             raise AIServiceError(
                 "Le modèle hébergé n'a pas pu répondre. Aucun texte n'a été inventé."
-            )
-        except (urllib.error.URLError, TimeoutError, OSError):
-            logger.warning('Le modèle hébergé est injoignable.')
-            raise AIServiceError(
-                "Le modèle hébergé est indisponible. Aucun texte n'a été inventé."
             )
         try:
             data = json.loads(raw)
@@ -426,8 +421,12 @@ class DecisionAIService:
             raise NoSubmittedReportsError("Aucun rapport disponible pour cette date.")
         fallback = compose_team_synthesis(dossier)
         previous_timeout = self.timeout
+        previous_hosted = self.hosted_timeout
         if self._uses_local_model():
             self.timeout = min(previous_timeout, 20)
+        else:
+            # Render coupe la requête au bout d'une trentaine de secondes.
+            self.hosted_timeout = min(self.hosted_timeout, 18)
         try:
             text = self._complete(SYNTHESIS_SYSTEM, synthesis_prompt(dossier), max_tokens=1600)
             if not (text or '').strip():
@@ -441,6 +440,7 @@ class DecisionAIService:
             dossier['ai_error'] = str(exc)
         finally:
             self.timeout = previous_timeout
+            self.hosted_timeout = previous_hosted
         return text, dossier
 
     def generate_monthly_report(self):

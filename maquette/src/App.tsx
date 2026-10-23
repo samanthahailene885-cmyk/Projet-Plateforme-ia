@@ -3107,28 +3107,23 @@ function AiReportsPage() {
     const now = new Date()
     const day = reportDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     try {
-      const response = await fetch('/reports/synthese/', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken() },
-        body: new URLSearchParams({ date: day }),
-      })
-      const data = await response.json().catch(() => null) as { ok?: boolean; synthesis?: string; html?: string; error?: string; notice?: string; generative?: boolean } | null
-      if (!response.ok || !data?.ok || !data.synthesis) {
+      await ensureAdminSession()
+      const data = await deskCall('/api/rapports/synthese/', { method: 'POST', body: JSON.stringify({ date: day }) }) as { synthesis?: string; html?: string; notice?: string; generative?: boolean }
+      if (!data?.synthesis) {
         setText('')
         setHtml('')
         setNotice('')
-        setError(data?.error || 'Aucun rapport soumis ne permet de rédiger la synthèse.')
+        setError('Aucun rapport soumis ne permet de rédiger la synthèse.')
       } else {
         setText(data.synthesis)
         setHtml(data.html || '')
         setNotice(data.generative === false ? (data.notice || 'Lecture directe des rapports, pas une analyse générative.') : '')
       }
-    } catch {
+    } catch (reason) {
       setText('')
       setHtml('')
       setNotice('')
-      setError('La synthèse n’a pas pu être affichée.')
+      setError(reason instanceof Error ? reason.message : 'La synthèse n’a pas pu être affichée.')
     }
     setLoading(false)
   }

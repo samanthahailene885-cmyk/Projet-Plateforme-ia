@@ -29,6 +29,7 @@ from .synthesis import (
     SYNTHESIS_TYPE,
     analyzed_count_from_title,
     collect_team_synthesis,
+    compose_team_synthesis,
     synthesis_title,
     synthesis_to_html,
 )
@@ -426,20 +427,33 @@ SYNTHESIS_UNAVAILABLE = (
 )
 
 
-@admin_required
-@require_POST
-def team_synthesis(request):
-    """Synthèse unique des rapports soumis. L'échec de l'API ne produit aucun texte inventé."""
-    day = _parse_date(request.POST.get('date')) or timezone.localdate()
+def _dossier_with_reports(day):
+    """Le jour demandé, ou le dernier jour proche qui contient des rapports soumis."""
+    dossier = collect_team_synthesis(day)
+    if dossier['analyzed']:
+        return day, dossier
+    for offset in range(1, 15):
+        previous = day - timedelta(days=offset)
+        candidate = collect_team_synthesis(previous)
+        if candidate['analyzed']:
+            return previous, candidate
+    return day, dossier
+
+
+def team_synthesis_payload(user, day):
+    """JSON de la synthèse. Une panne du modèle renvoie la lecture des rapports."""
+    day, dossier = _dossier_with_reports(day)
+    if dossier['analyzed'] == 0:
+        return {'ok': False, 'error': 'Aucun rapport soumis ne permet de rédiger la synthèse.'}, 400
     try:
         text, dossier = DecisionAIService().synthesize_submitted_reports(day)
     except NoSubmittedReportsError as exc:
-        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
-    except AIServiceError:
-        return JsonResponse({'ok': False, 'error': SYNTHESIS_UNAVAILABLE}, status=503)
-
+        return {'ok': False, 'error': str(exc)}, 400
+    except Exception:
+        text = compose_team_synthesis(dossier)
+        dossier['generative'] = False
     summary = AISummary.objects.create(
-        generated_by=request.user,
+        generated_by=user,
         title=synthesis_title(day, dossier['analyzed']),
         content=text,
         summary_type=SYNTHESIS_TYPE,
@@ -463,7 +477,7 @@ def team_synthesis(request):
             'submitted_at': report.get('submitted_at') or '',
             'points': report.get('points') or [],
         })
-    return JsonResponse({
+    payload = {
         'ok': True,
         'synthesis': text,
         'html': synthesis_to_html(text),
@@ -482,7 +496,17 @@ def team_synthesis(request):
             'analyzed': dossier['analyzed'],
             'projects': dossier.get('reading', {}).get('projects') or dossier.get('projects') or [],
         },
-    })
+    }
+    return payload, 200
+
+
+@admin_required
+@require_POST
+def team_synthesis(request):
+    """Synthèse unique des rapports soumis. L'échec de l'API ne produit aucun texte inventé."""
+    day = _parse_date(request.POST.get('date')) or timezone.localdate()
+    payload, status = team_synthesis_payload(request.user, day)
+    return JsonResponse(payload, status=status)
 
 
 @admin_required

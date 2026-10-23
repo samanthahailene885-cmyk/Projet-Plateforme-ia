@@ -845,6 +845,19 @@ def todos_view(request):
     return JsonResponse({'ok': True, 'message': 'Activité ajoutée.', 'item': _task_payload(activity)})
 
 
+@require_POST
+def reports_synthesis_view(request):
+    """Synthèse des rapports visibles dans Rapports IA. Répond toujours en JSON."""
+    denied = _admin_only(request)
+    if denied:
+        return denied
+    data = _json_body(request)
+    day = _parse_date(data.get('date') or request.POST.get('date')) or timezone.localdate()
+    from reports.views import team_synthesis_payload
+    payload, status = team_synthesis_payload(request.user, day)
+    return JsonResponse(payload, status=status)
+
+
 @require_http_methods(['GET', 'POST'])
 def reports_view(request):
     denied = _deny(request)
